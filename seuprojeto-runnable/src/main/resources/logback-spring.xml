@@ -1,0 +1,25 @@
+<configuration>
+  <!-- Console Appender JSON com campos do MDC -->
+  <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <!-- Campos fixos da aplicação -->
+      <customFields>{"application":"contas-api"}</customFields>
+
+      <!-- Incluir campos do MDC -->
+      <includeMdcKeyName>correlationId</includeMdcKeyName>
+      <includeMdcKeyName>username</includeMdcKeyName>
+      <includeMdcKeyName>feature</includeMdcKeyName>
+      <includeMdcKeyName>requestId</includeMdcKeyName>
+    </encoder>
+  </appender>
+
+  <!-- Root logger: nível INFO, para dependências internas -->
+  <root level="INFO">
+    <appender-ref ref="JSON_STDOUT"/>
+  </root>
+
+  <!-- Habilitar DEBUG somente para seu pacote -->
+  <logger name="com.pacote" level="DEBUG"/>
+
+
+</configuration>
