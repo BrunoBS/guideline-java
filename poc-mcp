@@ -1,0 +1,282 @@
+Ideia de Produto — Plataforma de Gestão de Configurações via IA Conversacional
+
+Problema Atual
+
+Hoje existem múltiplas APIs para gerenciar configurações críticas de sistemas:
+API de Configurações: Chaves, parâmetros, feature toggles
+API de Menus: rvores de navegação externalizadas
+API de Promoção entre Ambientes: DEV → HOM → PROD
+
+
+Solução Proposta: Agente de IA Conversacional + MCPs (Model Context Protocol)
+
+Um agente via prompt capaz de:
+
+- Entender pedidos em linguagem natural
+- Consultar APIs internas via MCPs
+- Montar pacotes de promoção
+- Validar impactos
+- Gerar interfaces dinâmicas automaticamente
+- Executar ações com segurança
+
+
+O usuário não usa telas fixas.
+
+Ele conversa com o sistema:
+
+“Quero promover a configuração X do ambiente DEV para PROD”
+
+O agente:
+
+- Entende a intenção
+- Consulta as APIs
+- Gera um pacote de promoção
+- Solicita validação
+- Executa a operação
+- Registra auditoria
+
+ Proposta
+Usuário (Prompt)  > Agente de IA (LLM + System Prompt) - > MCP Tools Layer
+
+APIs existentes
+   - Chaves
+   - Menus
+   - Promoção
+
+
+MCP — Configurações
+
+- listar_configuracoes
+- buscar_configuracao_por_chave
+- criar_configuracao
+- editar_configuracao
+- remover_configuracao
+- historico de eventos (auditoria)
+
+MCP — Menus
+
+- listar_menus
+- buscar_arvore_menu
+- editar_menu
+- criar_item_menu
+- historico de eventos (auditoria)
+
+MCP — Promoção
+- comparar_ambientes
+- montar_pacote_promocao
+- validar_pacote
+- executar_promocao
+- historico de eventos (auditoria)
+
+
+Objetivo da POC
+
+Criar um MCP Server que permita ao agente consultar sua API de Configurações usando linguagem natural:
+
+“Busque a configuração PAYMENT_TIMEOUT da conta XPTO no ambiente PROD”
+O agente chama o MCP → MCP chama sua API → retorna dados estruturados.
+
+
+
+Definição da Tool (conceito)
+{
+  "name": "buscar_configuracao",
+  "description": "Busca uma configuração por nome, conta, aplicação e ambiente",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "nome": { "type": "string" },
+      "conta": { "type": "string" },
+      "aplicacao": { "type": "string" },
+      "ambiente": { "type": "string" }
+    },
+    "required": ["nome", "conta", "aplicacao", "ambiente"]
+  }
+}
+🧪 Exemplo de chamada
+
+O agente extrai do prompt:
+
+{
+  "nome": "PAYMENT_TIMEOUT",
+  "conta": "XPTO",
+  "aplicacao": "pagamentos",
+  "ambiente": "PROD"
+}
+🔌 Implementação do MCP — Linguagem ideal
+🥇 Melhor opção para POC: TypeScript / Node.js
+
+Resultado prático
+
+Usuário:
+
+“Qual o valor da configuração PAYMENT_TIMEOUT da conta XPTO no PROD?”
+
+O agente:
+
+Entende a intenção
+Chama buscar_configuracao
+Retorna a resposta
+
+⭐ Como deixar a POC impressionante
+
+Sugestão de funcionalidades mínimas:
+
+🔹 Nível 1 — Obrigatório
+
+✅ Buscar configuração
+✅ Mostrar valor atual
+✅ Funcionar via prompt
+
+🔹 Nível 2 — Muito impactante
+
+Adicionar tools:
+
+listar_configuracoes_por_aplicacao
+comparar_configuracao_entre_ambientes
+criar_configuracao
+atualizar_configuracao
+
+
+🧭 Estrutura ideal do MCP (POC)
+config-mcp/
+ ├── src/
+ │    ├── tools/
+ │    │    ├── buscarConfiguracao.ts
+ │    │    ├── listarConfiguracoes.ts
+ │    │    └── promoverConfiguracao.ts
+ │    ├── apiClient.ts
+ │    └── server.ts
+ ├── package.json
+🔐 Dica IMPORTANTÍSSIMA
+
+Não deixe o LLM decidir tudo.
+
+👉 O MCP deve conter a lógica segura:
+
+validação de ambiente
+autorização
+limites
+sanitização
+
+ UI Dirigida por IA (AI-Driven UI / Contract-Driven UI)
+
+👉 O agente não devolve só dados
+👉 Ele devolve um contrato de interface (JSON Schema)
+👉 Um MFE genérico renderiza a tela dinamicamente
+
+
+Renderer Universal, ele suporta componentes genéricos:
+
+-table
+-form
+-card
+-tree
+-review
+-confirmation dialog
+-wizard
+-diff viewer
+
+Isso permite telas infinitas sem deploy
+
+ - Sem criar novas páginas.
+ - Só mudar o prompt.
+
+
+Como GARANTIR que o agente retorne isso?
+
+- System Prompt extremamente restritivo
+    - Você deve instruir o agente:
+    - Nunca responder texto livre
+    - Sempre responder JSON válido
+    - Seguir contrato fixo
+    - Sem campos extras
+
+Exemplo COMPLETO — Consulta real
+
+Usuário: “Mostre as configurações da aplicação pagamentos em PROD”
+
+Resposta do agente:
+
+{
+  "component": "ConfigTable",
+  "props": {
+    "title": "Configurações — Pagamentos (PROD)",
+    "allowEdit": true,
+    "allowPromotion": true
+  },
+  "data": [
+    {
+      "nome": "PAYMENT_TIMEOUT",
+      "valor": "30",
+      "ambiente": "PROD"
+    },
+    {
+      "nome": "ENABLE_PIX",
+      "valor": "true",
+      "ambiente": "PROD"
+    }
+  ]
+}
+
+Observabilidade
+
+Logar:
+
+- prompt
+- tool usada
+- resposta
+- ação executada
+
+
+Arquitetura ideal:
+
+✔️ MCP → dados
+✔️ Agente → intenção + UI
+✔️ MFE → renderer universal
+
+
+Contexto explícito + IA apenas para intenção
+
+O portal já sabe:
+ - Quem é o usuário
+ - Conta
+ - Aplicação
+ - Ambiente (DEV/HOM/PROD)
+
+Fluxo do usuário
+ - Usuário entra no portal
+    Seleciona: Conta >  Aplicação > Ambiente;
+    Clica no botão  [IA] > Abre chat contextualizado Digita o prompt
+ - UI dinâmica é renderizada
+
+ - Contexto enviado ao agente
+
+Você envia junto com o prompt no system prompt, metadata, como tool context ou dentro da requisição para o MCP
+
+{
+  "context": {
+    "usuario": "bruno",
+    "conta": "XPTO",
+    "aplicacao": "pagamentos",
+    "ambiente": "PROD",
+    "authorization": {token usuario}  - O objetivo é que o MCP chame suas APIs “em nome do usuário”
+    },
+  "mensagem": "Mostre as configurações"
+}
+
+ Vantagens enormes dessa abordagem
+
+- Segurança, pois o usuário não consegue:
+    - acessar outra conta
+    -  acessar outro ambiente
+    - fazer prompt injection para mudar contexto
+
+- Simplicidade para o usuário
+    - Ele não precisa escrever: “Mostre as configs da conta XPTO…”
+    - Ele só precisaria escrever: “Mostre as configurações”
+
+- Melhor qualidade de resposta
+    - Menos ambiguidade
+    - Menos erros.
+
