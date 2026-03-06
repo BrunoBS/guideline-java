@@ -1,21 +1,37 @@
+# Fluxo de Onboarding – Portal com Botões por Ambiente
+
+## Descrição
+- Usuário cadastra conta e aplicação com **DEV obrigatório** e **HML/PROD opcionais**.  
+- Aplicação só libera HML/PROD se a **conta já tiver o mesmo ambiente configurado**.  
+- Tela do portal exibe **todos os ambientes lado a lado**, com botões indicando **configurado, disponível ou bloqueado**.  
+
+## Fluxo (Mermaid)
+
+```mermaid
 flowchart TD
-    %% Cadastro da Conta
-    A[Cadastrar Conta (básico)] --> B[Configurar Conta DEV ✅ Obrigatório]
-    B --> C[Configurar Conta HML ⬜ Opcional]
-    B --> D[Configurar Conta PROD ⬜ Opcional]
+    %% Tela única do portal - Conta
+    subgraph Portal_Conta["Portal: Seleção de Conta"]
+        A1[Conta: DEV ✅ Configurado] 
+        A2[Conta: HML ⬜ Opcional] 
+        A3[Conta: PROD ⬜ Opcional]
+    end
 
-    %% Cadastro da Aplicação
-    C --> E[Cadastrar Aplicação (básico)]
-    E --> F[Configurar Aplicação DEV ✅ Obrigatório] 
-    F --> G{Conta HML configurada?}
-    G -- Sim --> H[Configurar Aplicação HML ⬜ Opcional]
-    G -- Não --> I[Botão HML bloqueado 🔒]
-    F --> J{Conta PROD configurada?}
-    J -- Sim --> K[Configurar Aplicação PROD ⬜ Opcional]
-    J -- Não --> L[Botão PROD bloqueado 🔒]
+    %% Tela única do portal - Aplicação
+    subgraph Portal_Aplicacao["Portal: Aplicação"]
+        B1[Aplicação: DEV ✅ Obrigatório] 
+        B2{Conta HML configurada?}
+        B3[Aplicação: HML ⬜ Opcional] 
+        B4[Aplicação: HML 🔒 Bloqueado] 
+        B5{Conta PROD configurada?}
+        B6[Aplicação: PROD ⬜ Opcional] 
+        B7[Aplicação: PROD 🔒 Bloqueado] 
+    end
 
-    %% Final
-    H --> M[Acesso liberado à Aplicação]
-    K --> M
-    I --> M
-    L --> M
+    %% Conexões
+    A3 --> B1
+    B1 --> B2
+    B2 -- Sim --> B3
+    B2 -- Não --> B4
+    B1 --> B5
+    B5 -- Sim --> B6
+    B5 -- Não --> B7
