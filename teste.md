@@ -1,3 +1,28 @@
+
+A lógica que faz mais sentido para um fluxo fluido e consistente é:
+Conta:
+DEV: obrigatório (precisa para iniciar testes e herança para aplicações)
+HML/PROD: opcional (usuário pode configurar agora ou depois)
+Aplicação:
+DEV: obrigatório (aplicação só funciona se tiver DEV configurado)
+HML/PROD: opcional, mas só pode configurar se o mesmo ambiente da conta já estiver configurado
+Isso garante:
+Sempre há um ambiente DEV funcional para testes.
+Usuário não fica travado com HML/PROD se não quiser configurar de início.
+Aplicações herdam corretamente a configuração da conta.
+Se quiser, posso desenhar um fluxo completo enxuto mostrando obrigatórios e opcionais para conta e aplicação. Quer que eu faça?
+
+No modelo que faz mais sentido para uma experiência fluida, o onboarding termina quando o ambiente DEV estiver configurado, porque:
+DEV é obrigatório tanto na conta quanto na aplicação.
+Só com DEV configurado o usuário consegue iniciar testes e validar o funcionamento.
+HML e PROD são opcionais e podem ser configurados depois, sem travar o fluxo.
+Então:
+✅ Onboarding concluído = DEV configurado
+⬜ HML/PROD podem ser configurados depois → não bloqueiam o uso inicial da conta/aplicação.
+Isso garante rapidez e consistência, sem obrigar o usuário a configurar todos os ambientes antes de usar.
+
+
+
 Onboarding e Estrutura de Dados – Conta e Aplicação
 
 1. Fluxo de Onboarding – Portal com Botões por Ambiente
