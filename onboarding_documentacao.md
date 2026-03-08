@@ -18,7 +18,7 @@ Após essas etapas, o onboarding é considerado **concluído**.
 ------------------------------------------------------------------------
 
 # 2. Fases do Onboarding
-
+```
   Ordem   Tipo
   ------- -------------------------------------------
   1       CADASTRAR_CONTA
@@ -29,7 +29,7 @@ Após essas etapas, o onboarding é considerado **concluído**.
 Essas fases ficam registradas na tabela **TipoOnbording**.
 
 ------------------------------------------------------------------------
-
+```
 # 3. Modelo de Dados
 
 ## Tabela TipoOnbording
@@ -44,7 +44,7 @@ Define as etapas possíveis do onboarding.
     descricao
 
 Exemplo:
-
+```
   id   nome                                        ordem
   ---- ------------------------------------------- -------
   1    CADASTRAR_CONTA                             1
@@ -53,7 +53,7 @@ Exemplo:
   4    CONFIGURAR_PRIMEIRO_AMBIENTE_DA_APLICACAO   4
 
 ------------------------------------------------------------------------
-
+```
 ## Tabela OnbordingConcluidoConta
 
 Registra quais etapas já foram concluídas.
@@ -352,7 +352,7 @@ Sugestão:
      ├─ OnboardingProgressService
 
 Responsabilidades:
-
+```
   Service                     Responsabilidade
   --------------------------- --------------------
   OnboardingService           registrar fases
@@ -360,7 +360,7 @@ Responsabilidades:
   OnboardingRepository        persistência
 
 ------------------------------------------------------------------------
-
+```
 # 13. Fluxo Completo
 
     Criar conta
