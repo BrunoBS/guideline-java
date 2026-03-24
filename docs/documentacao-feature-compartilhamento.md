@@ -1,17 +1,20 @@
-# Documentação Completa da Feature de Compartilhamento de Aplicações
+# Feature de Compartilhamento de Aplicações
 
 ## Visão Geral
 
 A feature de **Compartilhamento de Aplicações** permite que uma
-aplicação (TARGET) exponha funcionalidades (features) que podem ser
-utilizadas por outras aplicações (ORIGINS).
+aplicação (**Target**) exponha funcionalidades (**features**) que podem
+ser utilizadas por outras aplicações (**Origins**).
 
-Esse modelo foi projetado para:
+O objetivo é permitir **integrações controladas entre aplicações**,
+garantindo governança, rastreabilidade e auditoria através de eventos.
+
+Principais objetivos:
 
 -   Permitir integração controlada entre aplicações
 -   Garantir governança de acesso
 -   Manter auditoria completa através de eventos
--   Manter rastreabilidade de decisões de aprovação e rejeição
+-   Permitir rastreabilidade de decisões de aprovação e rejeição
 
 O compartilhamento ocorre **sempre entre aplicações**.
 
@@ -21,25 +24,26 @@ O compartilhamento ocorre **sempre entre aplicações**.
 
 ## Target
 
-A aplicação **Target** é a aplicação que **disponibiliza um
+A aplicação **Target** é a aplicação que **cria e gerencia um
 compartilhamento**.
 
 Ela define:
 
 -   Nome do compartilhamento
 -   Descrição
--   Lista de features disponíveis
+-   Features disponíveis
+-   Aprovação ou rejeição das origens
 
 ## Origin
 
-A aplicação **Origin** é a aplicação que **solicita utilizar o
-compartilhamento**.
+A aplicação **Origin** é a aplicação que **consome o compartilhamento**.
 
-Ela precisa:
+Responsabilidades:
 
+-   Descobrir compartilhamentos disponíveis
 -   Solicitar acesso
 -   Aguardar aprovação do Target
--   Aprovar atualizações de features feitas pelo Target
+-   Aprovar alterações de features feitas pelo Target
 
 ------------------------------------------------------------------------
 
@@ -88,412 +92,292 @@ Campos:
 
 -   id
 -   sharing_target_id
--   application_id (origin)
--   shareStatusType
+-   origin_application_id
+-   status
 
 Restrição recomendada:
 
-    UNIQUE (sharing_target_id, application_id)
+    UNIQUE (sharing_target_id, origin_application_id)
 
 ------------------------------------------------------------------------
 
-# Enum de Status
+# Status do Compartilhamento
 
-    PENDING_APPROVAL
-    APPROVED
-    REJECTED
-    FEATURE_UPDATE_PENDING
+  Status                    Significado
+  ------------------------- ---------------------------------------
+  PENDING_TARGET_APPROVAL   aguardando aprovação do target
+  APPROVED                  compartilhamento ativo
+  REJECTED_BY_TARGET        target recusou
+  PENDING_ORIGIN_APPROVAL   origin precisa aceitar novas features
+  REJECTED_BY_ORIGIN        origin recusou
 
 ------------------------------------------------------------------------
 
 # Controllers
 
-A API é dividida em **dois controllers**:
+A API é dividida em dois controllers:
 
--   SharingTargetController
--   SharingOriginController
+-   **SharingTargetController**
+-   **SharingOriginController**
 
 ------------------------------------------------------------------------
 
 # SharingTargetController
 
-Responsável pelas operações do **dono do compartilhamento**.
+Responsável por gerenciar os compartilhamentos criados pela aplicação
+**Target**.
 
-Base path:
+Base:
 
-    /accounts/{accountId}/applications/{applicationId}/sharing-targets
+    /accounts/{accountId}/applications/{applicationId}/sharings
 
-------------------------------------------------------------------------
+## Endpoints
 
-## Criar compartilhamento
+  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Método            Endpoint                                                                                             Tabelas                    Descrição
+  ----------------- ---------------------------------------------------------------------------------------------------- -------------------------- -------------------
+  POST              /accounts/{accountId}/applications/{applicationId}/sharings                                          sharing_target,            Cria um
+                                                                                                                         sharing_target_features    compartilhamento
 
-POST
+  GET               /accounts/{accountId}/applications/{applicationId}/sharings                                          sharing_target,            Lista
+                                                                                                                         sharing_target_features    compartilhamentos
 
-    /
+  GET               /accounts/{accountId}/applications/{applicationId}/sharings/{sharingIdentifier}                      sharing_target,            Busca um
+                                                                                                                         sharing_target_features    compartilhamento
 
-Request:
+  PUT               /accounts/{accountId}/applications/{applicationId}/sharings/{sharingIdentifier}                      sharing_target,            Atualiza features e
+                                                                                                                         sharing_target_features,   exige nova
+                                                                                                                         sharing_origin             aprovação
 
-    {
-      "name": "Integração Financeira",
-      "description": "Compartilhamento de dados financeiros",
-      "features": ["PAYMENTS", "INVOICES"]
-    }
+  DELETE            /accounts/{accountId}/applications/{applicationId}/sharings/{sharingIdentifier}                      sharing_target,            Remove
+                                                                                                                         sharing_origin             compartilhamento
 
-Service:
+  GET               /accounts/{accountId}/applications/{applicationId}/sharings/{sharingIdentifier}/origins              sharing_origin             Lista aplicações de
+                                                                                                                                                    origem
 
-    sharingTargetService.createSharingTarget()
+  PATCH             /accounts/{accountId}/applications/{applicationId}/sharings/{sharingIdentifier}/origins/{originId}   sharing_origin             Aprova ou rejeita
+                                                                                                                                                    origem
 
-Evento gerado:
-
-    TARGET_SHARING_CREATED
-
-------------------------------------------------------------------------
-
-## Atualizar compartilhamento
-
-PUT
-
-    /{sharingIdentifier}
-
-Service:
-
-    sharingTargetService.updateSharingTarget()
-
-Evento:
-
-    TARGET_SHARING_UPDATED
-
-Origens passam para:
-
-    FEATURE_UPDATE_PENDING
-
-------------------------------------------------------------------------
-
-## Listar compartilhamentos
-
-GET
-
-    /
-
-Service:
-
-    sharingTargetService.findAll()
-
-------------------------------------------------------------------------
-
-## Buscar compartilhamento
-
-GET
-
-    /{sharingIdentifier}
-
-Service:
-
-    sharingTargetService.findByIdentifier()
-
-------------------------------------------------------------------------
-
-## Aprovar origem
-
-PATCH
-
-    /{sharingIdentifier}/origins/{originId}/status
-
-Request:
-
-    {
-      "shareStatusType": "APPROVED"
-    }
-
-Service:
-
-    sharingTargetService.updateOriginStatus()
-
-Eventos:
-
-Target:
-
-    TARGET_ORIGIN_APPROVED
-
-Origin:
-
-    ORIGIN_SHARING_APPROVED
-
-------------------------------------------------------------------------
-
-## Rejeitar origem
-
-Eventos:
-
-Target:
-
-    TARGET_ORIGIN_REJECTED
-
-Origin:
-
-    ORIGIN_SHARING_REJECTED
-
-------------------------------------------------------------------------
-
-## Remover compartilhamento
-
-DELETE
-
-    /{sharingIdentifier}
-
-Service:
-
-    sharingTargetService.deleteSharingTarget()
-
-Fluxo:
-
-1.  Gerar eventos para cada origem
-2.  Deletar SharingOrigin
-3.  Deletar SharingTarget
-
-Eventos:
-
-    TARGET_SHARING_DELETED
-    TARGET_SHARING_REVOKED_FROM_ORIGIN
-    ORIGIN_SHARING_REVOKED_BY_TARGET
+  DELETE            /accounts/{accountId}/applications/{applicationId}/sharings/{sharingIdentifier}/origins/{originId}   sharing_origin             Remove origem
+                                                                                                                                                    vinculada
+  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
 
 # SharingOriginController
 
-Responsável pelas operações da **aplicação que consome o
-compartilhamento**.
+Responsável pelas operações da **aplicação de origem**.
 
-Base path:
+Base:
 
-    /accounts/{accountId}/applications/{applicationId}/sharing-origins
+    /accounts/{accountId}/applications/{applicationId}/origins
 
-------------------------------------------------------------------------
+## Endpoints
 
-## Buscar compartilhamentos disponíveis
+  -------------------------------------------------------------------------------------------------------------------------------
+  Método            Endpoint                                                                Tabelas           Descrição
+  ----------------- ----------------------------------------------------------------------- ----------------- -------------------
+  GET               /accounts/{accountId}/applications/{applicationId}/sharings-origins     sharing_target,   Lista
+                                                                                            sharing_origin    compartilhamentos
+                                                                                                              disponíveis
 
-GET
+  POST              /accounts/{accountId}/applications/{applicationId}/origins              sharing_origin    Solicita acesso
 
-    /search
+  GET               /accounts/{accountId}/applications/{applicationId}/origins              sharing_origin    Lista vínculos da
+                                                                                                              origem
 
-Parâmetros:
+  GET               /accounts/{accountId}/applications/{applicationId}/origins/{originId}   sharing_origin    Busca vínculo
+                                                                                                              específico
 
-  Parâmetro             Obrigatório   Descrição
-  --------------------- ------------- ---------------------
-  idAccountTarget       sim           Conta do target
-  idApplicationTarget   sim           Aplicação do target
-  shareStatusType       não           Status do vínculo
+  PATCH             /accounts/{accountId}/applications/{applicationId}/origins/{originId}   sharing_origin    Aprova novas
+                                                                                                              features
 
-Service:
-
-    sharingOriginService.searchSharings()
-
-------------------------------------------------------------------------
-
-## Solicitar compartilhamento
-
-POST
-
-    /
-
-Request:
-
-    {
-      "sharingIdentifier": "uuid-do-sharing"
-    }
-
-Service:
-
-    sharingOriginService.requestSharing()
-
-Evento:
-
-    ORIGIN_SHARING_REQUESTED
+  DELETE            /accounts/{accountId}/applications/{applicationId}/origins/{originId}   sharing_origin    Remove
+                                                                                                              compartilhamento
+  -------------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
 
-## Aprovar atualização de features
+# Fluxo Completo do Compartilhamento
 
-PATCH
+  --------------------------------------------------------------------------------------
+  Passo                   Endpoint                               Tabela principal
+  ----------------------- -------------------------------------- -----------------------
+  Target cria sharing     POST /sharings                         sharing_target
 
-    /{originId}/features
+  Origin descobre         GET /sharings-origins                  sharing_target
+  sharings                                                       
 
-Request:
+  Origin solicita acesso  POST /origins                          sharing_origin
 
-    {
-      "approved": true
-    }
+  Target aprova origem    PATCH                                  sharing_origin
+                          /sharings/{sharing}/origins/{origin}   
 
-Service:
+  Target altera features  PUT /sharings/{sharing}                sharing_target
 
-    sharingOriginService.approveFeatureUpdate()
+  Sistema atualiza        UPDATE sharing_origin                  sharing_origin
+  origins                                                        
 
-Eventos:
+  Origin aprova novas     PATCH /origins/{origin}                sharing_origin
+  features                                                       
 
-    ORIGIN_FEATURE_UPDATE_APPROVED
-    TARGET_FEATURE_UPDATE_APPROVED
-
-------------------------------------------------------------------------
-
-## Rejeitar atualização de features
-
-Eventos:
-
-    ORIGIN_FEATURE_UPDATE_REJECTED
-    TARGET_FEATURE_UPDATE_REJECTED
+  Target remove sharing   DELETE /sharings/{sharing}             sharing_target
+  --------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
 
-## Remover compartilhamento
+# SQL de Busca de Compartilhamentos
 
-DELETE
-
-    /{originId}
-
-Service:
-
-    sharingOriginService.removeSharing()
-
-Eventos:
-
-Target:
-
-    TARGET_SHARING_REVOKED_FROM_ORIGIN
-
-Origin:
-
-    ORIGIN_SHARING_REMOVED
-
-------------------------------------------------------------------------
-
-# Eventos do Target
-
-  Evento                               Descrição
-  ------------------------------------ -----------------------------
-  TARGET_SHARING_CREATED               Compartilhamento criado
-  TARGET_SHARING_UPDATED               Compartilhamento atualizado
-  TARGET_ORIGIN_APPROVED               Origem aprovada
-  TARGET_ORIGIN_REJECTED               Origem rejeitada
-  TARGET_SHARING_DELETED               Compartilhamento removido
-  TARGET_SHARING_REVOKED_FROM_ORIGIN   Origem removida
+``` sql
+SELECT
+st.identifier AS sharing_identifier,
+st.name AS sharing_name,
+st.description AS sharing_description,
+st.application_id AS target_application_id,
+app.account_id AS target_account_id,
+COALESCE(so.status, 'NOT_REQUESTED') AS share_status_type
+FROM sharing_target st
+JOIN application app
+ON app.id = st.application_id
+LEFT JOIN sharing_origin so
+ON so.sharing_target_id = st.id
+AND so.origin_application_id = :applicationId
+WHERE app.account_id = :idAccountTarget
+AND st.application_id = :idApplicationTarget
+AND st.active = true
+AND app.active = true
+AND (
+:shareStatusType IS NULL
+OR COALESCE(so.status, 'NOT_REQUESTED') = :shareStatusType
+);
+```
 
 ------------------------------------------------------------------------
 
-# Eventos da Origin
+# Eventos de Compartilhamento
 
-  Evento                             Descrição
-  ---------------------------------- -----------------------------------
-  ORIGIN_SHARING_REQUESTED           Solicitação enviada
-  ORIGIN_SHARING_APPROVED            Acesso aprovado
-  ORIGIN_SHARING_REJECTED            Acesso rejeitado
-  ORIGIN_FEATURE_UPDATE_APPROVED     Atualização de features aprovada
-  ORIGIN_FEATURE_UPDATE_REJECTED     Atualização rejeitada
-  ORIGIN_SHARING_REMOVED             Origem removeu o compartilhamento
-  ORIGIN_SHARING_REVOKED_BY_TARGET   Target removeu o compartilhamento
+## Eventos do Target
 
-------------------------------------------------------------------------
+  ------------------------------------------------------------------------------------
+  Evento                               Quando acontece         Descrição
+  ------------------------------------ ----------------------- -----------------------
+  TARGET_SHARING_CREATED               criação de              Target criou um
+                                       compartilhamento        compartilhamento
 
-# Regras de Logs Cruzados
+  TARGET_SHARING_UPDATED               alteração de features   Target alterou features
 
-Algumas ações geram eventos em **duas aplicações**.
+  TARGET_ORIGIN_APPROVED               origem aprovada         Origem autorizada
 
-## Origem remove o compartilhamento
+  TARGET_ORIGIN_REJECTED               origem rejeitada        Origem recusada
 
-Eventos:
+  TARGET_SHARING_DELETED               remoção do sharing      Sharing removido
 
-Target:
-
-    TARGET_SHARING_REVOKED_FROM_ORIGIN
-
-Origin:
-
-    ORIGIN_SHARING_REMOVED
+  TARGET_SHARING_REVOKED_FROM_ORIGIN   origem removida         Origem perdeu acesso
+  ------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
 
-## Target remove o compartilhamento
+## Eventos da Origin
 
-Eventos:
+  ----------------------------------------------------------------------------------
+  Evento                             Quando acontece         Descrição
+  ---------------------------------- ----------------------- -----------------------
+  ORIGIN_SHARING_REQUESTED           solicitação enviada     Origin pediu acesso
 
-Target:
+  ORIGIN_SHARING_APPROVED            aprovação recebida      Target aprovou
 
-    TARGET_SHARING_DELETED
-    TARGET_SHARING_REVOKED_FROM_ORIGIN
+  ORIGIN_SHARING_REJECTED            solicitação rejeitada   Target recusou
 
-Origin:
+  ORIGIN_FEATURE_UPDATE_APPROVED     features aprovadas      Origin aceitou
+                                                             atualização
 
-    ORIGIN_SHARING_REVOKED_BY_TARGET
+  ORIGIN_FEATURE_UPDATE_REJECTED     features rejeitadas     Origin recusou
+                                                             atualização
 
-------------------------------------------------------------------------
+  ORIGIN_SHARING_REMOVED             origem removeu vínculo  Origin cancelou
 
-# Estratégia de Delete
-
-O sistema utiliza **delete físico**.
-
-Motivos:
-
--   Simplifica consultas
--   Evita acúmulo de dados
--   Melhora performance
--   Auditoria é garantida via eventos
+  ORIGIN_SHARING_REVOKED_BY_TARGET   target removeu vínculo  Target cancelou
+  ----------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
 
-# Cascade Delete
+# Logs Cruzados
 
-    FOREIGN KEY (sharing_target_id)
-    REFERENCES sharing_target(id)
-    ON DELETE CASCADE
+## Objetivo
 
-------------------------------------------------------------------------
+Garantir auditoria quando uma ação de uma aplicação impacta outra.
 
-# Services
+Sempre gerar logs em:
 
-## SharingTargetService
-
-Responsável por:
-
--   criar compartilhamentos
--   atualizar features
--   aprovar origens
--   rejeitar origens
--   remover compartilhamentos
-
-Principais métodos:
-
-    createSharingTarget()
-    updateSharingTarget()
-    findAll()
-    findByIdentifier()
-    updateOriginStatus()
-    deleteSharingTarget()
+-   aplicação **Target**
+-   aplicação **Origin**
 
 ------------------------------------------------------------------------
 
-## SharingOriginService
+# Cenários de Logs Cruzados
 
-Responsável por:
+## 1. Origin remove compartilhamento
 
--   buscar compartilhamentos
--   solicitar acesso
--   aprovar features
--   rejeitar features
--   remover vínculo
-
-Principais métodos:
-
-    searchSharings()
-    requestSharing()
-    approveFeatureUpdate()
-    removeSharing()
+  Aplicação   Evento
+  ----------- ------------------------------------
+  Target      TARGET_SHARING_REVOKED_FROM_ORIGIN
+  Origin      ORIGIN_SHARING_REMOVED
 
 ------------------------------------------------------------------------
 
-# Conclusão
+## 2. Target remove compartilhamento
 
-Essa arquitetura garante:
+Para cada origem vinculada.
 
--   controle completo sobre integrações
--   rastreabilidade através de eventos
--   modelo simples de dados
--   governança entre aplicações
+  Aplicação   Evento
+  ----------- ------------------------------------
+  Target      TARGET_SHARING_DELETED
+  Target      TARGET_SHARING_REVOKED_FROM_ORIGIN
+  Origin      ORIGIN_SHARING_REVOKED_BY_TARGET
+
+------------------------------------------------------------------------
+
+## 3. Target aprova origem
+
+  Aplicação   Evento
+  ----------- -------------------------
+  Target      TARGET_ORIGIN_APPROVED
+  Origin      ORIGIN_SHARING_APPROVED
+
+------------------------------------------------------------------------
+
+## 4. Target rejeita origem
+
+  Aplicação   Evento
+  ----------- -------------------------
+  Target      TARGET_ORIGIN_REJECTED
+  Origin      ORIGIN_SHARING_REJECTED
+
+------------------------------------------------------------------------
+
+## 5. Target altera features
+
+  Aplicação   Evento
+  ----------- -------------------------------
+  Target      TARGET_SHARING_UPDATED
+  Origin      ORIGIN_FEATURE_UPDATE_PENDING
+
+Após decisão da origin:
+
+  Aplicação   Evento
+  ----------- --------------------------------
+  Origin      ORIGIN_FEATURE_UPDATE_APPROVED
+  Origin      ORIGIN_FEATURE_UPDATE_REJECTED
+
+------------------------------------------------------------------------
+
+# Regra Geral de Auditoria
+
+Sempre que uma ação de uma aplicação impactar outra aplicação no
+contexto de compartilhamento:
+
+-   Deve ser gerado **evento na aplicação que executou a ação**
+-   Deve ser gerado **evento na aplicação impactada**
+
+Essa estratégia garante **rastreabilidade completa do histórico de
+integrações entre aplicações**.
