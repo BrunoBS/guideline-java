@@ -1321,3 +1321,107 @@ ROUTE_TYPE
 ```
 
 Esse desenho permite que **Applications diferentes da mesma Account compartilhem Friendly URLs e suas versões**, enquanto cada Route continua podendo selecionar, por ambiente, o Schema, a Privacy, o Schema Data e a versão da Friendly URL que deve utilizar.
+
+
+
+
+##  Versao 
+
+
+```mermaid
+erDiagram
+
+    ACCOUNT {
+        BIGINT id PK
+    }
+
+    APPLICATION {
+        BIGINT id PK
+        BIGINT account_id FK
+    }
+
+    ENVIRONMENT {
+        BIGINT id PK
+        BIGINT account_id FK
+        VARCHAR name
+    }
+
+    SCHEMA {
+        BIGINT id PK
+        BIGINT account_id FK
+        VARCHAR scope
+        VARCHAR type
+        VARCHAR name
+        VARCHAR label
+        VARCHAR description
+        VARCHAR visibility
+    }
+
+    SCHEMA_VERSION {
+        BIGINT id PK
+        BIGINT schema_id FK
+        INT version
+        BOOLEAN current
+        JSON json_schema
+    }
+
+    SEGMENT_TYPE {
+        BIGINT id PK
+        VARCHAR name UK
+        VARCHAR description
+        BOOLEAN active
+    }
+
+    URL {
+        BIGINT id PK
+        BIGINT account_id FK
+        VARCHAR name
+    }
+
+    URL_VERSION {
+        BIGINT id PK
+        BIGINT url_id FK
+        BIGINT schema_version_id FK
+        INT version
+    }
+
+    ROUTE {
+        BIGINT id PK
+        BIGINT account_id FK
+        BIGINT application_id FK
+        BIGINT segment_type_id FK
+        BIGINT url_version_id FK
+        VARCHAR name
+    }
+
+    ROUTE_ENVIRONMENT {
+        BIGINT id PK
+        BIGINT route_id FK
+        BIGINT environment_id FK
+        JSON schema_data
+        BOOLEAN active
+    }
+
+
+    ACCOUNT ||--o{ APPLICATION : "possui"
+    ACCOUNT ||--o{ ENVIRONMENT : "possui"
+    ACCOUNT ||--o{ SCHEMA : "possui"
+    ACCOUNT ||--o{ URL : "possui"
+    ACCOUNT ||--o{ ROUTE : "possui"
+
+    SCHEMA ||--o{ SCHEMA_VERSION : "possui"
+
+    URL ||--o{ URL_VERSION : "versiona"
+
+    SCHEMA_VERSION ||--o{ URL_VERSION : "utilizada_por"
+
+    SEGMENT_TYPE ||--o{ ROUTE : "define"
+
+    APPLICATION ||--o{ ROUTE : "possui"
+
+    URL_VERSION ||--o{ ROUTE : "utilizada_por"
+
+    ROUTE ||--o{ ROUTE_ENVIRONMENT : "configura"
+
+    ENVIRONMENT ||--o{ ROUTE_ENVIRONMENT : "configura"
+```
