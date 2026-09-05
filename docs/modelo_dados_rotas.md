@@ -1,1332 +1,128 @@
-# Modelo de Dados — Route
+# Feature — Rotas
 
-## 1. Visão geral
+## 1. Objetivo
+Disponibilizar o cadastro e gerenciamento de Rotas associadas a uma aplicação, permitindo que uma mesma URL evolua por versões de contrato sem alterar os acoplamentos já utilizados por clientes antigos.
 
-O modelo de Route é dividido em quatro níveis principais:
+A Route é composta por:
+* Aplicação corporativa vinculada;
+* Tipo de segmento (catálogo global);
+* URL lógica;
+* Versão da URL;
+* Contrato de dados (Schema Version) utilizado pela versão;
+* Configuração operacional por ambiente.
 
-```text
-PLATFORM
-   │
-   └── ROUTE_TYPE
-          │
-          ▼
-ACCOUNT
-   │
-   ├── SCHEMA
-   ├── ENVIRONMENT
-   ├── FRIENDLY_URL
-   │      └── FRIENDLY_URL_VERSION
-   │
-   └── APPLICATION
-          │
-          └── ROUTE
-                 │
-                 └── ROUTE_ENVIRONMENT
-                        ├── ENVIRONMENT
-                        ├── SCHEMA
-                        └── FRIENDLY_URL_VERSION
-```
-
-A separação fundamental é:
-
-```text
-route
-    → identidade da rota
-
-route_environment
-    → configuração da rota em determinado ambiente
-```
+> **Premissa de Design:** A entidade `ROUTE` é uma casca lógica estável e não possui versionamento próprio (`ROUTE_VERSION`). O verdadeiro controle de imutabilidade e evolução de contratos ocorre na camada de `URL_VERSION`.
 
 ---
 
-# 2. `route_type`
-
-## Responsabilidade
-
-Catálogo global de tipos de Route administrado pela plataforma.
-
-Exemplos:
-
-```text
-REST
-GRAPHQL
-SOAP
-```
-
-## Estrutura
-
-```text
-route_type
-────────────────────────
-id              PK
-name
-description
-active
-created_at
-updated_at
-```
-
-## DDL
-
-```sql
-CREATE TABLE route_type (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    description VARCHAR(500),
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    CONSTRAINT pk_route_type
-        PRIMARY KEY (id),
-
-    CONSTRAINT uk_route_type_name
-        UNIQUE (name)
-);
-```
-
-## Índices
-
-A `UNIQUE(name)` já cria o índice necessário para pesquisa por nome.
-
-```text
-PK:
-    id
-
-UK:
-    name
-```
-
----
-
-# 3. `account_route_type_schema`
-
-## Responsabilidade
-
-Define quais Schemas de uma Account podem ser utilizados por determinado `Route Type`.
-
-O `route_type` é global, mas a associação é contextualizada pela Account.
-
-Exemplo:
-
-```text
-Account A
-    REST
-       ├── Schema A
-       ├── Schema B
-       └── Schema C
-
-Account B
-    REST
-       ├── Schema X
-       └── Schema Y
-```
-
-## Estrutura
-
-```text
-account_route_type_schema
-──────────────────────────────
-id                  PK
-account_id          FK
-route_type_id       FK
-schema_id           FK
-active
-created_at
-updated_at
-```
-
-## Cardinalidade
-
-```text
-route_type  1 ─────── N account_route_type_schema
-
-schema      1 ─────── N account_route_type_schema
-
-account     1 ─────── N account_route_type_schema
-```
-
-Consequentemente:
-
-```text
-Account N ───── N Schema
-       através de
-account_route_type_schema
-```
-
-## Regra de unicidade
-
-O mesmo Schema não deve ser associado duas vezes ao mesmo Route Type dentro da mesma Account.
-
-```sql
-UNIQUE (
-    account_id,
-    route_type_id,
-    schema_id
-)
-```
-
-## DDL
-
-```sql
-CREATE TABLE account_route_type_schema (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    account_id BIGINT NOT NULL,
-    route_type_id BIGINT NOT NULL,
-    schema_id BIGINT NOT NULL,
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    CONSTRAINT pk_account_route_type_schema
-        PRIMARY KEY (id),
-
-    CONSTRAINT fk_account_route_type_schema_route_type
-        FOREIGN KEY (route_type_id)
-        REFERENCES route_type (id),
-
-    CONSTRAINT uk_account_route_type_schema
-        UNIQUE (
-            account_id,
-            route_type_id,
-            schema_id
-        ),
-
-    INDEX idx_arts_account
-        (account_id),
-
-    INDEX idx_arts_route_type
-        (route_type_id),
-
-    INDEX idx_arts_schema
-        (schema_id)
-);
-```
-
-> As FKs de `account_id` e `schema_id` devem apontar para as tabelas existentes no seu modelo (`account` e `schema`), caso essas tabelas estejam no mesmo schema/banco.
-
----
-
-# 4. `route`
-
-## Responsabilidade
-
-Representa a identidade lógica da Route.
-
-```text
-route
-────────────────────────
-id
-account_id
-application_id
-route_type_id
-name
-created_at
-updated_at
-```
-
-A Route **não possui `environment_id`**.
-
-Também não possui `schema_id`.
-
-Isso é intencional.
-
-## Cardinalidade
-
-```text
-account       1 ─────── N route
-
-application   1 ─────── N route
-
-route_type    1 ─────── N route
-
-route         1 ─────── N route_environment
-```
-
-## Regra de unicidade
-
-Uma Route deve ser única dentro da Application.
-
-```sql
-UNIQUE (
-    application_id,
-    name
-)
-```
-
-Isso permite:
-
-```text
-Application A
-├── cliente
-├── pedido
-└── produto
-
-Application B
-├── cliente
-└── pedido
-```
-
-O mesmo nome pode existir em Applications diferentes.
-
-## DDL
-
-```sql
-CREATE TABLE route (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    account_id BIGINT NOT NULL,
-    application_id BIGINT NOT NULL,
-    route_type_id BIGINT NOT NULL,
-    name VARCHAR(150) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    CONSTRAINT pk_route
-        PRIMARY KEY (id),
-
-    CONSTRAINT fk_route_route_type
-        FOREIGN KEY (route_type_id)
-        REFERENCES route_type (id),
-
-    CONSTRAINT uk_route_application_name
-        UNIQUE (
-            application_id,
-            name
-        ),
-
-    INDEX idx_route_account
-        (account_id),
-
-    INDEX idx_route_application
-        (application_id),
-
-    INDEX idx_route_route_type
-        (route_type_id)
-);
-```
-
----
-
-# 5. `route_environment`
-
-## Responsabilidade
-
-Representa a configuração de uma Route em determinado Environment.
-
-É nessa tabela que ficam os dados que podem variar entre ambientes.
-
-```text
-route_environment
-────────────────────────────────
-id
-route_id
-environment_id
-schema_id
-friendly_url_version_id
-route_privacy
-schema_data
-created_at
-updated_at
-```
-
-## Cardinalidade
-
-```text
-route
-  1 ─────── N route_environment
-
-environment
-  1 ─────── N route_environment
-
-schema
-  1 ─────── N route_environment
-
-friendly_url_version
-  1 ─────── N route_environment
-```
-
-## Regra fundamental
-
-Uma Route pode possuir **no máximo uma configuração por Environment**.
-
-Portanto:
-
-```sql
-UNIQUE (
-    route_id,
-    environment_id
-)
-```
-
-## DDL
-
-```sql
-CREATE TABLE route_environment (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    route_id BIGINT NOT NULL,
-    environment_id BIGINT NOT NULL,
-    schema_id BIGINT NOT NULL,
-    friendly_url_version_id BIGINT,
-    route_privacy VARCHAR(50) NOT NULL,
-    schema_data JSON NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    CONSTRAINT pk_route_environment
-        PRIMARY KEY (id),
-
-    CONSTRAINT fk_route_environment_route
-        FOREIGN KEY (route_id)
-        REFERENCES route (id),
-
-    CONSTRAINT fk_route_environment_environment
-        FOREIGN KEY (environment_id)
-        REFERENCES environment (id),
-
-    CONSTRAINT fk_route_environment_schema
-        FOREIGN KEY (schema_id)
-        REFERENCES schema (id),
-
-    CONSTRAINT fk_route_environment_friendly_url_version
-        FOREIGN KEY (friendly_url_version_id)
-        REFERENCES friendly_url_version (id),
-
-    CONSTRAINT uk_route_environment
-        UNIQUE (
-            route_id,
-            environment_id
-        ),
-
-    INDEX idx_route_environment_route
-        (route_id),
-
-    INDEX idx_route_environment_environment
-        (environment_id),
-
-    INDEX idx_route_environment_schema
-        (schema_id),
-
-    INDEX idx_route_environment_friendly_url_version
-        (friendly_url_version_id)
-);
-```
-
----
-
-# 6. `friendly_url`
-
-## Responsabilidade
-
-A Friendly URL pertence à **Account**, e não à Application.
-
-Isso permite que múltiplas Applications da mesma Account compartilhem a mesma Friendly URL e suas versões.
-
-```text
-friendly_url
-────────────────────────
-id
-account_id
-name
-created_at
-updated_at
-```
-
-## Cardinalidade
-
-```text
-account
-   1 ─────── N friendly_url
-
-friendly_url
-   1 ─────── N friendly_url_version
-```
-
-Uma Friendly URL pode ser utilizada por várias Routes de várias Applications da mesma Account.
-
-## Regra de unicidade
-
-A Friendly URL deve ser única dentro da Account:
-
-```sql
-UNIQUE (
-    account_id,
-    name
-)
-```
-
-Exemplo:
-
-```text
-Account A
-
-Friendly URLs:
-├── cliente
-├── pedido
-└── produto
-```
-
-E:
-
-```text
-Application A
-└── Route X → cliente V3
-
-Application B
-└── Route Y → cliente V3
-
-Application C
-└── Route Z → cliente V2
-```
-
-## DDL
-
-```sql
-CREATE TABLE friendly_url (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    account_id BIGINT NOT NULL,
-    name VARCHAR(150) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    CONSTRAINT pk_friendly_url
-        PRIMARY KEY (id),
-
-    CONSTRAINT uk_friendly_url_account_name
-        UNIQUE (
-            account_id,
-            name
-        ),
-
-    INDEX idx_friendly_url_account
-        (account_id)
-);
-```
-
----
-
-# 7. `friendly_url_version`
-
-## Responsabilidade
-
-Representa a evolução de uma Friendly URL.
-
-```text
-friendly_url_version
-────────────────────────────
-id
-friendly_url_id
-version
-created_at
-created_by
-```
-
-Exemplo:
-
-```text
-cliente
-├── V1
-├── V2
-└── V3
-```
-
-A versão pertence à Friendly URL.
-
-Não pertence:
-
-```text
-Application
-Route
-Environment
-```
-
-## Cardinalidade
-
-```text
-friendly_url
-   1 ─────── N friendly_url_version
-```
-
-## Regra de unicidade
-
-Uma Friendly URL não pode possuir duas vezes a mesma versão.
-
-```sql
-UNIQUE (
-    friendly_url_id,
-    version
-)
-```
-
-## DDL
-
-```sql
-CREATE TABLE friendly_url_version (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    friendly_url_id BIGINT NOT NULL,
-    version INT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by BIGINT NOT NULL,
-
-    CONSTRAINT pk_friendly_url_version
-        PRIMARY KEY (id),
-
-    CONSTRAINT fk_friendly_url_version_friendly_url
-        FOREIGN KEY (friendly_url_id)
-        REFERENCES friendly_url (id),
-
-    CONSTRAINT uk_friendly_url_version
-        UNIQUE (
-            friendly_url_id,
-            version
-        ),
-
-    INDEX idx_friendly_url_version_friendly_url
-        (friendly_url_id)
-);
-```
-
----
-
-# 8. `schema`
-
-`Schema` é uma entidade existente no modelo.
-
-Conceitualmente:
-
-```text
-schema
-────────────────────────
-id
-account_id
-scope
-type
-name
-label
-description
-...
-```
-
-Para Route:
-
-```text
-scope = ACCOUNT
-type  = ROUTE
-```
-
-Não é necessário criar:
-
-```text
-route_schema
-```
-
-O relacionamento com Route ocorre através de:
-
-```text
-route_environment.schema_id
-```
-
-## Cardinalidade
-
-```text
-schema
-   1 ─────── N route_environment
-```
-
-E também:
-
-```text
-schema
-   1 ─────── N account_route_type_schema
-```
-
----
-
-# 9. `environment`
-
-Também é uma entidade existente.
-
-Conceitualmente:
-
-```text
-environment
-────────────────────────
-id
-account_id
-name
-...
-```
-
-## Cardinalidade
-
-```text
-environment
-   1 ─────── N route_environment
-```
-
-Uma Account pode possuir:
-
-```text
-DEV
-HML
-PROD
-```
-
----
-
-# 10. Relacionamentos completos
-
-```text
-                         ROUTE_TYPE
-                             │
-                             │ 1
-                             │
-                             │ N
-              ACCOUNT_ROUTE_TYPE_SCHEMA
-                    ▲              ▲
-                    │              │
-                    │              │
-                  SCHEMA       ACCOUNT
-                    │              │
-                    │              │
-                    │              │
-                    │         ┌────┴─────┐
-                    │         │          │
-                    │         ▼          ▼
-                    │   APPLICATION   FRIENDLY_URL
-                    │         │          │
-                    │         │          │ 1
-                    │         ▼          │
-                    │       ROUTE        │ N
-                    │         │          ▼
-                    │         │   FRIENDLY_URL_VERSION
-                    │         │          ▲
-                    │         │          │
-                    │         ▼          │
-                    └── ROUTE_ENVIRONMENT
-                             │
-                ┌────────────┼────────────┐
-                │            │            │
-                ▼            ▼            ▼
-           ENVIRONMENT    SCHEMA    FRIENDLY_URL_VERSION
-```
-
----
-
-# 11. Cardinalidades
-
-| Origem                 | Relação | Destino                     |
-| ---------------------- | ------: | --------------------------- |
-| `route_type`           |     1:N | `route`                     |
-| `route_type`           |     1:N | `account_route_type_schema` |
-| `account`              |     1:N | `route`                     |
-| `account`              |     1:N | `friendly_url`              |
-| `account`              |     1:N | `account_route_type_schema` |
-| `application`          |     1:N | `route`                     |
-| `route`                |     1:N | `route_environment`         |
-| `environment`          |     1:N | `route_environment`         |
-| `schema`               |     1:N | `route_environment`         |
-| `schema`               |     1:N | `account_route_type_schema` |
-| `friendly_url`         |     1:N | `friendly_url_version`      |
-| `friendly_url_version` |     1:N | `route_environment`         |
-
----
-
-# 12. Constraints de unicidade
-
-## `route_type`
-
-```sql
-UNIQUE (name)
-```
-
-Garante um catálogo global sem tipos duplicados.
-
----
-
-## `account_route_type_schema`
-
-```sql
-UNIQUE (
-    account_id,
-    route_type_id,
-    schema_id
-)
-```
-
-Garante que o mesmo Schema não seja associado duas vezes ao mesmo Route Type dentro da mesma Account.
-
----
-
-## `route`
-
-```sql
-UNIQUE (
-    application_id,
-    name
-)
-```
-
-Garante que uma Application não tenha duas Routes com o mesmo nome.
-
----
-
-## `route_environment`
-
-```sql
-UNIQUE (
-    route_id,
-    environment_id
-)
-```
-
-Garante uma única configuração da Route por Environment.
-
----
-
-## `friendly_url`
-
-```sql
-UNIQUE (
-    account_id,
-    name
-)
-```
-
-Garante que a Friendly URL seja única dentro da Account.
-
----
-
-## `friendly_url_version`
-
-```sql
-UNIQUE (
-    friendly_url_id,
-    version
-)
-```
-
-Garante que não existam duas versões iguais para a mesma Friendly URL.
-
----
-
-# 13. Índices
-
-Os principais índices são:
-
-```text
-route_type
-    PK(id)
-    UK(name)
-
-
-account_route_type_schema
-    PK(id)
-    UK(account_id, route_type_id, schema_id)
-    IDX(account_id)
-    IDX(route_type_id)
-    IDX(schema_id)
-
-
-route
-    PK(id)
-    UK(application_id, name)
-    IDX(account_id)
-    IDX(application_id)
-    IDX(route_type_id)
-
-
-route_environment
-    PK(id)
-    UK(route_id, environment_id)
-    IDX(route_id)
-    IDX(environment_id)
-    IDX(schema_id)
-    IDX(friendly_url_version_id)
-
-
-friendly_url
-    PK(id)
-    UK(account_id, name)
-    IDX(account_id)
-
-
-friendly_url_version
-    PK(id)
-    UK(friendly_url_id, version)
-    IDX(friendly_url_id)
-```
-
-Observação: em MySQL, os índices criados pelas `PRIMARY KEY` e `UNIQUE` já atendem algumas necessidades de busca. Os índices individuais devem ser mantidos somente quando forem necessários para os padrões reais de consulta.
-
----
-
-# 14. Regra de compartilhamento da Friendly URL
-
-A alteração mais importante do modelo é:
+## 2. Conceito e Arquitetura de Ambientes
+O ecossistema preserva a identidade global dos contratos enquanto isola os estados operacionais (`active` e `schema_data`) por ambiente de execução:
 
 ```text
 ACCOUNT
    │
-   └── FRIENDLY_URL
-          │
-          └── FRIENDLY_URL_VERSION
-```
-
-e não:
-
-```text
-APPLICATION
+   ├── APPLICATION
    │
-   └── FRIENDLY_URL
-```
-
-Isso permite:
-
-```text
-Account A
-│
-├── Application A
-│      └── Route A
-│             └── cliente V3
-│
-├── Application B
-│      └── Route B
-│             └── cliente V3
-│
-└── Friendly URL
-       └── cliente
-            ├── V1
-            ├── V2
-            └── V3
-```
-
-Portanto, a mesma Friendly URL e a mesma versão podem ser utilizadas por várias Applications.
-
----
-
-# 15. Exemplo completo
-
-Considere:
-
-```text
-Account: Itaú
-```
-
-Friendly URL:
-
-```text
-cliente
-```
-
-Versões:
-
-```text
-cliente
-├── V1
-├── V2
-└── V3
-```
-
-Applications:
-
-```text
-Internet Banking
-Mobile Banking
-```
-
-Routes:
-
-```text
-Internet Banking
-└── consultar-cliente
-
-Mobile Banking
-└── consultar-cliente
-```
-
-Configuração:
-
-```text
-Internet Banking
-└── consultar-cliente
-      ├── DEV  → cliente V3
-      ├── HML  → cliente V3
-      └── PROD → cliente V2
-
-
-Mobile Banking
-└── consultar-cliente
-      ├── DEV  → cliente V3
-      ├── HML  → cliente V3
-      └── PROD → cliente V3
-```
-
-Temos apenas uma Friendly URL:
-
-```text
-cliente
-```
-
-e apenas três versões:
-
-```text
-V1
-V2
-V3
-```
-
-Não há necessidade de duplicá-las por Application.
-
----
-
-# 16. DDL consolidado
-
-Considerando que `account`, `application`, `schema` e `environment` já existem:
-
-```sql
-CREATE TABLE route_type (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    description VARCHAR(500),
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    CONSTRAINT pk_route_type
-        PRIMARY KEY (id),
-
-    CONSTRAINT uk_route_type_name
-        UNIQUE (name)
-);
-
-
-CREATE TABLE account_route_type_schema (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    account_id BIGINT NOT NULL,
-    route_type_id BIGINT NOT NULL,
-    schema_id BIGINT NOT NULL,
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    CONSTRAINT pk_account_route_type_schema
-        PRIMARY KEY (id),
-
-    CONSTRAINT fk_arts_account
-        FOREIGN KEY (account_id)
-        REFERENCES account (id),
-
-    CONSTRAINT fk_arts_route_type
-        FOREIGN KEY (route_type_id)
-        REFERENCES route_type (id),
-
-    CONSTRAINT fk_arts_schema
-        FOREIGN KEY (schema_id)
-        REFERENCES schema (id),
-
-    CONSTRAINT uk_account_route_type_schema
-        UNIQUE (
-            account_id,
-            route_type_id,
-            schema_id
-        ),
-
-    INDEX idx_arts_account
-        (account_id),
-
-    INDEX idx_arts_route_type
-        (route_type_id),
-
-    INDEX idx_arts_schema
-        (schema_id)
-);
-
-
-CREATE TABLE friendly_url (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    account_id BIGINT NOT NULL,
-    name VARCHAR(150) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    CONSTRAINT pk_friendly_url
-        PRIMARY KEY (id),
-
-    CONSTRAINT fk_friendly_url_account
-        FOREIGN KEY (account_id)
-        REFERENCES account (id),
-
-    CONSTRAINT uk_friendly_url_account_name
-        UNIQUE (
-            account_id,
-            name
-        ),
-
-    INDEX idx_friendly_url_account
-        (account_id)
-);
-
-
-CREATE TABLE friendly_url_version (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    friendly_url_id BIGINT NOT NULL,
-    version INT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by BIGINT NOT NULL,
-
-    CONSTRAINT pk_friendly_url_version
-        PRIMARY KEY (id),
-
-    CONSTRAINT fk_friendly_url_version_friendly_url
-        FOREIGN KEY (friendly_url_id)
-        REFERENCES friendly_url (id),
-
-    CONSTRAINT uk_friendly_url_version
-        UNIQUE (
-            friendly_url_id,
-            version
-        ),
-
-    INDEX idx_friendly_url_version_friendly_url
-        (friendly_url_id)
-);
-
-
-CREATE TABLE route (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    account_id BIGINT NOT NULL,
-    application_id BIGINT NOT NULL,
-    route_type_id BIGINT NOT NULL,
-    name VARCHAR(150) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    CONSTRAINT pk_route
-        PRIMARY KEY (id),
-
-    CONSTRAINT fk_route_account
-        FOREIGN KEY (account_id)
-        REFERENCES account (id),
-
-    CONSTRAINT fk_route_application
-        FOREIGN KEY (application_id)
-        REFERENCES application (id),
-
-    CONSTRAINT fk_route_route_type
-        FOREIGN KEY (route_type_id)
-        REFERENCES route_type (id),
-
-    CONSTRAINT uk_route_application_name
-        UNIQUE (
-            application_id,
-            name
-        ),
-
-    INDEX idx_route_account
-        (account_id),
-
-    INDEX idx_route_application
-        (application_id),
-
-    INDEX idx_route_route_type
-        (route_type_id)
-);
-
-
-CREATE TABLE route_environment (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    route_id BIGINT NOT NULL,
-    environment_id BIGINT NOT NULL,
-    schema_id BIGINT NOT NULL,
-    friendly_url_version_id BIGINT,
-    route_privacy VARCHAR(50) NOT NULL,
-    schema_data JSON NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    CONSTRAINT pk_route_environment
-        PRIMARY KEY (id),
-
-    CONSTRAINT fk_route_environment_route
-        FOREIGN KEY (route_id)
-        REFERENCES route (id),
-
-    CONSTRAINT fk_route_environment_environment
-        FOREIGN KEY (environment_id)
-        REFERENCES environment (id),
-
-    CONSTRAINT fk_route_environment_schema
-        FOREIGN KEY (schema_id)
-        REFERENCES schema (id),
-
-    CONSTRAINT fk_route_environment_friendly_url_version
-        FOREIGN KEY (friendly_url_version_id)
-        REFERENCES friendly_url_version (id),
-
-    CONSTRAINT uk_route_environment
-        UNIQUE (
-            route_id,
-            environment_id
-        ),
-
-    INDEX idx_route_environment_route
-        (route_id),
-
-    INDEX idx_route_environment_environment
-        (environment_id),
-
-    INDEX idx_route_environment_schema
-        (schema_id),
-
-    INDEX idx_route_environment_friendly_url_version
-        (friendly_url_version_id)
-);
+   ├── URL
+   │     └── URL_VERSION
+   │             └── SCHEMA_VERSION
+   │
+   └── ROUTE (Identidade global estável e agnóstica a ambientes)
+          │
+          └── ROUTE_ENVIRONMENT (Configuração operacional isolada)
+                 ├── ENVIRONMENT (DEV, HML, PROD)
+                 ├── schema_data
+                 └── active
 ```
 
 ---
 
-# 17. Consideração importante sobre integridade entre Account
+## 3. Modelo de Dados e Entidades
 
-Existe um ponto importante no DDL acima.
+### ACCOUNT
+Conta proprietária e isoladora de recursos no ecossistema multi-tenant.
 
-Como `route`, `schema`, `environment` e `friendly_url` pertencem a uma Account, conceitualmente devemos impedir situações como:
+### APPLICATION
+Aplicação de negócio pertencente a uma conta.
+* **Regra de Integridade:** `APPLICATION.account_id` deve ser idêntico ao `ROUTE.account_id`.
 
-```text
-Route
-  account_id = 10
+### ENVIRONMENT
+Ambiente de execução controlado pela conta (Ex: `DEV`, `HML`, `PROD`).
 
-Environment
-  account_id = 20
-```
+### SCHEMA & SCHEMA_VERSION
+Representa o contrato de dados que valida os payloads daquela rota.
+* **Escopo e Visibilidade:** O Schema pode ser público ou privado. Um Schema público (`visibility = 'PUBLIC'`) pode ser consumido por rotas de outras contas (`ACCOUNT`), garantindo reaproveitamento corporativo, mas apenas a conta proprietária original pode alterá-lo.
 
-sendo associados na mesma `route_environment`.
+### SEGMENT_TYPE
+Catálogo global (sem `account_id`) responsável por categorizar o contexto de negócio da rota. Exemplos: `CLIENTES`, `PRODUTOS`, `PEDIDOS`, `FINANCEIRO`.
 
-Da mesma forma, devemos evitar:
+### URL & URL_VERSION
+A `URL` define o endereço lógico base (Ex: `/clientes`). A `URL_VERSION` dita a imutabilidade do contrato daquele endereço. Se houver uma quebra de contrato, uma nova `URL_VERSION` deve ser gerada vinculando-se a um novo `SCHEMA_VERSION`.
 
-```text
-Route
-  account_id = 10
-
-Schema
-  account_id = 20
-```
-
-Isso significa que **FKs simples por ID não garantem sozinhas o mesmo contexto de Account**.
-
-Se essa integridade precisar ser garantida pelo banco, o modelo deve utilizar chaves compostas ou uma estratégia equivalente.
-
-Por exemplo:
-
-```text
-route
-├── id
-└── account_id
-
-environment
-├── id
-└── account_id
-```
-
-e a associação poderia considerar:
-
-```text
-(route_id, account_id)
-(environment_id, account_id)
-```
-
-Essa decisão é especialmente importante no seu modelo porque **Account é um boundary de isolamento**.
+### ROUTE & ROUTE_ENVIRONMENT
+A `ROUTE` amarra a aplicação, o segmento e o contrato de URL. A sua operação física por ambiente acontece via `ROUTE_ENVIRONMENT`, garantindo que chaves de ativação (`active`) ou metadados de infraestrutura (`schema_data`) variem de forma segura entre os ambientes (impedindo que testes em `DEV` derrubem o tráfego de `PROD`).
 
 ---
 
-# 18. Modelo conceitual final
+## 4. Fluxos de Criação e Evolução de Ciclo de Vida
 
-A arquitetura final pode ser resumida assim:
+### Cenário A: Criação de Nova Rota e URL Inexistente
+Quando o usuário tenta cadastrar um endereço inédito no ecossistema:
+1. O sistema cria o registro base na entidade `URL`.
+2. Instancia a `URL_VERSION` (V1).
+3. Vincula o `SCHEMA_VERSION` selecionado à versão da URL.
+4. Cria a entidade lógica estável `ROUTE`.
+5. Inicializa o estado operacional populando a tabela `ROUTE_ENVIRONMENT` apontando exclusivamente para o ambiente de `DEV`.
 
-```text
-                         PLATFORM
-                            │
-                            ▼
-                       ROUTE_TYPE
-                            │
-                            │
-                            ▼
-                ACCOUNT_ROUTE_TYPE_SCHEMA
-                            │
-                            ▼
-                         SCHEMA
-                            ▲
-                            │
-                            │
-ACCOUNT ────────────────────┼──────────────────────┐
-  │                         │                      │
-  │                         │                      │
-  ▼                         │                      ▼
-APPLICATION                 │                FRIENDLY_URL
-  │                         │                      │
-  │                         │                      ▼
-  ▼                         │              FRIENDLY_URL_VERSION
- ROUTE                       │                      ▲
-  │                          │                      │
-  │                          ▼                      │
-  └──────────────► ROUTE_ENVIRONMENT ◄─────────────┘
-                         │
-                         │
-                         ▼
-                    ENVIRONMENT
-```
+### Cenário B: Nova Rota compartilhando o mesmo Endereço (Evolução)
+Se o usuário tentar cadastrar uma rota para um endereço lógico que já existe no banco de dados (Ex: `/clientes`):
+1. O sistema barra a duplicação da entidade `URL`.
+2. Cria uma nova `URL_VERSION` sequencial (Ex: V2).
+3. Vincula o novo `SCHEMA_VERSION` (o qual não deve coincidir com a combinação de contrato idêntica de outra versão ativa da mesma URL).
+4. Cria o novo registro correspondente em `ROUTE`.
+5. Inicializa as configurações operacionais para esta nova rota em `DEV`.
 
-## Responsabilidades finais
+---
 
-| Tabela                      | Escopo                | Responsabilidade                               |
-| --------------------------- | --------------------- | ---------------------------------------------- |
-| `route_type`                | Plataforma            | Catálogo global de tipos de Route              |
-| `account_route_type_schema` | Account               | Define Schemas permitidos para cada Route Type |
-| `route`                     | Account + Application | Identidade lógica da Route                     |
-| `route_environment`         | Route + Environment   | Configuração ambiental da Route                |
-| `friendly_url`              | **Account**           | Identidade da Friendly URL compartilhável      |
-| `friendly_url_version`      | Friendly URL          | Histórico/versionamento da Friendly URL        |
-| `schema`                    | Account               | Estrutura utilizada pelo `schema_data`         |
-| `environment`               | Account               | Ambiente de execução/configuração              |
+## 5. Regras de Imutabilidade e Governança
+Para blindar o sistema contra quebras catastróficas de contratos em produção, o ciclo de vida aplica as seguintes regras de restrição:
+* **Entidades Estritas e Imutáveis:** Os registros de `URL`, `URL_VERSION` e `SCHEMA_VERSION` são protegidos contra escrita (`UPDATE`) após a sua criação oficial. Qualquer modificação estrutural de payload exige uma nova versão ou novo Schema.
+* **Entidades Dinâmicas:** Apenas a tabela `ROUTE_ENVIRONMENT` aceita atualizações frequentes em seus atributos `schema_data` e `active`, permitindo ligar/desligar caminhos de tráfego dinamicamente no gateway.
 
-## Princípio central
+---
 
-```text
-ROUTE
-    = identidade
+## 6. Motor de Promoção entre Ambientes
+O processo de deploy de rotas segue a estratégia de promoção de agregados logísticos:
+1. A rota nasce obrigatoriamente configurada no ambiente de `DEV`.
+2. Ao disparar o gatilho de promoção para `HML` ou `PROD`, o motor valida se a estrutura global (`ROUTE`, `URL_VERSION`, `SCHEMA_VERSION`) está íntegra e se os recursos dependentes (como Schemas Públicos de terceiros) existem no ambiente de destino.
+3. Garante-se o congelamento dos contratos corporativos, gerando apenas a nova linha operacional na tabela `ROUTE_ENVIRONMENT` com o identificador do novo ambiente.
+4. **Alçada de Aprovação:** Promoções direcionadas ao ambiente de `PROD` são retidas pelo sistema e exigem a vinculação compulsória de uma **GMude** (Gestão de Mudança) aprovada.
 
-ROUTE_ENVIRONMENT
-    = configuração por ambiente
+---
 
-FRIENDLY_URL
-    = recurso compartilhado da ACCOUNT
+## 7. Critérios de Aceite Iniciais
 
-FRIENDLY_URL_VERSION
-    = versão da Friendly URL
+### Gestão Lógica de URLs e Contratos
+- [ ] Criar e consultar registros de `URL` garantindo o isolamento correto por conta proprietária.
+- [ ] Gerar novas instâncias de `URL_VERSION` de forma imutável, rejeitando atualizações em registros salvos.
+- [ ] Validar o acoplamento com `SCHEMA_VERSION` públicos de outras contas e bloquear o uso de Schemas de terceiros marcados como privados.
 
-SCHEMA
-    = recurso da ACCOUNT
+### Cadastro e Governança de Rotas
+- [ ] Cadastrar a entidade global `ROUTE` garantindo a consistência das chaves externas (`APPLICATION.account_id == ROUTE.account_id`).
+- [ ] Rejeitar a criação de múltiplas instâncias de `URL` textuais idênticas para a mesma conta, forçando o fluxo de reaproveitamento e versionamento via `URL_VERSION`.
 
-ROUTE_TYPE
-    = catálogo global da PLATFORM
-```
+### Operação e Isolamento Ambiental
+- [ ] Configurar propriedades operacionais (`schema_data` e chaves de ativação) na tabela `ROUTE_ENVIRONMENT`.
+- [ ] Garantir a restrição de unicidade composta do banco de dados `UNIQUE(route_id, environment_id)`.
+- [ ] Validar e garantir via testes automatizados que a alteração de chaves operacionais e cargas de payload em `DEV` não alteram e nem geram efeitos colaterais na rota rodando em `PROD`.
 
-Esse desenho permite que **Applications diferentes da mesma Account compartilhem Friendly URLs e suas versões**, enquanto cada Route continua podendo selecionar, por ambiente, o Schema, a Privacy, o Schema Data e a versão da Friendly URL que deve utilizar.
+### Fluxo de Deploy (Promoção)
+- [ ] Executar o pipeline de cópia atômica de definições estruturais entre os ambientes de origem e destino.
+- [ ] Bloquear execuções de promoção voltadas para o ambiente produtivo caso o identificador de aprovação da GMude corporativa esteja ausente ou inválido.
 
+---
 
-
-
-##  Versao 
-
+## 8. Diagrama de Relacionamento de Entidades (ERD)
 
 ```mermaid
 erDiagram
@@ -1402,26 +198,24 @@ erDiagram
         BOOLEAN active
     }
 
-
+    %% Relacionamentos Core
     ACCOUNT ||--o{ APPLICATION : "possui"
     ACCOUNT ||--o{ ENVIRONMENT : "possui"
     ACCOUNT ||--o{ SCHEMA : "possui"
     ACCOUNT ||--o{ URL : "possui"
     ACCOUNT ||--o{ ROUTE : "possui"
 
-    SCHEMA ||--o{ SCHEMA_VERSION : "possui"
+    %% Relacionamentos de Contrato
+    SCHEMA ||--o{ SCHEMA_VERSION : "contem"
+    SCHEMA_VERSION ||--o{ URL_VERSION : "valida"
+    URL ||--o{ URL_VERSION : "evolui"
+    
+    %% Relacionamentos Lógicos da Rota
+    APPLICATION ||--o{ ROUTE : "agrupa"
+    SEGMENT_TYPE ||--o{ ROUTE : "categoriza"
+    URL_VERSION ||--o{ ROUTE : "aponta"
 
-    URL ||--o{ URL_VERSION : "versiona"
-
-    SCHEMA_VERSION ||--o{ URL_VERSION : "utilizada_por"
-
-    SEGMENT_TYPE ||--o{ ROUTE : "define"
-
-    APPLICATION ||--o{ ROUTE : "possui"
-
-    URL_VERSION ||--o{ ROUTE : "utilizada_por"
-
+    %% Relacionamentos Operacionais de Ambiente
     ROUTE ||--o{ ROUTE_ENVIRONMENT : "configura"
-
-    ENVIRONMENT ||--o{ ROUTE_ENVIRONMENT : "configura"
+    ENVIRONMENT ||--o{ ROUTE_ENVIRONMENT : "disponibiliza"
 ```
