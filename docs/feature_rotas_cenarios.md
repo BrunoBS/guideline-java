@@ -734,7 +734,7 @@ Essa separação é importante para evitar a duplicação de URLs, rotas e
 versões durante o processo de promoção entre ambientes.
 
 ### Responsabilidade por entidade
-
+```
   ----------------------------------------------------------------------------
   Entidade              Escopo            Por ambiente?     Responsabilidade
   --------------------- ----------------- ----------------- ------------------
@@ -760,7 +760,7 @@ versões durante o processo de promoção entre ambientes.
                                                             em determinado
                                                             ambiente
   ----------------------------------------------------------------------------
-
+```
 ### Exemplo conceitual
 
 ``` text
