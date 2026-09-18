@@ -1,19 +1,29 @@
-# Configuration Platform — Protótipo V1
+# Configuration Platform — Protótipo V2
 
-Protótipo estático e navegável da jornada inicial do portal.
+Protótipo navegável em **React + Vite**, com linguagem visual própria inspirada nos princípios públicos do Itaú Design Language (IDL) e em padrões observáveis no Itaú for Developers.
 
-## Como executar
+> Não utiliza nem afirma reproduzir bibliotecas internas/proprietárias do Itaú. A implementação usa componentes próprios e referências públicas de experiência.
 
-Não exige instalação:
-1. Abra `index.html` no navegador.
+## Executar
 
-Para servir localmente (opcional):
 ```bash
-python3 -m http.server 8080
+npm install
+npm run dev
 ```
-Depois acesse `http://localhost:8080`.
 
-## Fluxo implementado
-Login conceitual → Tipo de acesso → Contas Manager → Conta → Ambientes → Recursos → Aplicações.
+Build:
 
-Inclui breadcrumbs progressivos, cards responsivos, busca de contas, ambientes default/personalizado, estados configurado/pendente, aplicações Java/Go/.NET e modais ilustrativos para criação/configuração e herança.
+```bash
+npm run build
+```
+
+## Escopo
+
+Tipo de acesso → Contas Manager → Conta → Ambientes → Recursos → Aplicações.
+
+Inclui cards responsivos, breadcrumbs progressivos, busca, estados, ambiente personalizado, aplicações Java/Go/.NET e fluxos conceituais de configuração/herança.
+
+## Referências públicas
+
+- Itaú for Developers — jornada e criação de aplicações
+- Princípios públicos do Itaú Design Language: experiências simples, ágeis, relevantes, contextuais e consistentes
