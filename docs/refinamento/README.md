@@ -31,6 +31,9 @@ Esta pasta organiza os refinamentos funcionais e técnicos em sequência de dese
 9. `09-messaging/`
    - `message-catalog-plano-implementacao_V1.md`
 
+10. `10-resource-reference/`
+   - `resource-reference_V1.md`
+
 ## Regra de versionamento
 
 Cada refinamento deve preservar suas versões anteriores.
