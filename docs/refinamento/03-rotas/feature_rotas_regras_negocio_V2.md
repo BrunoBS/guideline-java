@@ -139,8 +139,10 @@ UNIQUE(account_id, application_id, url_id)
 3. Uma mesma Route pode ter várias versões simultaneamente no mesmo Environment.
 4. A mesma combinação `Route + Environment + URL_VERSION` não pode ser duplicada.
 5. A configuração específica por ambiente fica em `schema_data`.
-6. O estado operacional da disponibilização pode ser controlado por `active`.
-7. Criar ou promover uma disponibilização não cria nova URL, Route ou URL_VERSION.
+6. No cadastro/evolução inicial em DEV, a nova disponibilização é criada ativa (`active = true`).
+7. A criação de uma versão em DEV não a disponibiliza automaticamente em HML ou PROD.
+8. O estado operacional da disponibilização é controlado por `active`.
+9. Criar ou promover uma disponibilização não cria nova URL, Route ou URL_VERSION.
 
 Unicidade:
 
@@ -189,7 +191,8 @@ Fluxo:
 2. localizar/criar ROUTE por account + application + URL
 3. localizar/criar URL_VERSION por URL + schemaVersion
 4. validar duplicidade de ROUTE_ENVIRONMENT
-5. criar ROUTE_ENVIRONMENT
+5. criar ROUTE_ENVIRONMENT em DEV com `active = true`
+6. não criar disponibilizações automáticas em HML/PROD
 ```
 
 O usuário não informa:
@@ -370,7 +373,7 @@ erDiagram
 17. Evolução de uma Application não altera outras Applications.
 18. Todos os vínculos devem respeitar ownership da Account.
 19. IDs internos são resolvidos pelo backend.
-20. Cadastro/evolução inicial ocorre no ambiente de entrada definido pela plataforma; promoção cuida dos demais ambientes.
+20. Cadastro e evolução da rota ocorrem inicialmente em `DEV`; a disponibilização em HML/PROD ocorre somente pelo fluxo explícito de promoção.
 
 ---
 
