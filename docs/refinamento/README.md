@@ -28,6 +28,9 @@ Esta pasta organiza os refinamentos funcionais e técnicos em sequência de dese
 8. `08-transferencia-copia/`
    - `transferencia-copia-configuracoes_V1.md`
 
+9. `09-messaging/`
+   - `message-catalog-plano-implementacao_V1.md`
+
 ## Regra de versionamento
 
 Cada refinamento deve preservar suas versões anteriores.
