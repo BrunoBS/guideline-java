@@ -1,18 +1,45 @@
 # Refinamentos
 
-Esta pasta consolida os documentos de refinamento funcional e técnico da plataforma.
+Esta pasta organiza os refinamentos funcionais e técnicos em sequência de desenvolvimento e preserva o histórico de evolução de cada feature.
 
-## Documentos
+## Sequência
 
-- `modelo_dados_chaves.md` — Chaves / configurações dinâmicas, incluindo feature toggles/flags.
-- `menus.md` — Menu, itens, configuração por ambiente, targets e promoção.
-- `feature_rotas_cenarios.md` — Rotas, URL, URL_VERSION, ROUTE e ROUTE_ENVIRONMENT.
-- `schema-feature-refinamento.md` — Schema e contratos estruturais.
-- `account-api-feature-compartilhamento-negocio-v2.md` — Compartilhamento / Sharing entre aplicações.
-- `audit-service-v3.md` — Auditoria, eventos, ciclos, operações e snapshots.
-- `WORKSPACE_LIFECYCLE_ORCHESTRATION.md` — Lifecycle, inativação, PENDING_DELETION, quarentena e purge.
-- `FEATURE_TRANSFERENCIA_COPIA_CONFIGURACOES.md` — Transferência e cópia de configurações.
+1. `01-schema/`
+   - `schema-feature-refinamento_V1.md`
 
-## Observação
+2. `02-chaves/`
+   - `modelo_dados_chaves_V1.md`
 
-Os arquivos originais existentes em `docs/` foram preservados. Esta pasta funciona como ponto central dos refinamentos consolidados.
+3. `03-rotas/`
+   - `feature_rotas_cenarios_V1.md`
+
+4. `04-menus/`
+   - `menus_V1.md`
+
+5. `05-auditoria/`
+   - `audit-service_V1.md`
+
+6. `06-compartilhamento/`
+   - `compartilhamento-negocio_V1.md`
+
+7. `07-lifecycle/`
+   - `workspace-lifecycle-orchestration_V1.md`
+
+8. `08-transferencia-copia/`
+   - `transferencia-copia-configuracoes_V1.md`
+
+## Regra de versionamento
+
+Cada refinamento deve preservar suas versões anteriores.
+
+Exemplo:
+
+```text
+03-rotas/
+├── feature_rotas_cenarios_V1.md
+├── feature_rotas_cenarios_V2.md
+├── feature_rotas_cenarios_V3.md
+└── ...
+```
+
+Uma nova rodada de refinamento gera uma nova versão do MD. As versões anteriores não devem ser sobrescritas ou removidas, mantendo o histórico de decisões do domínio.
