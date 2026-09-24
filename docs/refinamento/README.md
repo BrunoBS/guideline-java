@@ -18,6 +18,8 @@ Esta pasta organiza os refinamentos funcionais e técnicos em sequência de dese
 
 5. `05-auditoria/`
    - `audit-service_V1.md`
+   - `audit-service_V2.md`
+   - `audit-service_V3.md`
 
 6. `06-compartilhamento/`
    - `compartilhamento-negocio_V1.md`
