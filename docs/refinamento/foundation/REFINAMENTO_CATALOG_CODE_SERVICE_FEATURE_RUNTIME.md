@@ -307,7 +307,7 @@ Não fazem parte de `settings`:
 
 ## 5.1. Validação forte de settings
 
-A feature Platform deve validar `settings` na entrada e impedir persistência de configuração inválida.
+`Feature.settings` será validado pelo schema associado ao tipo de Feature. Nesta etapa, a validação forte do JSON fica deliberadamente adiada até a implementação da feature de Schema; este refinamento deverá ser revisitado nessa fase. Até lá, a Platform persiste o JSON sem duplicar um validador provisório.
 
 Contrato inicial:
 
@@ -705,7 +705,7 @@ O refinamento arquitetural será considerado implementado quando:
 - [ ] ownership de Service não estiver em `Feature.settings`;
 - [ ] Feature N:N FeatureScopeType estiver modelado fora de settings;
 - [ ] settings possuir apenas política operacional;
-- [ ] settings possuir validação forte;
+- [ ] validação de `Feature.settings` integrada à feature de Schema (adiada deliberadamente até essa implementação);
 - [ ] `vw_feature_runtime_config` continuar existindo como contrato estável;
 - [ ] a view for responsabilidade da feature Platform;
 - [ ] Foundation não depender da feature Platform;
