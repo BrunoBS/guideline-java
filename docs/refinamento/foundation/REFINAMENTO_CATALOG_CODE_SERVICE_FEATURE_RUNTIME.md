@@ -106,7 +106,8 @@ Responsabilidades:
 - possuir nome e descrição;
 - possuir lifecycle administrativo quando aplicável;
 - ser owner de uma ou mais features;
-- permitir consulta das features que administra.
+- permitir consulta das features que administra;
+- permitir metadados administrativos extensíveis em `settings`, sem transformar cada novo metadado em coluna física.
 
 Cardinalidade:
 
@@ -197,6 +198,7 @@ code
 name
 description
 lifecycle_code
+settings
 created_at
 updated_at
 ```
@@ -208,6 +210,121 @@ Exemplo:
 ```text
 workspace-service
 ```
+
+### 4.1.1. Metadados administrativos do Service
+
+`Service` terá um campo:
+
+```text
+settings
+```
+
+para metadados administrativos e operacionais que podem evoluir ao longo do tempo sem exigir nova coluna para cada informação.
+
+Exemplos de metadados:
+
+```json
+{
+  "language": "java",
+  "repositoryUrl": "https://github.com/empresa/workspace-service",
+  "gatewayUrl": "https://gateway.empresa.com/workspace-service",
+  "documentationUrl": "https://docs.empresa.com/workspace-service"
+}
+```
+
+Possíveis metadados futuros:
+
+- observabilidade;
+- dashboard;
+- pipeline;
+- catálogo de API;
+- documentação técnica;
+- URL de suporte;
+- ownership técnico;
+- runtime/framework;
+- outras referências rápidas úteis ao time administrador da plataforma.
+
+Esses valores **não devem virar atributos fixos da entidade apenas por existirem como metadado**.
+
+A entidade continua enxuta:
+
+```text
+Service
+├── code
+├── name
+├── description
+├── lifecycle
+├── features
+└── settings
+```
+
+O `code` permanece o identificador técnico canônico do Service.
+
+Para aplicações Spring:
+
+```text
+Service.code == spring.application.name
+```
+
+Exemplo:
+
+```text
+workspace-service
+```
+
+### 4.1.2. Schema de metadados do Service
+
+O conteúdo de `Service.settings` não deve ser um JSON livre sem governança.
+
+A Platform deve validá-lo através da feature de Schema.
+
+Contrato conceitual inicial:
+
+```text
+schema       = service-metadata
+resourceType = MICROSERVICE
+```
+
+O schema poderá possuir múltiplas versões e lifecycle próprio.
+
+No create/update de Service:
+
+```text
+Create/Update Service
+        ↓
+resolver schema service-metadata
+        ↓
+buscar última versão PUBLISHED
+        ↓
+validar settings
+        ↓
+persistir Service
+```
+
+Regras:
+
+- o Service **não persiste `schemaVersion`**;
+- a versão do schema é resolvida no momento da operação;
+- novos cadastros e novas alterações usam a última versão `PUBLISHED`;
+- Services antigos não são migrados retroativamente apenas porque uma nova versão do schema foi publicada;
+- eventual histórico da versão aplicada pode ser registrado por Audit/Event, sem poluir a entidade Service.
+
+A validação deve rejeitar `settings` incompatível com o schema vigente.
+
+### 4.1.3. Language
+
+`language` é um metadado técnico importante do Service, porém permanece dentro de `settings` nesta modelagem.
+
+Exemplos:
+
+```text
+java
+python
+go
+nodejs
+```
+
+A governança dos valores aceitos deve ser feita pelo schema correspondente. Caso a Platform utilize `LanguageType` como vocabulário oficial, o schema deve refletir os valores permitidos desse catálogo, evitando criar uma segunda fonte semântica independente.
 
 ---
 
