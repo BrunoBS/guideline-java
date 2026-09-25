@@ -1,372 +1,209 @@
-# Refinamento — Catálogos Tipados + Service/Feature Runtime Configuration
+# Refinamento — Catálogos Tipados + Platform Feature + Runtime Configuration
 
 ## 1. Objetivo
 
-Este refinamento consolida duas evoluções estruturais do `workspace-service`:
+Este refinamento consolida a evolução arquitetural do `workspace-service` em dois eixos:
 
-1. **Padronizar o uso de códigos de catálogo** por meio de uma abstração reutilizável na `platform-libraries`, mantendo implementações semânticas específicas dentro de cada catálogo da `foundation`.
-2. **Estruturar os catálogos `ServiceType` e `FeatureType`** para que a `FeatureType` seja a unidade de configuração operacional consumida por auditoria, quarentena e purge através de uma view estável.
+1. padronizar códigos de catálogos transversais por meio de `AbstractCatalogCode` na `platform-libraries`;
+2. retirar `ServiceType` e `FeatureType` da `foundation` e promover os conceitos para entidades administrativas da feature `platform`: `Service` e `Feature`.
 
-As duas atividades devem ser executadas no mesmo refinamento, porém em duas fases sequenciais, pois a segunda deve utilizar o padrão de `CatalogCode` definido na primeira.
+A `foundation` permanece responsável apenas pelo vocabulário estrutural e transversal. A nova `feature.platform` passa a administrar a composição da plataforma: serviços, features, associação funcional a scopes e políticas operacionais.
+
+Este documento substitui as decisões anteriores que tratavam `ServiceType` e `FeatureType` como catálogos simples da Foundation.
 
 ---
 
 # 2. Decisões arquiteturais
 
-## 2.1. Catálogos continuam simples
+## 2.1. Foundation permanece estável e transversal
 
-`ServiceType` e `FeatureType` permanecem catálogos simples dentro de:
+A `foundation` mantém catálogos que representam vocabulário estrutural reutilizável.
 
-```text
-foundation.catalog
-```
-
-Estrutura esperada:
+Em especial:
 
 ```text
-foundation
-└── catalog
-    ├── servicetype
-    │   ├── domain
-    │   │   ├── ServiceType
-    │   │   ├── ServiceTypeEnum
-    │   │   └── ServiceTypeCode
-    │   ├── repository
-    │   └── usecase
-    │
-    └── featuretype
-        ├── domain
-        │   ├── FeatureType
-        │   ├── FeatureTypeEnum
-        │   └── FeatureTypeCode
-        ├── repository
-        └── usecase
+foundation.catalog.featurescopetype
+├── domain
+│   ├── FeatureScopeType
+│   ├── FeatureScopeTypeEnum
+│   └── FeatureScopeTypeCode
+├── repository
+└── usecase
 ```
 
-Não serão criadas, neste momento, entidades administrativas separadas `Service` e `Feature`.
+`FeatureScopeType` representa agrupadores funcionais de features percebidos pelo usuário ou pela plataforma.
+
+Exemplos conceituais:
+
+```text
+PROMOTION_ENGINE
+CONFIGURATION
+ADMINISTRATION
+```
+
+Um scope pode agrupar várias features e uma feature pode participar de vários scopes.
+
+A Foundation **não conhece `Service` nem `Feature`** e não depende de `feature.platform`.
 
 ---
 
-## 2.2. Relação Service → Feature
+## 2.2. ServiceType e FeatureType deixam a Foundation
 
-A cardinalidade conceitual será:
+Os conceitos anteriores:
 
 ```text
-ServiceType 1 ───── N FeatureType
+foundation.catalog.servicetype.ServiceType
+foundation.catalog.featuretype.FeatureType
 ```
 
-Cada `FeatureType` pertence a exatamente um `ServiceType`.
+deixam de representar simples tipos de catálogo.
 
-O vínculo não será implementado como FK física entre as tabelas de catálogo.
+Passam a ser entidades administrativas:
 
-A referência será mantida dentro do `settings` de `type_features`.
-
-Exemplo:
-
-```json
-{
-  "service": "workspace-service",
-  "quarantine": {
-    "enabled": true,
-    "retentionDays": 30,
-    "restoreAllowed": true
-  },
-  "audit": {
-    "enabled": true,
-    "snapshotOnPurge": true
-  },
-  "purge": {
-    "enabled": true
-  }
-}
+```text
+feature.platform.domain.Service
+feature.platform.domain.Feature
 ```
 
-A camada de domínio deve validar que o `service` informado existe e está ativo em `type_services`.
+Motivo: ambos possuem identidade administrativa, relacionamento, regras, configuração, ciclo de manutenção e casos de uso próprios. Portanto, não devem ser tratados apenas como vocabulário estático.
 
 ---
 
-# 3. Fase 1 — Abstração de CatalogCode
+## 2.3. Estrutura alvo da feature Platform
 
-## 3.1. Problema atual
-
-Atualmente alguns domínios possuem VOs próprios com comportamento repetido.
-
-Exemplos atuais:
+Estrutura conceitual:
 
 ```text
-LifecycleTypeCode
-WorkspaceTypeCode
+feature
+└── platform
+    ├── domain
+    │   ├── Service
+    │   └── Feature
+    ├── repository
+    │   ├── ServiceRepository
+    │   └── FeatureRepository
+    ├── usecase
+    │   ├── service
+    │   └── feature
+    └── infra
 ```
 
-Também existem entidades que ainda persistem códigos de catálogo diretamente como `String`.
+A organização final deve respeitar o padrão arquitetural vigente da Golden Reference.
 
-Exemplo:
-
-```text
-Message.lifecycleCode
-MessageTranslation.lifecycleCode
-```
-
-Isso gera:
-
-- repetição de validação;
-- repetição de `equals/hashCode`;
-- constantes String duplicadas;
-- uso inconsistente entre módulos;
-- risco de novos domínios criarem soluções diferentes.
+Não criar entidade `Platform`. `platform` é o bounded context/feature que agrupa a administração da composição da plataforma.
 
 ---
 
-## 3.2. Abstração na platform-libraries
+# 3. Modelo de domínio
 
-Criar na `platform-libraries` uma abstração reutilizável para códigos de catálogo.
+## 3.1. Service
 
-Nome sugerido:
+`Service` representa um serviço/microserviço administrado pela plataforma.
+
+Responsabilidades:
+
+- possuir código estável;
+- possuir nome e descrição;
+- possuir lifecycle administrativo quando aplicável;
+- ser owner de uma ou mais features;
+- permitir consulta das features que administra.
+
+Cardinalidade:
 
 ```text
-AbstractCatalogCode
+Service 1 ───── N Feature
 ```
 
-Responsabilidades da abstração:
+Uma `Feature` pertence a exatamente um `Service`.
 
-- armazenar o valor do código;
-- validar formato semântico padrão;
-- expor `value()`;
-- implementar igualdade;
-- implementar `hashCode`;
-- implementar `toString`;
-- fornecer comportamento comum de persistência compatível com JPA;
-- não conhecer nenhum catálogo específico;
-- não conhecer valores como `ACTIVE`, `DEV`, `JAVA`, etc.
-
-Conceito:
-
-```java
-public abstract class AbstractCatalogCode<E extends Enum<E>> {
-
-    protected String value;
-
-    protected AbstractCatalogCode() {
-    }
-
-    protected AbstractCatalogCode(E value) {
-        this.value = value.name();
-    }
-
-    public String value() {
-        return value;
-    }
-}
-```
-
-A implementação final deve respeitar as regras e convenções já existentes na `platform-libraries`.
+O ownership é uma relação estrutural e **não deve ficar dentro de settings**.
 
 ---
 
-## 3.3. Implementações concretas permanecem na foundation
+## 3.2. Feature
 
-Cada catálogo terá seu próprio VO semântico dentro de seu `domain`.
+`Feature` representa uma capacidade administrada da plataforma.
 
-Exemplo:
+Responsabilidades:
 
-```text
-foundation.catalog.lifecycletype.domain
-├── LifecycleType
-├── LifecycleTypeEnum
-└── LifecycleTypeCode
-```
-
-Exemplo conceitual:
-
-```java
-@Embeddable
-public class LifecycleTypeCode
-        extends AbstractCatalogCode<LifecycleTypeEnum> {
-
-    protected LifecycleTypeCode() {
-    }
-
-    private LifecycleTypeCode(LifecycleTypeEnum value) {
-        super(value);
-    }
-
-    public static LifecycleTypeCode of(LifecycleTypeEnum value) {
-        return new LifecycleTypeCode(value);
-    }
-}
-```
-
-O mesmo padrão deverá ser aplicável a:
-
-```text
-ApplicationScopeTypeCode
-AuthorizationTypeCode
-EnvironmentTypeCode
-FeatureScopeTypeCode
-FeatureTypeCode
-InfrastructureTypeCode
-LanguageTypeCode
-LifecycleTypeCode
-OnboardingPhaseTypeCode
-PublisherScopeTypeCode
-SchemaScopeTypeCode
-SchemaTypeCode
-ServiceTypeCode
-ShareStatusTypeCode
-TagOriginTypeCode
-VisibilityTypeCode
-WorkspaceTypeCode
-```
-
-Observação: somente criar implementações que façam sentido para consumo por entidades. Não criar classes artificiais apenas por simetria se determinado catálogo não for referenciado por nenhum domínio.
-
----
-
-## 3.4. Enum como fonte dos valores conhecidos
-
-Remover constantes String duplicadas quando já existir enum correspondente.
-
-Evitar:
-
-```java
-private static final String ACTIVE_CODE = "ACTIVE";
-private static final String INACTIVE_CODE = "INACTIVE";
-```
-
-Preferir:
-
-```java
-LifecycleTypeCode.of(LifecycleTypeEnum.ACTIVE);
-LifecycleTypeCode.of(LifecycleTypeEnum.INACTIVE);
-```
-
-O enum representa os valores conhecidos em compile time.
-
-A entidade consumidora continua responsável pelas transições permitidas.
-
----
-
-## 3.5. Lifecycle
-
-O catálogo de lifecycle deve ser preparado para o novo padrão transversal:
-
-```text
-ACTIVE
-INACTIVE
-QUARANTINED
-```
-
-`PENDING_DELETION` deverá ser substituído por `QUARANTINED` quando a migração desse conceito for executada.
-
-`PURGED` não é lifecycle.
-
-`PURGED` é um evento terminal de auditoria, pois após o purge o recurso não existe mais na tabela de origem.
-
----
-
-## 3.6. Regra de uso do LifecycleTypeCode
-
-Toda entidade que utiliza lifecycle deve usar:
-
-```text
-LifecycleTypeCode
-```
-
-e não `String`.
+- possuir código estável;
+- possuir nome e descrição;
+- pertencer exatamente a um `Service`;
+- associar-se a zero ou mais `FeatureScopeType`;
+- armazenar somente configuração operacional em `settings`;
+- servir como chave de contexto para auditoria, quarentena e purge.
 
 Exemplos:
 
 ```text
-Workspace
-Message
-MessageTranslation
-Application
-Environment
-Publisher
+WORKSPACE
+APPLICATION
+ENVIRONMENT
+PUBLISHER
+MESSAGE
 ```
-
-Cada entidade define suas próprias transições.
-
-Exemplo:
-
-```text
-Workspace
-ACTIVE
-INACTIVE
-QUARANTINED
-```
-
-Enquanto outra entidade poderá permitir apenas:
-
-```text
-Message
-ACTIVE
-INACTIVE
-QUARANTINED
-```
-
-mas com retenção de quarentena igual a zero.
-
-A existência de um valor no catálogo não obriga todas as entidades a exporem todas as transições diretamente.
 
 ---
 
-## 3.7. Nome físico da coluna
+## 3.3. Relação Feature ↔ FeatureScopeType
 
-O VO não deve conhecer o nome da coluna da entidade consumidora.
+Cardinalidade:
 
-A entidade define o mapeamento.
-
-Exemplo:
-
-```java
-@Embedded
-@AttributeOverride(
-    name = "value",
-    column = @Column(
-        name = "lifecycle_code",
-        nullable = false,
-        length = 50
-    )
-)
-private LifecycleTypeCode lifecycle;
+```text
+Feature N ───── N FeatureScopeType
 ```
 
-Isso permite reutilizar a mesma implementação sem acoplamento ao schema físico de cada tabela.
+A associação deve ser explícita e persistida fora do JSON de `settings`.
+
+Modelo conceitual:
+
+```text
+Feature
+  │
+  ├── owner ──> Service
+  │
+  └── scopes ──> FeatureScopeType
+```
+
+A feature Platform pode consultar o catálogo de scopes da Foundation. A Foundation não pode depender da feature Platform.
+
+Essa relação permite responder perguntas como:
+
+```text
+Quais features compõem o PROMOTION_ENGINE?
+Quais scopes utilizam a feature X?
+Quais capacidades do service Y aparecem em determinado agrupador?
+```
 
 ---
 
-# 4. Fase 2 — ServiceType e FeatureType
+# 4. Persistência
 
-## 4.1. ServiceType
+Os nomes físicos finais podem ser ajustados durante a implementação, mas o modelo conceitual deve preservar as relações abaixo.
 
-Tabela:
+## 4.1. Services
+
+Tabela conceitual:
 
 ```text
-type_services
+services
 ```
 
-Responsabilidade:
-
-- identificar os serviços da plataforma;
-- fornecer código estável;
-- permitir validação de referências de feature;
-- servir como catálogo owner do `workspace-service`.
-
-Estrutura base permanece no padrão de catálogo:
+Campos mínimos:
 
 ```text
+identifier
 code
-label
+name
 description
-sort_order
-is_active
-settings
+lifecycle_code
+created_at
+updated_at
 ```
 
-Neste primeiro momento, `ServiceType.settings` não precisa possuir configuração operacional relevante.
+O `code` deve ser estável e único.
 
-Exemplo inicial:
+Exemplo:
 
 ```text
 workspace-service
@@ -374,43 +211,75 @@ workspace-service
 
 ---
 
-## 4.2. FeatureType
+## 4.2. Features
 
-Tabela:
+Tabela conceitual:
 
 ```text
-type_features
+features
+```
+
+Campos mínimos:
+
+```text
+identifier
+code
+name
+description
+service_identifier
+lifecycle_code
+settings
+created_at
+updated_at
+```
+
+`service_identifier` representa ownership estrutural da feature.
+
+Não armazenar:
+
+```json
+{
+  "service": "workspace-service"
+}
+```
+
+em `settings`.
+
+---
+
+## 4.3. Associação de scopes
+
+Tabela associativa conceitual:
+
+```text
+feature_scopes
 ```
 
 Responsabilidade:
 
-- identificar cada feature administrada;
-- apontar para exatamente um `ServiceType`;
-- armazenar a política operacional da feature;
-- ser a chave utilizada por auditoria, quarantine e purge.
-
-Estrutura física permanece no padrão de catálogo:
-
 ```text
-code
-label
-description
-sort_order
-is_active
-settings
+Feature N:N FeatureScopeType
 ```
 
-O comportamento adicional ficará em `settings`.
+Exemplo de campos:
+
+```text
+feature_identifier
+feature_scope_code
+```
+
+`feature_scope_code` referencia semanticamente o catálogo `FeatureScopeType` da Foundation conforme o padrão de integração adotado no serviço.
 
 ---
 
-# 5. Estrutura de settings da FeatureType
+# 5. Settings da Feature
 
-Formato inicial proposto:
+`settings` permanece na entidade `Feature`, porém exclusivamente para política operacional.
+
+Formato inicial:
 
 ```json
 {
-  "service": "workspace-service",
   "quarantine": {
     "enabled": true,
     "retentionDays": 30,
@@ -426,83 +295,65 @@ Formato inicial proposto:
 }
 ```
 
-## 5.1. service
+Não fazem parte de `settings`:
 
-```text
-service
-```
-
-Obrigatório.
-
-Deve apontar para:
-
-```text
-type_services.code
-```
-
-A aplicação deve validar:
-
-- service informado existe;
-- service está ativo.
+- owner/service;
+- scopes;
+- identifier;
+- lifecycle;
+- relações estruturais.
 
 ---
 
-## 5.2. quarantine
+## 5.1. Validação forte de settings
 
-Campos iniciais:
+A feature Platform deve validar `settings` na entrada e impedir persistência de configuração inválida.
+
+Contrato inicial:
+
+### quarantine
 
 ```text
-enabled
-retentionDays
-restoreAllowed
+enabled: boolean obrigatório
+retentionDays: inteiro >= 0 obrigatório
+restoreAllowed: boolean obrigatório
 ```
 
-Regras:
+### audit
 
-- todo recurso deletável da plataforma utiliza o conceito de `QUARANTINED`;
-- o domínio define seu tempo de retenção;
-- `retentionDays = 0` significa que o recurso pode seguir para purge imediatamente após entrar em quarentena;
-- retenção maior que zero mantém o recurso em quarentena até expiração;
-- `restoreAllowed` define se aquela feature pode ser restaurada durante a quarentena.
+```text
+enabled: boolean obrigatório
+snapshotOnPurge: boolean obrigatório
+```
+
+### purge
+
+```text
+enabled: boolean obrigatório
+```
+
+A validação deve rejeitar estrutura incompatível com o contrato vigente.
+
+A validação do owner não faz mais parte da validação de `settings`: a existência e validade do `Service` pertencem à regra de relacionamento do domínio.
 
 ---
 
-## 5.3. audit
-
-Campos iniciais:
-
-```text
-enabled
-snapshotOnPurge
-```
-
-`enabled` indica que operações relevantes da feature participam do mecanismo de auditoria.
-
-`PURGE` de recurso auditável deverá gerar registro permanente na estrutura agregadora de auditoria, o conceito de “cemitério”.
-
-`snapshotOnPurge` controla se o estado final deve possuir snapshot antes da remoção física.
-
----
-
-## 5.4. purge
-
-Campo inicial:
-
-```text
-enabled
-```
-
-Define se a feature permite exclusão física após cumprir sua política de quarentena.
-
----
-
-# 6. Exemplos iniciais
+# 6. Exemplos
 
 ## 6.1. WORKSPACE
 
+Relações:
+
+```text
+Feature: WORKSPACE
+Service: workspace-service
+Scopes: conforme composição funcional cadastrada
+```
+
+Settings:
+
 ```json
 {
-  "service": "workspace-service",
   "quarantine": {
     "enabled": true,
     "retentionDays": 30,
@@ -517,14 +368,11 @@ Define se a feature permite exclusão física após cumprir sua política de qua
   }
 }
 ```
-
----
 
 ## 6.2. MESSAGE
 
 ```json
 {
-  "service": "workspace-service",
   "quarantine": {
     "enabled": true,
     "retentionDays": 0,
@@ -540,7 +388,7 @@ Define se a feature permite exclusão física após cumprir sua política de qua
 }
 ```
 
-Mesmo com retenção zero, a sequência conceitual permanece:
+Mesmo com retenção zero:
 
 ```text
 QUARANTINED
@@ -548,30 +396,29 @@ QUARANTINED
 PURGED
 ```
 
+`PURGED` continua sendo fato/evento histórico e não lifecycle.
+
 ---
 
-# 7. View de contrato
+# 7. View de runtime
 
-Criar uma view no schema owner do `workspace-service`.
-
-Nome sugerido:
+Preservar o contrato:
 
 ```text
 vw_feature_runtime_config
 ```
 
-Objetivo:
+A view passa a ser responsabilidade da `feature.platform`.
 
-- esconder o JSON dos consumidores;
-- transformar `settings` em contrato tabular;
-- disponibilizar Service + Feature + política operacional;
-- evitar que auditoria dependa da estrutura interna de `type_features.settings`.
+Objetivos:
 
-A auditoria e outros consumidores não devem interpretar diretamente o JSON.
+- fornecer contrato tabular estável;
+- esconder a representação de `settings`;
+- resolver o owner `Service` pela relação estrutural;
+- expor política operacional;
+- evitar que audit/quarantine/purge dependam do modelo interno da feature Platform.
 
----
-
-## 7.1. Colunas propostas
+Colunas propostas:
 
 ```text
 feature_code
@@ -592,331 +439,346 @@ feature_active
 service_active
 ```
 
-A view poderá evoluir futuramente com novos atributos sem alterar a modelagem física dos catálogos.
+Consumidores não devem interpretar diretamente o JSON de `Feature.settings`.
 
 ---
 
-## 7.2. Exemplo conceitual
+# 8. Contrato com auditoria, quarentena e purge
+
+A `feature_code` permanece como chave operacional.
+
+Fluxo:
 
 ```text
-feature_code | service_code      | retention_days | audit | purge
--------------+-------------------+----------------+-------+------
-WORKSPACE    | workspace-service | 30             | true  | true
-MESSAGE      | workspace-service | 0              | true  | true
-APPLICATION  | workspace-service | 30             | true  | true
-```
-
----
-
-# 8. Contrato com auditoria
-
-A auditoria deverá trabalhar usando a `feature_code` como chave de contexto operacional.
-
-Exemplo:
-
-```text
-feature = MESSAGE
-```
-
-Através da view:
-
-```text
-MESSAGE
-   ↓
-workspace-service
-   ↓
+feature_code
+     ↓
+vw_feature_runtime_config
+     ↓
+Service owner
+     ↓
 quarantine policy
-   ↓
+     ↓
 audit policy
-   ↓
+     ↓
 purge policy
 ```
 
-A feature é única no catálogo e pertence a um único serviço.
-
-Logo, a auditoria não precisa receber `service` e `feature` separadamente para descobrir configuração.
+O consumidor não precisa receber `service` separadamente para descobrir a configuração.
 
 ---
 
-# 9. Fluxo transversal de exclusão
+# 9. Lifecycle transversal
 
-Fluxo padrão:
+O catálogo transversal continua na Foundation:
 
 ```text
-ACTIVE / INACTIVE
-       ↓
+ACTIVE
+INACTIVE
 QUARANTINED
-       ↓
-consulta vw_feature_runtime_config
-       ↓
-retentionDays
-       ↓
-expiração
-       ↓
-PURGE
-       ↓
-audit event
-       ↓
-audit purge / operação histórica
 ```
 
-Para retenção zero:
+`PENDING_DELETION` deve ser substituído por `QUARANTINED` conforme a migração do conceito.
 
-```text
-QUARANTINED
-       ↓
-PURGE
-```
+`PURGED` não pertence ao catálogo de lifecycle.
 
-A passagem por quarentena continua existindo conceitualmente.
+Toda entidade que utiliza lifecycle deve consumir `LifecycleTypeCode`, e cada agregado continua responsável por suas transições permitidas.
 
 ---
 
-# 10. Auditoria e “cemitério”
+# 10. CatalogCode
 
-Regra proposta:
+## 10.1. platform-libraries
 
-```text
-recurso auditável
-+
-PURGE
-=
-registro permanente de exclusão física
-```
+`AbstractCatalogCode` permanece como abstração reutilizável responsável por:
 
-Esse registro deve permitir responder futuramente:
-
-- o recurso existiu?
-- qual era seu identifier?
-- qual feature?
-- qual serviço?
-- quando foi fisicamente removido?
-- quem executou a operação?
-- qual operação/correlation id originou a exclusão?
-- existia snapshot associado?
-
-`PURGED` deve permanecer como evento de auditoria, e não como estado de lifecycle.
-
----
-
-# 11. Ordem de implementação
-
-## Etapa 1 — platform-libraries
-
-1. Criar abstração `AbstractCatalogCode`.
-2. Centralizar validação de formato.
-3. Centralizar `value`, igualdade, `hashCode` e representação textual.
-4. Adicionar testes unitários da abstração.
-5. Publicar nova versão da lib.
-
----
-
-## Etapa 2 — foundation/catalog
-
-1. Mover `LifecycleTypeCode` para:
-   ```text
-   foundation.catalog.lifecycletype.domain
-   ```
-2. Mover `WorkspaceTypeCode` para:
-   ```text
-   foundation.catalog.workspacetype.domain
-   ```
-3. Fazer ambos herdarem da abstração da lib.
-4. Remover `SemanticCode` específico do módulo workspace se ficar obsoleto.
-5. Criar os demais `*TypeCode` necessários conforme consumo real.
-6. Substituir constantes String por enums onde aplicável.
-
----
-
-## Etapa 3 — consumidores existentes
-
-Migrar:
-
-```text
-Workspace
-Message
-MessageTranslation
-```
-
-para usar VOs de catálogo tipados.
-
-Remover uso direto de String para códigos de catálogo onde houver VO disponível.
-
----
-
-## Etapa 4 — lifecycle
-
-1. Consolidar:
-   ```text
-   ACTIVE
-   INACTIVE
-   QUARANTINED
-   ```
-2. Planejar substituição de:
-   ```text
-   PENDING_DELETION
-   ```
-3. Manter transições dentro das entidades/agregados.
-4. Não adicionar `PURGED` ao catálogo de lifecycle.
-
----
-
-## Etapa 5 — ServiceType
-
-1. Revisar `ServiceType` existente.
-2. Criar `ServiceTypeEnum`, se aplicável.
-3. Criar `ServiceTypeCode`.
-4. Garantir registro inicial:
-   ```text
-   workspace-service
-   ```
-
----
-
-## Etapa 6 — FeatureType
-
-1. Revisar `FeatureType` existente.
-2. Criar `FeatureTypeCode`.
-3. Definir contrato de `settings`.
-4. Implementar validação de vínculo com `ServiceType`.
-5. Garantir que uma feature pertença a apenas um service.
-6. Inserir configurações iniciais das features existentes.
-
----
-
-## Etapa 7 — View
-
-Criar:
-
-```text
-vw_feature_runtime_config
-```
-
-A view deve:
-
-- extrair atributos do JSON;
-- resolver `service_code`;
-- fazer join com `type_services`;
-- expor somente contrato tabular;
-- filtrar ou sinalizar inatividade de service/feature de forma explícita.
-
----
-
-## Etapa 8 — Testes
-
-Cobrir:
-
-### CatalogCode
-- criação válida;
-- valor nulo;
-- valor inválido;
+- valor;
+- validação semântica comum;
 - igualdade;
-- enums diferentes;
-- persistência JPA.
+- hashCode;
+- representação textual;
+- suporte à persistência;
+- ausência de conhecimento sobre catálogos concretos.
 
-### ServiceType / FeatureType
-- feature com service válido;
-- feature com service inexistente;
-- feature com service inativo;
-- settings inválido;
+## 10.2. Foundation
+
+VOs semânticos de catálogos transversais continuam junto aos respectivos catálogos.
+
+Exemplos:
+
+```text
+LifecycleTypeCode
+WorkspaceTypeCode
+FeatureScopeTypeCode
+EnvironmentTypeCode
+PublisherScopeTypeCode
+...
+```
+
+## 10.3. Mudança em relação à versão anterior
+
+Não criar/manter `ServiceTypeCode` e `FeatureTypeCode` como consequência automática desta abstração.
+
+`Service` e `Feature` agora são entidades da `feature.platform`; seus códigos fazem parte do modelo dessas entidades e devem seguir a estratégia de Value Object definida para o domínio, sem reintroduzi-los artificialmente como catálogos da Foundation.
+
+---
+
+# 11. Casos de uso da feature Platform
+
+A feature deve possuir casos de uso próprios para administração.
+
+## Service
+
+No mínimo:
+
+```text
+CreateService
+UpdateService
+FindServiceById
+FindAllServices
+ActivateService
+InactivateService
+DeleteService
+```
+
+## Feature
+
+No mínimo:
+
+```text
+CreateFeature
+UpdateFeature
+FindFeatureById
+FindAllFeatures
+ActivateFeature
+InactivateFeature
+DeleteFeature
+```
+
+## Associação de scopes
+
+Prever operações para:
+
+- associar scope a feature;
+- remover associação;
+- consultar features por scope;
+- consultar scopes de uma feature.
+
+A nomenclatura final deve seguir o padrão de use cases já adotado pela Golden Reference.
+
+---
+
+# 12. Regras de domínio essenciais
+
+1. Uma Feature pertence a exatamente um Service.
+2. O Service informado deve existir e estar em estado permitido para associação.
+3. Ownership não é settings.
+4. Feature pode participar de vários FeatureScopeTypes.
+5. FeatureScopeType pode agrupar várias Features.
+6. Associação de scope não é settings.
+7. Settings contém apenas política operacional.
+8. Settings inválido não pode ser persistido.
+9. A Foundation não depende da feature Platform.
+10. A view runtime é o contrato de leitura transversal para consumidores técnicos.
+11. Alterações de relacionamento devem preservar integridade e não deixar associações órfãs.
+
+---
+
+# 13. Ordem de implementação futura
+
+Este documento consolida o desenho. A implementação deve ser feita posteriormente em branch própria do `account-service`.
+
+## Etapa 1 — CatalogCode/Foundation
+
+Concluir e validar a abstração `AbstractCatalogCode` e os VOs realmente consumidos pelos domínios.
+
+## Etapa 2 — criar feature.platform
+
+Criar estrutura de domínio, use cases, repositories e infraestrutura.
+
+## Etapa 3 — migrar ServiceType → Service
+
+- remover responsabilidade administrativa de `foundation.catalog.servicetype`;
+- criar entidade `Service`;
+- migrar dados existentes;
+- preservar códigos estáveis.
+
+## Etapa 4 — migrar FeatureType → Feature
+
+- remover responsabilidade administrativa de `foundation.catalog.featuretype`;
+- criar entidade `Feature`;
+- transformar owner em relação estrutural com `Service`;
+- remover `service` do JSON;
+- preservar política operacional em `settings`.
+
+## Etapa 5 — scopes
+
+- manter `FeatureScopeType` na Foundation;
+- criar associação N:N na feature Platform;
+- migrar vínculos existentes, quando houver.
+
+## Etapa 6 — view
+
+Adaptar `vw_feature_runtime_config` ao novo modelo físico sem alterar desnecessariamente seu contrato externo.
+
+## Etapa 7 — testes
+
+Cobrir domínio, settings, relações, scopes, view e arquitetura.
+
+---
+
+# 14. Migração e compatibilidade
+
+A migração não deve quebrar consumidores existentes da view.
+
+Princípios:
+
+- preservar `feature_code`;
+- preservar `service_code`;
+- preservar semântica de quarantine/audit/purge;
+- retirar gradualmente ownership do JSON;
+- migrar associações de scope para estrutura explícita;
+- eliminar classes/tabelas antigas somente depois da migração dos consumidores;
+- não manter dois modelos concorrentes após a conclusão.
+
+Não criar compatibilidade permanente entre `ServiceType/FeatureType` e `Service/Feature`.
+
+---
+
+# 15. Testes esperados
+
+## Service
+
+- criação válida;
+- código duplicado;
+- lifecycle;
+- tentativa de associação de feature a service inválido/inativo conforme regra definida.
+
+## Feature
+
+- criação válida;
+- owner obrigatório;
+- settings válido;
+- settings estruturalmente inválido;
 - retention zero;
-- retention positiva.
+- retention positiva;
+- flags com tipo inválido.
 
-### View
-- projeção correta do JSON;
-- relacionamento Feature → Service;
+## Scopes
+
+- associação Feature ↔ FeatureScopeType;
+- múltiplos scopes por feature;
+- múltiplas features por scope;
+- scope inexistente/inativo conforme regra do catálogo;
+- remoção de associação;
+- ausência de órfãos.
+
+## View
+
+- Feature → Service;
+- projeção correta de settings;
 - booleanos;
 - retention;
-- feature inativa;
-- service inativo.
+- inatividade;
+- contrato preservado.
 
-### Consumidores
-- Workspace usando `WorkspaceTypeCode`;
-- Workspace usando `LifecycleTypeCode`;
-- Message usando `LifecycleTypeCode`;
-- MessageTranslation usando `LifecycleTypeCode`.
+## Arquitetura
 
----
-
-# 12. Critérios de aceite
-
-O refinamento é considerado concluído quando:
-
-- [ ] `AbstractCatalogCode` existir na `platform-libraries`;
-- [ ] não houver comportamento genérico duplicado nos VOs migrados;
-- [ ] VOs concretos estiverem dentro do domínio do catálogo correspondente;
-- [ ] `Workspace` não possuir mais `LifecycleTypeCode`/`WorkspaceTypeCode` próprios em seu domínio;
-- [ ] `Message` e `MessageTranslation` não persistirem lifecycle como String;
-- [ ] enums substituírem constantes String de valores conhecidos;
-- [ ] `ServiceType` estiver estruturado como catálogo simples;
-- [ ] `FeatureType` estiver estruturado como catálogo simples;
-- [ ] cada FeatureType referenciar exatamente um ServiceType;
-- [ ] configuração operacional estiver no `FeatureType.settings`;
-- [ ] validação impedir referência a service inexistente/inativo;
-- [ ] `vw_feature_runtime_config` existir;
-- [ ] a view expuser os dados necessários para auditoria/quarentena/purge;
-- [ ] testes de arquitetura e integração permanecerem verdes;
-- [ ] `mvn clean verify` passar no `workspace-service`;
-- [ ] CI da `platform-libraries` passar;
-- [ ] CI do `workspace-service` passar.
+- Foundation não depende de `feature.platform`;
+- `feature.platform` pode consumir tipos da Foundation;
+- consumidores transversais usam a view/contrato, não o JSON interno.
 
 ---
 
-# 13. Fora de escopo deste refinamento
+# 16. Critérios de aceite
 
-Não implementar ainda:
+O refinamento arquitetural será considerado implementado quando:
+
+- [ ] `AbstractCatalogCode` estiver consolidado na `platform-libraries`;
+- [ ] catálogos transversais permanecerem na Foundation;
+- [ ] `FeatureScopeType` permanecer na Foundation;
+- [ ] `ServiceType` não existir mais como catálogo administrativo da Foundation;
+- [ ] `FeatureType` não existir mais como catálogo administrativo da Foundation;
+- [ ] existir `feature.platform`;
+- [ ] existir entidade `Service`;
+- [ ] existir entidade `Feature`;
+- [ ] Service 1:N Feature estiver modelado explicitamente;
+- [ ] ownership de Service não estiver em `Feature.settings`;
+- [ ] Feature N:N FeatureScopeType estiver modelado fora de settings;
+- [ ] settings possuir apenas política operacional;
+- [ ] settings possuir validação forte;
+- [ ] `vw_feature_runtime_config` continuar existindo como contrato estável;
+- [ ] a view for responsabilidade da feature Platform;
+- [ ] Foundation não depender da feature Platform;
+- [ ] testes de arquitetura, domínio e integração estiverem verdes;
+- [ ] `mvn clean verify` passar;
+- [ ] CI passar.
+
+---
+
+# 17. Fora de escopo desta consolidação
+
+Este commit de documentação **não deve alterar o `account-service`**.
+
+Também não implementar neste momento:
 
 - scheduler real de purge;
 - worker de quarentena;
-- consumo da view pelo audit-service;
-- persistência do “cemitério” de auditoria;
+- consumo real pelo audit-service;
+- cemitério de auditoria;
 - snapshot de purge;
-- orquestração entre microserviços;
 - hard delete automático;
-- contratos externos de auditoria.
+- orquestração entre microserviços.
 
-Este refinamento prepara o modelo e o contrato necessários para essas etapas.
+Essas atividades dependem da implementação posterior do modelo consolidado.
 
 ---
 
-# 14. Resultado esperado
+# 18. Resultado esperado
 
-Ao final, teremos:
+Arquitetura alvo:
 
 ```text
 platform-libraries
 └── AbstractCatalogCode
 
 workspace-service
-└── foundation.catalog
-    ├── lifecycletype
-    │   ├── LifecycleType
-    │   ├── LifecycleTypeEnum
-    │   └── LifecycleTypeCode
-    ├── workspacetype
-    │   ├── WorkspaceType
-    │   ├── WorkspaceTypeEnum
-    │   └── WorkspaceTypeCode
-    ├── servicetype
-    │   ├── ServiceType
-    │   ├── ServiceTypeEnum
-    │   └── ServiceTypeCode
-    └── featuretype
-        ├── FeatureType
-        ├── FeatureTypeEnum
-        └── FeatureTypeCode
+├── foundation
+│   └── catalog
+│       ├── lifecycletype
+│       ├── workspacetype
+│       ├── featurescopetype
+│       └── demais catálogos transversais
+│
+└── feature
+    └── platform
+        ├── domain
+        │   ├── Service
+        │   └── Feature
+        ├── repository
+        ├── usecase
+        └── infra
 ```
 
-Com:
+Relacionamentos:
 
 ```text
-type_services
-      +
-type_features.settings
-      ↓
+Service 1 ───── N Feature
+
+Feature N ───── N FeatureScopeType
+                      │
+                      └── Foundation
+```
+
+Runtime:
+
+```text
+Service + Feature + Feature.settings
+              ↓
 vw_feature_runtime_config
-      ↓
+              ↓
 audit / quarantine / purge
 ```
 
-Esse passa a ser o padrão base para as próximas features da Golden Reference.
+A principal fronteira fica explícita:
+
+> **Foundation define o vocabulário transversal; feature.platform administra a composição e o comportamento operacional da plataforma.**
