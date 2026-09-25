@@ -203,7 +203,7 @@ Manter FKs explícitas.
 
 ---
 
-## 8. Regra transversal de name
+## 8. Regras transversais de code e name
 
 A regra abaixo é obrigatória para os três recursos:
 
@@ -211,31 +211,14 @@ A regra abaixo é obrigatória para os três recursos:
 - `Feature`;
 - `FeatureContext`.
 
-### 8.1 Obrigatoriedade
+### 8.1 Code
 
-`name` é obrigatório.
+`code` é obrigatório, único dentro de cada tipo de recurso e representa o identificador técnico interno.
 
-### 8.2 Unicidade
-
-`name` deve ser único dentro de cada tipo de recurso.
-
-Portanto:
-
-- não podem existir dois Services com o mesmo name;
-- não podem existir duas Features com o mesmo name;
-- não podem existir dois FeatureContexts com o mesmo name.
-
-A unicidade deve existir em dois níveis:
-
-1. regra de aplicação;
-2. constraint UNIQUE no banco.
-
-### 8.3 Formato
-
-O formato deve seguir o mesmo princípio já utilizado nos códigos dos catálogos:
+O formato de `code` deve seguir o padrão técnico:
 
 - somente letras maiúsculas;
-- números podem ser permitidos quando aplicável;
+- números permitidos quando aplicável;
 - separação por underscore;
 - nenhum espaço;
 - nenhuma letra minúscula;
@@ -258,31 +241,44 @@ Exemplos inválidos:
 - `manager-account`
 - `ManagerAccount`
 
-A API deve rejeitar valores fora do padrão.
+A API deve rejeitar `code` fora do padrão. Não converter automaticamente lowercase para uppercase e não substituir espaços ou hífens.
 
-Não converter automaticamente lowercase para uppercase.
+A validação de formato deve ser compartilhada dentro de `feature.platform`, sem duplicar regex entre Service, Feature e FeatureContext.
 
-Não substituir espaços por underscore automaticamente.
+### 8.2 Name
 
-### 8.4 Validação compartilhada
+`name` é obrigatório, amigável para exibição e pode conter espaços, letras minúsculas/maiúsculas e demais caracteres permitidos pelo campo.
 
-Evitar duplicar a expressão de validação em três implementações independentes.
+Não aplicar ao `name` a regra técnica de uppercase + underscore.
 
-Criar uma abstração compartilhada dentro de `feature.platform` para validar o formato de `name`.
+### 8.3 Unicidade de name
 
-Essa abstração pertence ao contexto Platform e não deve ser movida para Foundation apenas para reutilização local.
+`name` deve ser único dentro de cada tipo de recurso.
+
+Portanto:
+
+- não podem existir dois Services com o mesmo name;
+- não podem existir duas Features com o mesmo name;
+- não podem existir dois FeatureContexts com o mesmo name.
+
+A unicidade deve existir em dois níveis:
+
+1. regra de aplicação;
+2. constraint UNIQUE no banco.
+
+### 8.4 Validação de name
+
+A aplicação deve rejeitar `name` nulo ou em branco e preservar exatamente o valor amigável informado pelo usuário, sem normalização técnica.
 
 ---
 
 ## 9. Code
 
-Preservar `code` quando já fizer parte dos contratos atuais de `Service` e `Feature`.
+O `code` é o identificador técnico e funcional estável de `Service`, `Feature` e `FeatureContext`.
 
-Para `FeatureContext`, adotar `code` como identificador funcional estável.
+O `name` é o nome amigável exibido ao usuário.
 
-O `code` não substitui a regra de unicidade de `name`.
-
-Se durante a implementação for constatado que `code` e `name` estão representando exatamente a mesma semântica, não remover ou fundir os campos nesta entrega sem registrar a decisão e revisar os contratos existentes.
+Os dois campos são obrigatórios e únicos por tipo de recurso, mas possuem responsabilidades diferentes e não devem ser tratados como sinônimos.
 
 ---
 
@@ -514,9 +510,10 @@ Não expor entidade JPA diretamente no controller.
 Cobrir no mínimo:
 
 - criação válida;
-- name inválido;
-- name lowercase;
-- name com espaço;
+- code inválido;
+- code lowercase;
+- code com espaço ou hífen;
+- name amigável com espaço/lowercase;
 - name duplicado;
 - lifecycle;
 - associação com Feature;
@@ -579,7 +576,7 @@ A implementação somente pode ser considerada concluída quando:
 1. `FeatureScopeType` tiver sido removido da Foundation;
 2. `FeatureContext` existir como recurso administrativo de Platform;
 3. Feature x FeatureContext estiver N:N estrutural;
-4. Service, Feature e FeatureContext tiverem `name` obrigatório, único e validado no formato definido;
+4. Service, Feature e FeatureContext tiverem `code` obrigatório, único e validado no formato técnico definido, e `name` obrigatório, amigável e único;
 5. constraints de banco estiverem presentes;
 6. migration estiver coberta por teste;
 7. APIs administrativas estiverem cobertas por integração;
@@ -612,7 +609,7 @@ A validação forte de `Feature.settings` continua postergada para a futura inte
 5. Implementar `FeatureContext`.
 6. Refatorar Feature.
 7. Implementar migration.
-8. Ajustar Service/Feature apenas onde necessário para a regra transversal de name.
+8. Ajustar Service/Feature para a regra transversal de `code` técnico e `name` amigável/único.
 9. Implementar/ajustar APIs.
 10. Implementar todos os testes.
 11. Executar `mvn clean verify`.
