@@ -51,7 +51,7 @@ PUBLISHED
 
 `SchemaVersion.status` deve referenciar `SchemaVersionStatusType`.
 
-Não criar enum Java duplicando esses valores.
+Não criar um enum semântico paralelo para representar o status fora do padrão de catálogo. A infraestrutura padrão da Golden pode manter `SchemaVersionStatusTypeEnum` como contrato técnico do próprio catálogo (`CatalogEnum`), sem criar uma segunda representação de domínio.
 
 ---
 
@@ -220,7 +220,7 @@ A implementação deve garantir:
 10. publicações anteriores continuam PUBLISHED;
 11. a versão vigente é a maior `version` com status PUBLISHED;
 12. consumidores nunca utilizam DRAFT;
-13. o status é representado pelo catálogo `SchemaVersionStatusType`, não por enum Java.
+13. o status é representado pelo catálogo `SchemaVersionStatusType`; `SchemaVersionStatusTypeEnum`, quando existente, é somente a enumeração técnica exigida pela infraestrutura de catálogo, e não um enum de domínio paralelo.
 
 ---
 
@@ -282,7 +282,7 @@ A refatoração deve cobrir ao menos:
 - maior versão PUBLISHED é resolvida como vigente;
 - DRAFT de número superior não substitui a PUBLISHED vigente;
 - `SchemaVersion.status` referencia `SchemaVersionStatusType`;
-- não existe enum Java duplicando o catálogo.
+- não existe enum semântico/de domínio duplicando o catálogo; eventual `SchemaVersionStatusTypeEnum` existe apenas como infraestrutura padrão do catálogo.
 
 ---
 
