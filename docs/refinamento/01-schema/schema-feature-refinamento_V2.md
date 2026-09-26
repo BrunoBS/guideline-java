@@ -253,6 +253,8 @@ Regras:
 - externamente, APIs e contratos recebem/devolvem somente `workspaceIdentifier` (UUID/36);
 - o use case/resolver converte `workspaceIdentifier -> workspaceId` antes do acesso ao repositório;
 - a Foundation Schema não depende diretamente de `core.workspace`; a resolução deve ocorrer por uma porta definida pelo Schema e implementada pelo Core;
+- operações administrativas resolvem a existência do Workspace sem acoplar a Foundation ao Core;
+- resolução para consumo deve exigir Workspace ativo, separando existência estrutural de disponibilidade operacional;
 - `persistenceVersion` é técnico (`@Version`);
 - versão funcional não deve compartilhar o mesmo campo do optimistic locking.
 
