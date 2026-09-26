@@ -110,6 +110,14 @@ A feature será dividida em duas entidades principais:
 
 `MessageTranslation` pertence obrigatoriamente a uma `Message`.
 
+Contrato de referência de Service:
+
+- externamente, requests/responses usam `serviceIdentifier` (UUID/36);
+- internamente, `Message` persiste somente `service_id BIGINT`;
+- o use case resolve `serviceIdentifier -> service_id` antes da persistência;
+- a FK física aponta para `platform_services(id)`;
+- o `service_id` técnico não deve aparecer em contratos HTTP.
+
 ---
 
 ## 6. Entidade Message
@@ -122,7 +130,7 @@ Representa os dados estruturais da mensagem.
 |---|---|
 | `id` | Identificador interno do banco |
 | `identifier` | Identificador público UUID/string |
-| `service_id` | Referência ao Service Catalog |
+| `service_id` | FK interna `BIGINT` para `platform_services.id`; nunca exposta externamente |
 | `message_key` | Chave local da mensagem |
 | `code` | Código funcional/técnico da mensagem |
 | `http_status` | HTTP status efetivo |
@@ -473,7 +481,7 @@ GET /api/v1/messages/{identifier}
 Deve retornar:
 
 - dados estruturais;
-- service;
+- `serviceIdentifier`;
 - lifecycle;
 - version.
 
@@ -484,10 +492,10 @@ As traduções poderão ser retornadas separadamente pelo sub-recurso de transla
 ## 13.3 Listar mensagens
 
 ```http
-GET /api/v1/messages?service={service}
+GET /api/v1/messages?serviceIdentifier={serviceIdentifier}
 ```
 
-O filtro de serviço é obrigatório.
+O filtro de serviço é opcional na administração.
 
 Filtros adicionais poderão existir:
 
@@ -502,7 +510,7 @@ A coleção de mensagens deve possuir paginação.
 Exemplo:
 
 ```http
-GET /api/v1/messages?service=workspace-service&lifecycle=ACTIVE&page=0&size=20
+GET /api/v1/messages?serviceIdentifier=<uuid-do-service>&active=true
 ```
 
 ---
