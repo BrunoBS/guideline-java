@@ -249,6 +249,10 @@ Regras:
 
 - `workspaceId = null` para `PLATFORM`;
 - `workspaceId` obrigatório para `WORKSPACE`;
+- internamente, `workspaceId` é a PK técnica `BIGINT` de `workspaces.id` e deve possuir integridade referencial;
+- externamente, APIs e contratos recebem/devolvem somente `workspaceIdentifier` (UUID/36);
+- o use case/resolver converte `workspaceIdentifier -> workspaceId` antes do acesso ao repositório;
+- a Foundation Schema não depende diretamente de `core.workspace`; a resolução deve ocorrer por uma porta definida pelo Schema e implementada pelo Core;
 - `persistenceVersion` é técnico (`@Version`);
 - versão funcional não deve compartilhar o mesmo campo do optimistic locking.
 
