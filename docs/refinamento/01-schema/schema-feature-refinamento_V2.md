@@ -263,10 +263,10 @@ Regras:
 Para Platform:
 
 ```text
-scope + schemaType + code
+scope + schemaType
 ```
 
-deve identificar unicamente o schema de plataforma aplicável.
+deve identificar unicamente o schema de plataforma aplicável. Existe, portanto, no máximo um Schema PLATFORM por SchemaType; o campo `code` permanece como código semântico do contrato, mas não cria uma segunda instância do mesmo tipo em PLATFORM.
 
 Para Workspace:
 
