@@ -108,10 +108,25 @@ core/environment
 │   ├── Environment
 │   ├── EnvironmentType
 │   └── EnvironmentTypeCompatibility
-├── service
-├── usecase
-└── infra
+├── repository
+└── usecase
+    ├── model
+    ├── validation
+    └── operations
+        ├── environment
+        │   ├── EnvironmentCommandService
+        │   └── EnvironmentQueryService
+        ├── environmenttype
+        │   ├── EnvironmentTypeCommandService
+        │   └── EnvironmentTypeQueryService
+        └── compatibility
+            ├── EnvironmentTypeCompatibilityCommandService
+            └── EnvironmentTypeCompatibilityQueryService
 ```
+
+Separar comandos (criação, atualização, ativação/inativação, exclusão) de consultas para cada recurso; auxiliares podem acompanhar o recurso responsável. Os controladores ficam no entrypoint e dependem dos serviços do use case.
+
+Campos persistidos que representam catálogos usam os VOs definidos no projeto. Isso inclui `lifecycle_code` em `Environment`, `EnvironmentType` e `EnvironmentTypeCompatibility`: a entidade armazena `LifecycleTypeCode` como `@Embedded`, e a consulta interna recebe o VO. A API pode expor o código como string em seu DTO, na fronteira de serialização.
 
 A estrutura física pode ser redefinida nesta fase de refinamento, pois ainda não há ambiente produtivo a migrar. Código, tabela e referências devem formar uma baseline coerente para instalação limpa.
 
@@ -638,6 +653,8 @@ Refinamento separado para:
 16. Inativar o pai torna descendentes inacessíveis na navegação; persistência dessa inativação e exclusão com filhos permanecem pendentes.
 17. A ordem de promoção fica fora deste refinamento.
 18. Não há exigência de migration incremental nem de preservação de dados de produção; validar a baseline em instalação limpa.
+19. Os use cases de Environment, EnvironmentType e compatibilidade ficam separados por recurso e por Command/Query Service.
+20. Todo atributo persistido que representa catálogo usa seu VO, inclusive lifecycle nos três domínios; strings ficam apenas nos contratos da API.
 
 
 ## 27. Pendências
