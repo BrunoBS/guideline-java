@@ -10,51 +10,39 @@ A feature não deve ser implementada especificamente para `SHARD` ou `CELL`. Ess
 
 ## 2. Baseline funcional
 
-A baseline mínima da plataforma pode iniciar somente com:
+A baseline desta fase inclui quatro `EnvironmentType`:
+
+| type code | instância | root_allowed | papel inicial |
+|---|---|---:|---|
+| DEFAULT | global da plataforma (`workspace_id = NULL`) | true | raiz compartilhada, como DEV/HML/PRD |
+| CUSTOM | de um workspace (`workspace_id` preenchido) | true | raiz customizada |
+| SHARD | de um workspace (`workspace_id` preenchido) | false | filho conforme compatibilidade |
+| CELL | de um workspace (`workspace_id` preenchido) | false | filho conforme compatibilidade |
+
+Somente ambientes do tipo `DEFAULT` são globais. `CUSTOM`, `SHARD` e `CELL` seguem o vínculo de workspace já usado pelo ambiente customizado. Os quatro tipos são cadastrados pela plataforma; essa distinção de escopo se aplica às instâncias de `Environment`, não à propriedade dos registros de `EnvironmentType`.
 
 ```text
-DEFAULT
-CUSTOM
+DEV [DEFAULT, global]
+└── SHARD-01 [SHARD, WS-001]
+    └── CELL-01 [CELL, WS-001]
+
+QA [CUSTOM, WS-001]
+└── SHARD-02 [SHARD, WS-001]
 ```
 
-Ambos podem existir como ambientes raiz:
-
-```text
-DEFAULT  root_allowed = true
-CUSTOM   root_allowed = true
-```
-
-Nesse estágio não existe hierarquia entre ambientes e a tabela de compatibilidade pode estar vazia.
-
-Exemplo:
-
-```text
-DEV [DEFAULT]
-HML [DEFAULT]
-PRD [DEFAULT]
-QA [CUSTOM]
-```
+A baseline de compatibilidades para a topologia acima inclui `DEFAULT → SHARD`, `CUSTOM → SHARD` e `SHARD → CELL`. As relações permanecem dados administráveis, sem condicional de Java específica para esses códigos.
 
 ## 3. Evolução dinâmica da topologia
 
-Quando surgir uma necessidade de segmentação, a plataforma cadastra novos `EnvironmentType` e suas compatibilidades sem alterar o mecanismo da feature.
-
-Exemplo com `SHARD`:
+A baseline já cadastra `SHARD` e `CELL`, com as compatibilidades necessárias para a topologia inicial:
 
 ```text
-+ SHARD root_allowed=false
-
 DEFAULT → SHARD
 CUSTOM  → SHARD
+SHARD   → CELL
 ```
 
-Posteriormente, com `CELL`:
-
-```text
-+ CELL root_allowed=false
-
-SHARD → CELL
-```
+Quando surgir outra necessidade de segmentação, a plataforma poderá cadastrar novos `EnvironmentType` e suas compatibilidades sem alterar o mecanismo da feature.
 
 Resultado possível:
 
@@ -141,7 +129,7 @@ CELL-01 / CELL-02        → Environment(type=CELL)
 
 `system_type` não é necessário porque todo `EnvironmentType` cadastrado pertence à governança da plataforma.
 
-Novos tipos, como `SHARD`, `CELL` ou `REGION`, são evoluções administrativas da plataforma.
+Os quatro tipos iniciais são `DEFAULT`, `CUSTOM`, `SHARD` e `CELL`. Outros tipos, como `REGION`, podem ser cadastrados futuramente pela plataforma.
 
 ## 7. environment_type
 
@@ -166,14 +154,16 @@ CREATE TABLE environment_type (
 
 `code` identifica unicamente o tipo e pode servir posteriormente como identificador para resolução de JSON Schema específico por tipo. Esta possibilidade não cria, nesta fase, obrigação de schema nem regra de validação por schema.
 
-Baseline mínima:
+Baseline desta fase:
 
-| code | root_allowed | lifecycle |
-|---|---:|---|
-| DEFAULT | true | ACTIVE |
-| CUSTOM | true | ACTIVE |
+| code | root_allowed | lifecycle | escopo da instância |
+|---|---:|---|---|
+| DEFAULT | true | ACTIVE | global |
+| CUSTOM | true | ACTIVE | workspace |
+| SHARD | false | ACTIVE | workspace |
+| CELL | false | ACTIVE | workspace |
 
-Tipos adicionais são cadastrados conforme a necessidade da plataforma.
+O escopo da instância é validado pelo domínio Environment ao criar ou alterar ambientes. O cadastro dos tipos continua sob governança da plataforma. Tipos adicionais podem ser cadastrados conforme a necessidade.
 
 Foram removidos `parent_required`, `children_allowed` e `system_type`:
 
@@ -203,25 +193,12 @@ CREATE TABLE environment_type_compatibility (
 );
 ```
 
-Com somente `DEFAULT` e `CUSTOM`, a tabela pode estar vazia:
-
-```text
-environment_type_compatibility
---------------------------------
-<sem registros>
-```
-
-Ao adicionar `SHARD`:
+A baseline desta fase contém as relações necessárias para `SHARD` e `CELL`:
 
 | parent | child | lifecycle |
 |---|---|---|
 | DEFAULT | SHARD | ACTIVE |
 | CUSTOM | SHARD | ACTIVE |
-
-Ao adicionar `CELL`:
-
-| parent | child | lifecycle |
-|---|---|---|
 | SHARD | CELL | ACTIVE |
 
 A ausência de relação significa que a combinação não é permitida.
@@ -258,7 +235,7 @@ Se futuramente `REGION → SHARD` for permitido, basta cadastrar essa compatibil
 
 ## 10. environment
 
-`Environment` materializa a topologia efetiva. A associação atual ao workspace é pelo `workspace_id` do próprio ambiente: nulo para ambientes globais da plataforma e preenchido para ambientes específicos do workspace. O identificador público do workspace não substitui essa FK na estrutura física.
+`Environment` materializa a topologia efetiva. A associação atual ao workspace é pelo `workspace_id` do próprio ambiente: nulo somente para `DEFAULT` global da plataforma e preenchido para `CUSTOM`, `SHARD` e `CELL` específicos do workspace. O identificador público do workspace não substitui essa FK na estrutura física.
 
 Direção conceitual:
 
@@ -285,7 +262,7 @@ CREATE TABLE environment (
 
 Os nomes físicos devem ser conciliados com as convenções efetivas do projeto ao implementar a baseline; o modelo acima expressa as relações e não exige migração incremental de dados.
 
-Exemplo após a plataforma já possuir SHARD/CELL:
+Exemplo da baseline com os quatro tipos:
 
 | name | type | parent | workspace |
 |---|---|---|---|
@@ -299,7 +276,7 @@ Exemplo após a plataforma já possuir SHARD/CELL:
 
 ## 11. Workspace × Environment
 
-Nesta fase, `environment.workspace_id` é a única associação persistida para ownership do ambiente. `workspace_id = NULL` identifica o ambiente global da plataforma; um valor preenchido identifica o ambiente criado no workspace. Um ambiente específico pode descender de uma raiz global quando a compatibilidade entre os tipos permitir, respeitando o isolamento entre workspaces.
+Nesta fase, `environment.workspace_id` é a única associação persistida para ownership do ambiente. `workspace_id = NULL` identifica um `DEFAULT` global da plataforma; `CUSTOM`, `SHARD` e `CELL` exigem `workspace_id` preenchido. Um ambiente específico pode descender de uma raiz global `DEFAULT` quando a compatibilidade entre os tipos permitir. Ao criar ou mover filhos, validar que qualquer pai específico pertence ao mesmo workspace do filho. A navegação de uma árvore compartilhada deve retornar somente os filhos do workspace em questão.
 
 A tabela `workspace_environment` pertence a um refinamento posterior de configuração da conta no ambiente. Não criá-la nem presumir sua existência nesta implementação.
 
@@ -376,11 +353,7 @@ erDiagram
 parent = null
 ```
 
-O tipo precisa ter:
-
-```text
-root_allowed = true
-```
+O tipo precisa ter `root_allowed = true`. Além disso, `DEFAULT` exige `workspace_id = NULL`; `CUSTOM` exige um workspace. `SHARD` e `CELL` não podem ser raiz na baseline, pois têm `root_allowed = false`.
 
 ### Ambiente filho
 
@@ -391,11 +364,7 @@ parent.environmentType
 requested.environmentType
 ```
 
-E exigir:
-
-```text
-EnvironmentTypeCompatibility ACTIVE(parentType, childType)
-```
+E exigir compatibilidade ativa `EnvironmentTypeCompatibility(parentType, childType)`. Para `SHARD` e `CELL`, o filho sempre pertence a um workspace: um pai global `DEFAULT` pode servir a vários workspaces, mas o filho de um pai específico deve ter o mesmo `workspace_id` do pai.
 
 Exemplo após SHARD/CELL terem sido cadastrados:
 
@@ -428,7 +397,8 @@ Nenhum desses códigos deve ser necessário para executar a validação genéric
 - ciclos de ambientes proibidos;
 - nó não pode ser movido para descendente;
 - nome único entre irmãos;
-- preservar regras atuais de default/workspace.
+- `DEFAULT` somente global; `CUSTOM`, `SHARD` e `CELL` sempre vinculados a workspace;
+- filhos de pai específico pertencem ao mesmo workspace; filhos de pai global só ficam visíveis no workspace a que pertencem.
 
 Quando o pai estiver inativo, seus descendentes deixam de ser acessíveis pela navegação dessa árvore. A forma de persistir essa condição — propagar a inativação, bloquear a operação ou outra regra — e a exclusão de nós com filhos serão decididas posteriormente. Não definir aqui uma propagação automática ou quarentena.
 
@@ -463,7 +433,7 @@ CUSTOM raiz:
 }
 ```
 
-Após SHARD existir:
+SHARD da baseline:
 
 ```json
 {
@@ -473,7 +443,7 @@ Após SHARD existir:
 }
 ```
 
-Após CELL existir:
+CELL da baseline:
 
 ```json
 {
@@ -489,11 +459,13 @@ Não criar endpoints específicos `/shards`, `/cells` ou `/regions`.
 
 `EnvironmentType` pertence a `core/environment` e é cadastrado, consultado, atualizado e inativado por operações administrativas da plataforma. Não é cadastro livre do usuário da conta no fluxo normal de Environment.
 
-Baseline mínima:
+Baseline desta fase:
 
 ```text
 DEFAULT
 CUSTOM
+SHARD
+CELL
 ```
 
 Novos tipos mantêm `code` único e são administrados pela plataforma. As operações sobre tipos e compatibilidades devem respeitar lifecycle, referências de ambientes existentes e integridade do grafo; os detalhes de autorização e do contrato administrativo de compatibilidades podem ser refinados na implementação.
@@ -545,12 +517,12 @@ O serviço ainda está em refinamento e não possui ambiente produtivo a migrar.
 Baseline estrutural:
 
 1. mover `EnvironmentType` do catálogo da Foundation para `core/environment` com CRUD administrativo;
-2. definir `code` único no tipo e manter `DEFAULT` e `CUSTOM` como baseline mínima;
-3. persistir `root_allowed` e criar `environment_type_compatibility`;
+2. definir `code` único e cadastrar `DEFAULT`, `CUSTOM`, `SHARD` e `CELL` na baseline;
+3. persistir `root_allowed` e criar `environment_type_compatibility` com `DEFAULT → SHARD`, `CUSTOM → SHARD` e `SHARD → CELL`;
 4. adicionar `parent_environment_id` a Environment, mantendo `workspace_id` como vínculo atual;
 5. criar FKs e índices coerentes e validar instalação limpa das migrations.
 
-`SHARD`, `CELL`, `REGION` ou outros tipos **não são pré-requisitos da estrutura inicial**. Eles podem ser cadastrados posteriormente pela governança da plataforma, acompanhados das compatibilidades desejadas. `workspace_environment` também não pertence a esta fase.
+`REGION` e outros tipos posteriores não são pré-requisitos da estrutura inicial. Eles podem ser cadastrados futuramente pela governança da plataforma, acompanhados das compatibilidades desejadas. `workspace_environment` também não pertence a esta fase.
 
 ## 24. GAP analysis
 
@@ -558,14 +530,14 @@ Baseline estrutural:
 |---|---|---|---|
 | Environment | plano | árvore dinâmica | adicionar parent |
 | EnvironmentType | Foundation/catalog | core/environment | mover e implementar CRUD administrativo |
-| Baseline de tipos | DEFAULT/CUSTOM | DEFAULT/CUSTOM | manter |
+| Baseline de tipos | DEFAULT/CUSTOM | DEFAULT/CUSTOM/SHARD/CELL | cadastrar quatro tipos |
 | Tipos adicionais | não suportados genericamente | dinâmicos | administrar pela plataforma |
 | Code do tipo | catálogo | identificador único do tipo | manter único, permitir schema por tipo no futuro |
 | Root | implícito | root_allowed | persistir regra mínima |
 | Compatibilidade | inexistente | N:N dinâmica | nova tabela |
 | Validator | regras atuais | root + compatibility + árvore | ampliar genericamente |
 | API type | catálogo | CRUD da plataforma no core | implementar operações administrativas |
-| Vínculo workspace | environment.workspace_id | mesma fonte de ownership | deixar workspace_environment para fase posterior |
+| Vínculo workspace | environment.workspace_id | NULL só para DEFAULT; demais tipos por workspace | validar escopo e deixar workspace_environment para fase posterior |
 | Banco | baseline atual | estrutura refinada | validar instalação limpa, sem obrigação de upgrade legado |
 | Lifecycle dos descendentes | sem hierarquia | acesso condicionado ao pai | detalhar persistência e exclusão posteriormente |
 | Promoção | fora deste refinamento | configuração posterior | não implementar aqui |
@@ -576,7 +548,7 @@ Baseline estrutural:
 
 - inventariar implementação atual;
 - mapear referências ao catálogo atual;
-- mapear DEFAULT/CUSTOM existentes;
+- mapear DEFAULT/CUSTOM existentes e definir SHARD/CELL na baseline;
 - ampliar regressão;
 - validar instalação limpa das migrations reestruturadas.
 
@@ -587,7 +559,7 @@ Baseline estrutural:
 - manter modelo mínimo;
 - adicionar `root_allowed`;
 - criar compatibilidade N:N;
-- manter DEFAULT/CUSTOM;
+- cadastrar DEFAULT, CUSTOM, SHARD e CELL com as compatibilidades iniciais;
 - garantir validação sem códigos concretos;
 - testes.
 
@@ -596,7 +568,7 @@ Baseline estrutural:
 - adicionar parent;
 - FKs/índices;
 - validação genérica de root/compatibilidade;
-- ciclos e isolamento por workspace;
+- ciclos, escopo por tipo e isolamento por workspace;
 - CRUD;
 - não fixar agora a regra de exclusão/inativação de nós com filhos;
 - testes.
@@ -643,11 +615,11 @@ Refinamento separado para:
 
 ## 26. Decisões consolidadas
 
-1. `DEFAULT` e `CUSTOM` formam a baseline mínima.
-2. Ambos podem existir como raiz.
-3. A tabela de compatibilidade pode estar vazia nessa baseline.
-4. Novos tipos são cadastrados dinamicamente pela governança da plataforma.
-5. `SHARD`, `CELL` e `REGION` são exemplos de tipos adicionais, não requisitos estruturais da feature.
+1. `DEFAULT`, `CUSTOM`, `SHARD` e `CELL` formam a baseline desta fase.
+2. Somente `DEFAULT` é global; `CUSTOM`, `SHARD` e `CELL` pertencem a um workspace.
+3. `DEFAULT` e `CUSTOM` podem ser raiz; `SHARD` e `CELL` são filhos na baseline.
+4. A baseline de compatibilidade inclui `DEFAULT → SHARD`, `CUSTOM → SHARD` e `SHARD → CELL`.
+5. Outros tipos, como `REGION`, são administrados dinamicamente pela plataforma.
 6. A implementação não deve possuir hierarquia hardcoded por código de tipo.
 7. Compatibilidade é N:N em tabela própria.
 8. `root_allowed` é o único metadado hierárquico diretamente no tipo neste momento.
