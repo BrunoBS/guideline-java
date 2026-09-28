@@ -12,14 +12,14 @@ A feature não deve ser implementada especificamente para `SHARD` ou `CELL`. Ess
 
 A baseline desta fase inclui quatro `EnvironmentType`:
 
-| type code | instância | root_allowed | papel inicial |
-|---|---|---:|---|
-| DEFAULT | global da plataforma (`workspace_id = NULL`) | true | raiz compartilhada, como DEV/HML/PRD |
-| CUSTOM | de um workspace (`workspace_id` preenchido) | true | raiz customizada |
-| SHARD | de um workspace (`workspace_id` preenchido) | false | filho conforme compatibilidade |
-| CELL | de um workspace (`workspace_id` preenchido) | false | filho conforme compatibilidade |
+| type code | workspace_required | root_allowed | papel inicial |
+|---|---:|---:|---|
+| DEFAULT | false | true | raiz global, como DEV/HML/PRD |
+| CUSTOM | true | true | raiz de workspace |
+| SHARD | true | false | filho de workspace conforme compatibilidade |
+| CELL | true | false | filho de workspace conforme compatibilidade |
 
-Somente ambientes do tipo `DEFAULT` são globais. `CUSTOM`, `SHARD` e `CELL` seguem o vínculo de workspace já usado pelo ambiente customizado. Os quatro tipos são cadastrados pela plataforma; essa distinção de escopo se aplica às instâncias de `Environment`, não à propriedade dos registros de `EnvironmentType`.
+O campo `workspace_required` é cadastrado no `EnvironmentType` e governa o vínculo de suas instâncias: `false` exige `environment.workspace_id = NULL`; `true` exige um workspace. Assim, somente ambientes do tipo `DEFAULT` são globais nesta baseline. Os quatro tipos continuam cadastrados pela plataforma; o campo descreve as instâncias de `Environment`, não a propriedade do registro de tipo.
 
 ```text
 DEV [DEFAULT, global]
@@ -143,6 +143,7 @@ CREATE TABLE environment_type (
     name                VARCHAR(100) NOT NULL,
     description         VARCHAR(255) NULL,
     root_allowed        BOOLEAN      NOT NULL DEFAULT FALSE,
+    workspace_required  BOOLEAN      NOT NULL,
     lifecycle_type_id   BIGINT       NOT NULL,
     display_order       INT          NOT NULL DEFAULT 0,
     created_at          TIMESTAMP    NOT NULL,
@@ -156,14 +157,14 @@ CREATE TABLE environment_type (
 
 Baseline desta fase:
 
-| code | root_allowed | lifecycle | escopo da instância |
-|---|---:|---|---|
-| DEFAULT | true | ACTIVE | global |
-| CUSTOM | true | ACTIVE | workspace |
-| SHARD | false | ACTIVE | workspace |
-| CELL | false | ACTIVE | workspace |
+| code | root_allowed | workspace_required | lifecycle |
+|---|---:|---:|---|
+| DEFAULT | true | false | ACTIVE |
+| CUSTOM | true | true | ACTIVE |
+| SHARD | false | true | ACTIVE |
+| CELL | false | true | ACTIVE |
 
-O escopo da instância é validado pelo domínio Environment ao criar ou alterar ambientes. O cadastro dos tipos continua sob governança da plataforma. Tipos adicionais podem ser cadastrados conforme a necessidade.
+`workspace_required = false` significa instância global e exige `workspace_id = NULL`; `true` significa instância específica e exige `workspace_id` preenchido. O domínio Environment valida isso ao criar, atualizar ou trocar o tipo. Alterar esse campo no CRUD administrativo requer checar instâncias existentes para não deixá-las inconsistentes. Tipos adicionais podem ser cadastrados conforme a necessidade.
 
 Foram removidos `parent_required`, `children_allowed` e `system_type`:
 
@@ -171,7 +172,7 @@ Foram removidos `parent_required`, `children_allowed` e `system_type`:
 - `children_allowed` é derivado da existência de compatibilidade ativa onde o tipo é pai;
 - `parent_required` é redundante quando combinado com `root_allowed` e a regra de criação.
 
-`root_allowed` permanece porque a compatibilidade N:N não responde se um tipo pode iniciar uma árvore sem pai.
+`root_allowed` permanece porque a compatibilidade N:N não responde se um tipo pode iniciar uma árvore sem pai. `workspace_required` expressa o escopo das instâncias de forma declarativa, sem condicional de código para cada tipo.
 
 ## 8. environment_type_compatibility
 
@@ -235,7 +236,7 @@ Se futuramente `REGION → SHARD` for permitido, basta cadastrar essa compatibil
 
 ## 10. environment
 
-`Environment` materializa a topologia efetiva. A associação atual ao workspace é pelo `workspace_id` do próprio ambiente: nulo somente para `DEFAULT` global da plataforma e preenchido para `CUSTOM`, `SHARD` e `CELL` específicos do workspace. O identificador público do workspace não substitui essa FK na estrutura física.
+`Environment` materializa a topologia efetiva. A associação atual ao workspace é pelo `workspace_id` do próprio ambiente, cuja nulidade deve corresponder a `environmentType.workspaceRequired`. Na baseline, isso resulta em `NULL` para `DEFAULT` e valor preenchido para `CUSTOM`, `SHARD` e `CELL`. O identificador público do workspace não substitui essa FK na estrutura física.
 
 Direção conceitual:
 
@@ -276,7 +277,7 @@ Exemplo da baseline com os quatro tipos:
 
 ## 11. Workspace × Environment
 
-Nesta fase, `environment.workspace_id` é a única associação persistida para ownership do ambiente. `workspace_id = NULL` identifica um `DEFAULT` global da plataforma; `CUSTOM`, `SHARD` e `CELL` exigem `workspace_id` preenchido. Um ambiente específico pode descender de uma raiz global `DEFAULT` quando a compatibilidade entre os tipos permitir. Ao criar ou mover filhos, validar que qualquer pai específico pertence ao mesmo workspace do filho. A navegação de uma árvore compartilhada deve retornar somente os filhos do workspace em questão.
+Nesta fase, `environment.workspace_id` é a única associação persistida para ownership do ambiente. `workspace_id = NULL` identifica um ambiente de tipo com `workspace_required = false`; um tipo com `workspace_required = true` exige `workspace_id` preenchido. Na baseline, isso equivale a `DEFAULT` global e `CUSTOM`, `SHARD`, `CELL` por workspace. Um ambiente específico pode descender de uma raiz global `DEFAULT` quando a compatibilidade entre os tipos permitir. Ao criar ou mover filhos, validar que qualquer pai específico pertence ao mesmo workspace do filho. A navegação de uma árvore compartilhada deve retornar somente os filhos do workspace em questão.
 
 A tabela `workspace_environment` pertence a um refinamento posterior de configuração da conta no ambiente. Não criá-la nem presumir sua existência nesta implementação.
 
@@ -322,6 +323,7 @@ erDiagram
         string code
         string name
         boolean root_allowed
+        boolean workspace_required
         bigint lifecycle_type_id
         int display_order
     }
@@ -353,7 +355,7 @@ erDiagram
 parent = null
 ```
 
-O tipo precisa ter `root_allowed = true`. Além disso, `DEFAULT` exige `workspace_id = NULL`; `CUSTOM` exige um workspace. `SHARD` e `CELL` não podem ser raiz na baseline, pois têm `root_allowed = false`.
+O tipo precisa ter `root_allowed = true`. Aplicar também `workspace_required`: `false` exige `workspace_id = NULL`; `true` exige workspace válido. Na baseline, `DEFAULT` é raiz global, `CUSTOM` é raiz de workspace e `SHARD`/`CELL` não podem ser raiz.
 
 ### Ambiente filho
 
@@ -364,7 +366,7 @@ parent.environmentType
 requested.environmentType
 ```
 
-E exigir compatibilidade ativa `EnvironmentTypeCompatibility(parentType, childType)`. Para `SHARD` e `CELL`, o filho sempre pertence a um workspace: um pai global `DEFAULT` pode servir a vários workspaces, mas o filho de um pai específico deve ter o mesmo `workspace_id` do pai.
+E exigir compatibilidade ativa `EnvironmentTypeCompatibility(parentType, childType)`, além do vínculo indicado por `requested.environmentType.workspaceRequired`. Um pai global pode servir a vários workspaces; se o pai exigir workspace, o filho deve pertencer ao mesmo workspace. Na baseline, `SHARD` e `CELL` sempre exigem workspace.
 
 Exemplo após SHARD/CELL terem sido cadastrados:
 
@@ -380,6 +382,8 @@ Nenhum desses códigos deve ser necessário para executar a validação genéric
 ### EnvironmentType / Compatibility
 
 - identifier e code únicos;
+- `workspace_required` obrigatório;
+- alteração de `workspace_required` somente se não contradizer ambientes existentes;
 - `(parent_type, child_type)` único;
 - evitar self-compatibility sem decisão explícita;
 - não remover/inativar compatibilidade em uso sem tratamento definido;
@@ -397,7 +401,7 @@ Nenhum desses códigos deve ser necessário para executar a validação genéric
 - ciclos de ambientes proibidos;
 - nó não pode ser movido para descendente;
 - nome único entre irmãos;
-- `DEFAULT` somente global; `CUSTOM`, `SHARD` e `CELL` sempre vinculados a workspace;
+- `workspace_required = false` exige `workspace_id = NULL`; `true` exige workspace válido, inclusive em updates e troca de tipo;
 - filhos de pai específico pertencem ao mesmo workspace; filhos de pai global só ficam visíveis no workspace a que pertencem.
 
 Quando o pai estiver inativo, seus descendentes deixam de ser acessíveis pela navegação dessa árvore. A forma de persistir essa condição — propagar a inativação, bloquear a operação ou outra regra — e a exclusão de nós com filhos serão decididas posteriormente. Não definir aqui uma propagação automática ou quarentena.
@@ -468,7 +472,7 @@ SHARD
 CELL
 ```
 
-Novos tipos mantêm `code` único e são administrados pela plataforma. As operações sobre tipos e compatibilidades devem respeitar lifecycle, referências de ambientes existentes e integridade do grafo; os detalhes de autorização e do contrato administrativo de compatibilidades podem ser refinados na implementação.
+Novos tipos mantêm `code` único e definem `workspace_required` no cadastro, conforme o escopo das suas instâncias. São administrados pela plataforma. As operações sobre tipos e compatibilidades devem respeitar lifecycle, referências de ambientes existentes e integridade do grafo; os detalhes de autorização e do contrato administrativo de compatibilidades podem ser refinados na implementação.
 
 ## 19. Nó folha
 
@@ -517,7 +521,7 @@ O serviço ainda está em refinamento e não possui ambiente produtivo a migrar.
 Baseline estrutural:
 
 1. mover `EnvironmentType` do catálogo da Foundation para `core/environment` com CRUD administrativo;
-2. definir `code` único e cadastrar `DEFAULT`, `CUSTOM`, `SHARD` e `CELL` na baseline;
+2. definir `code` único e `workspace_required` no tipo; cadastrar `DEFAULT=false` e `CUSTOM`/`SHARD`/`CELL=true` para esse campo;
 3. persistir `root_allowed` e criar `environment_type_compatibility` com `DEFAULT → SHARD`, `CUSTOM → SHARD` e `SHARD → CELL`;
 4. adicionar `parent_environment_id` a Environment, mantendo `workspace_id` como vínculo atual;
 5. criar FKs e índices coerentes e validar instalação limpa das migrations.
@@ -534,6 +538,7 @@ Baseline estrutural:
 | Tipos adicionais | não suportados genericamente | dinâmicos | administrar pela plataforma |
 | Code do tipo | catálogo | identificador único do tipo | manter único, permitir schema por tipo no futuro |
 | Root | implícito | root_allowed | persistir regra mínima |
+| Escopo da instância | inferido do código do tipo | workspace_required em EnvironmentType | validar workspace_id genericamente |
 | Compatibilidade | inexistente | N:N dinâmica | nova tabela |
 | Validator | regras atuais | root + compatibility + árvore | ampliar genericamente |
 | API type | catálogo | CRUD da plataforma no core | implementar operações administrativas |
@@ -557,7 +562,7 @@ Baseline estrutural:
 - mover responsabilidade Java para core/environment;
 - implementar CRUD administrativo com code único;
 - manter modelo mínimo;
-- adicionar `root_allowed`;
+- adicionar `root_allowed` e `workspace_required`;
 - criar compatibilidade N:N;
 - cadastrar DEFAULT, CUSTOM, SHARD e CELL com as compatibilidades iniciais;
 - garantir validação sem códigos concretos;
@@ -568,7 +573,7 @@ Baseline estrutural:
 - adicionar parent;
 - FKs/índices;
 - validação genérica de root/compatibilidade;
-- ciclos, escopo por tipo e isolamento por workspace;
+- ciclos, escopo via `workspace_required` e isolamento por workspace;
 - CRUD;
 - não fixar agora a regra de exclusão/inativação de nós com filhos;
 - testes.
@@ -622,12 +627,12 @@ Refinamento separado para:
 5. Outros tipos, como `REGION`, são administrados dinamicamente pela plataforma.
 6. A implementação não deve possuir hierarquia hardcoded por código de tipo.
 7. Compatibilidade é N:N em tabela própria.
-8. `root_allowed` é o único metadado hierárquico diretamente no tipo neste momento.
+8. `root_allowed` governa a raiz e `workspace_required` governa o escopo da instância em EnvironmentType.
 9. `parent_required`, `children_allowed` e `system_type` não são necessários.
 10. A árvore real do workspace é materializada por `Environment.parent`.
 11. A ausência de compatibilidade significa que a relação pai/filho não é permitida.
 12. EnvironmentType passa do catálogo Foundation para CRUD administrativo em `core/environment`.
-13. O tipo possui `code` único, com possibilidade futura de schema por tipo.
+13. O tipo possui `code` único, com possibilidade futura de schema por tipo; `workspace_required` é obrigatório e sua alteração deve preservar instâncias existentes.
 14. Tipos/compatibilidades são governados pela plataforma, não pelo usuário da conta.
 15. `environment.workspace_id` é o vínculo persistido nesta fase; `workspace_environment` fica para configuração posterior da conta no ambiente.
 16. Inativar o pai torna descendentes inacessíveis na navegação; persistência dessa inativação e exclusão com filhos permanecem pendentes.
