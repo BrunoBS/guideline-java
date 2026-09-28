@@ -396,6 +396,8 @@ Nenhum desses códigos deve ser necessário para executar a validação genéric
 
 ### EnvironmentType / Compatibility
 
+- erros de validação retornam `details.field` com o atributo específico (`code`, `name`, `description`, `rootAllowed`, `workspaceRequired`, `displayOrder`, `version`); erros de vínculo e topologia indicam `environmentTypeCode` ou `parentIdentifier`;
+- erros da compatibilidade identificam `parentTypeCode` ou `childTypeCode`, inclusive para tipo inexistente e ciclo;
 - identifier e code únicos;
 - `workspace_required` obrigatório;
 - alteração de `workspace_required` somente se não contradizer ambientes existentes;
@@ -487,7 +489,7 @@ SHARD
 CELL
 ```
 
-Novos tipos mantêm `code` único e definem `workspace_required` no cadastro, conforme o escopo das suas instâncias. São administrados pela plataforma. As operações sobre tipos e compatibilidades devem respeitar lifecycle, referências de ambientes existentes e integridade do grafo; os detalhes de autorização e do contrato administrativo de compatibilidades podem ser refinados na implementação.
+Novos tipos mantêm `code` único e definem `workspace_required` no cadastro, conforme o escopo das suas instâncias. São administrados pela plataforma. `EnvironmentTypeController` expõe o CRUD de tipos; `EnvironmentTypeCompatibilityController` expõe as operações de compatibilidade em rota própria. Ambos dependem dos respectivos Command e Query Services. As operações devem respeitar lifecycle, referências existentes e integridade do grafo; detalhes de autorização podem ser refinados depois.
 
 ## 19. Nó folha
 
