@@ -110,7 +110,7 @@ Assim, novos tipos e novas relações não exigem alteração da estrutura de ba
 
 ## 5. EnvironmentType dentro da feature
 
-A baseline atual possui `EnvironmentType` em `foundation/catalog/environmenttype`. Com a topologia dinâmica, o tipo passa a governar comportamento exclusivo do domínio Environment.
+A baseline atual possui `EnvironmentType` em `foundation/catalog/environmenttype`. Com a topologia dinâmica, o tipo passa a governar comportamento exclusivo do domínio Environment. Sua gestão passa a ser um CRUD administrativo da plataforma dentro de `core/environment`, sem depender do catálogo da Foundation.
 
 Direção proposta:
 
@@ -125,7 +125,7 @@ core/environment
 └── infra
 ```
 
-Mover a responsabilidade Java não implica recriar automaticamente a tabela física existente. Código e banco devem evoluir separadamente.
+A estrutura física pode ser redefinida nesta fase de refinamento, pois ainda não há ambiente produtivo a migrar. Código, tabela e referências devem formar uma baseline coerente para instalação limpa.
 
 ## 6. Governança dos tipos
 
@@ -163,6 +163,8 @@ CREATE TABLE environment_type (
     CONSTRAINT uk_environment_type_code UNIQUE (code)
 );
 ```
+
+`code` identifica unicamente o tipo e pode servir posteriormente como identificador para resolução de JSON Schema específico por tipo. Esta possibilidade não cria, nesta fase, obrigação de schema nem regra de validação por schema.
 
 Baseline mínima:
 
@@ -256,7 +258,7 @@ Se futuramente `REGION → SHARD` for permitido, basta cadastrar essa compatibil
 
 ## 10. environment
 
-`Environment` materializa a topologia efetiva de cada workspace.
+`Environment` materializa a topologia efetiva. A associação atual ao workspace é pelo `workspace_id` do próprio ambiente: nulo para ambientes globais da plataforma e preenchido para ambientes específicos do workspace. O identificador público do workspace não substitui essa FK na estrutura física.
 
 Direção conceitual:
 
@@ -264,7 +266,7 @@ Direção conceitual:
 CREATE TABLE environment (
     id                    BIGINT PRIMARY KEY AUTO_INCREMENT,
     identifier            VARCHAR(36)  NOT NULL,
-    workspace_identifier  VARCHAR(36)  NULL,
+    workspace_id          BIGINT       NULL,
     environment_type_id   BIGINT       NOT NULL,
     parent_environment_id BIGINT       NULL,
     code                  VARCHAR(100) NULL,
@@ -275,12 +277,13 @@ CREATE TABLE environment (
     created_at            TIMESTAMP    NOT NULL,
     updated_at            TIMESTAMP    NOT NULL,
     CONSTRAINT uk_environment_identifier UNIQUE (identifier),
+    CONSTRAINT fk_environment_workspace FOREIGN KEY (workspace_id) REFERENCES workspace(id),
     CONSTRAINT fk_environment_type FOREIGN KEY (environment_type_id) REFERENCES environment_type(id),
     CONSTRAINT fk_environment_parent FOREIGN KEY (parent_environment_id) REFERENCES environment(id)
 );
 ```
 
-Na implementação real, evoluir a tabela existente por migration incremental; não recriá-la.
+Os nomes físicos devem ser conciliados com as convenções efetivas do projeto ao implementar a baseline; o modelo acima expressa as relações e não exige migração incremental de dados.
 
 Exemplo após a plataforma já possuir SHARD/CELL:
 
@@ -296,18 +299,21 @@ Exemplo após a plataforma já possuir SHARD/CELL:
 
 ## 11. Workspace × Environment
 
-Reutilizar/evoluir a associação existente na baseline. Antes da implementação, confrontar a estrutura física atual para escolher uma única fonte de verdade de ownership e evitar duplicação entre `environment.workspace_identifier` e a associação Workspace × Environment.
+Nesta fase, `environment.workspace_id` é a única associação persistida para ownership do ambiente. `workspace_id = NULL` identifica o ambiente global da plataforma; um valor preenchido identifica o ambiente criado no workspace. Um ambiente específico pode descender de uma raiz global quando a compatibilidade entre os tipos permitir, respeitando o isolamento entre workspaces.
+
+A tabela `workspace_environment` pertence a um refinamento posterior de configuração da conta no ambiente. Não criá-la nem presumir sua existência nesta implementação.
 
 A ordem/fluxo de promoção entre ambientes não faz parte deste refinamento. Essa regra será definida posteriormente na configuração de ambientes e no refinamento do Promotion Engine.
 
-## 12. Tabelas necessárias
+## 12. Tabelas necessárias nesta fase
 
 ```text
 environment_type
 environment_type_compatibility
 environment
-workspace_environment   // reutilizar/evoluir se realmente existir/for necessária na baseline
 ```
+
+`workspace_environment` fica para a fase posterior de configuração da conta no ambiente.
 
 Não criar tabelas específicas como:
 
@@ -331,8 +337,7 @@ erDiagram
     ENVIRONMENT_TYPE ||--o{ ENVIRONMENT_TYPE_COMPATIBILITY : child
     ENVIRONMENT_TYPE ||--o{ ENVIRONMENT : classifies
     ENVIRONMENT ||--o{ ENVIRONMENT : parent_of
-    ENVIRONMENT ||--o{ WORKSPACE_ENVIRONMENT : associated
-    WORKSPACE ||--o{ WORKSPACE_ENVIRONMENT : uses
+    WORKSPACE |o--o{ ENVIRONMENT : owns
 
     ENVIRONMENT_TYPE {
         bigint id
@@ -353,12 +358,15 @@ erDiagram
     ENVIRONMENT {
         bigint id
         string identifier
+        bigint workspace_id
         bigint environment_type_id
         bigint parent_environment_id
         string name
         int display_order
     }
 ```
+
+`workspace_id` é opcional porque ambientes globais pertencem à plataforma.
 
 ## 14. Regra genérica de criação
 
@@ -420,8 +428,9 @@ Nenhum desses códigos deve ser necessário para executar a validação genéric
 - ciclos de ambientes proibidos;
 - nó não pode ser movido para descendente;
 - nome único entre irmãos;
-- delete com filhos bloqueado inicialmente;
 - preservar regras atuais de default/workspace.
+
+Quando o pai estiver inativo, seus descendentes deixam de ser acessíveis pela navegação dessa árvore. A forma de persistir essa condição — propagar a inativação, bloquear a operação ou outra regra — e a exclusão de nós com filhos serão decididas posteriormente. Não definir aqui uma propagação automática ou quarentena.
 
 ## 16. Repository e consultas
 
@@ -478,7 +487,7 @@ Não criar endpoints específicos `/shards`, `/cells` ou `/regions`.
 
 ## 18. Administração de EnvironmentType
 
-`EnvironmentType` pertence à feature, mas não é cadastro livre do usuário da conta.
+`EnvironmentType` pertence a `core/environment` e é cadastrado, consultado, atualizado e inativado por operações administrativas da plataforma. Não é cadastro livre do usuário da conta no fluxo normal de Environment.
 
 Baseline mínima:
 
@@ -487,9 +496,7 @@ DEFAULT
 CUSTOM
 ```
 
-Tipos e compatibilidades adicionais são administrados pela plataforma conforme necessidade.
-
-Não é requisito desta fase expor CRUD público completo de tipos. Se houver futura API administrativa, ela deve respeitar lifecycle, ambientes existentes e integridade do grafo.
+Novos tipos mantêm `code` único e são administrados pela plataforma. As operações sobre tipos e compatibilidades devem respeitar lifecycle, referências de ambientes existentes e integridade do grafo; os detalhes de autorização e do contrato administrativo de compatibilidades podem ser refinados na implementação.
 
 ## 19. Nó folha
 
@@ -531,38 +538,36 @@ Application × Environment precisa de refinamento posterior para decidir referê
 
 Publisher continua associado ao conceito `Environment`, nunca diretamente a entidades específicas como Shard, Cell ou Region.
 
-## 23. Migration
+## 23. Estrutura de banco nesta fase
 
-Não alterar migrations já aplicadas.
-
-A evolução deve ser incremental e preservar os dados existentes.
+O serviço ainda está em refinamento e não possui ambiente produtivo a migrar. A baseline física pode ser reestruturada para refletir o modelo final, inclusive revendo migrations existentes. Não há requisito de upgrade incremental nem de preservação de dados legados.
 
 Baseline estrutural:
 
-1. mover a responsabilidade Java de `EnvironmentType` para a feature;
-2. preservar identifiers/códigos existentes;
-3. adicionar `root_allowed` quando necessário;
-4. criar `environment_type_compatibility`;
-5. garantir `DEFAULT` e `CUSTOM` como baseline mínima;
-6. adicionar `parent_environment_id` a Environment;
-7. criar FKs e índices;
-8. preservar referências existentes.
+1. mover `EnvironmentType` do catálogo da Foundation para `core/environment` com CRUD administrativo;
+2. definir `code` único no tipo e manter `DEFAULT` e `CUSTOM` como baseline mínima;
+3. persistir `root_allowed` e criar `environment_type_compatibility`;
+4. adicionar `parent_environment_id` a Environment, mantendo `workspace_id` como vínculo atual;
+5. criar FKs e índices coerentes e validar instalação limpa das migrations.
 
-`SHARD`, `CELL`, `REGION` ou outros tipos **não são pré-requisitos da migration estrutural**. Eles podem ser cadastrados posteriormente pela governança da plataforma, acompanhados das compatibilidades desejadas.
+`SHARD`, `CELL`, `REGION` ou outros tipos **não são pré-requisitos da estrutura inicial**. Eles podem ser cadastrados posteriormente pela governança da plataforma, acompanhados das compatibilidades desejadas. `workspace_environment` também não pertence a esta fase.
 
 ## 24. GAP analysis
 
 | Área | AS-IS | TO-BE | Ação |
 |---|---|---|---|
 | Environment | plano | árvore dinâmica | adicionar parent |
-| EnvironmentType | Foundation/catalog | domínio Environment | mover responsabilidade |
-| Baseline de tipos | DEFAULT/CUSTOM | DEFAULT/CUSTOM | preservar |
+| EnvironmentType | Foundation/catalog | core/environment | mover e implementar CRUD administrativo |
+| Baseline de tipos | DEFAULT/CUSTOM | DEFAULT/CUSTOM | manter |
 | Tipos adicionais | não suportados genericamente | dinâmicos | administrar pela plataforma |
+| Code do tipo | catálogo | identificador único do tipo | manter único, permitir schema por tipo no futuro |
 | Root | implícito | root_allowed | persistir regra mínima |
 | Compatibilidade | inexistente | N:N dinâmica | nova tabela |
 | Validator | regras atuais | root + compatibility + árvore | ampliar genericamente |
-| API type | catálogo | administração da plataforma | sem CRUD público obrigatório |
-| Migration | baseline | incremental | preservar dados |
+| API type | catálogo | CRUD da plataforma no core | implementar operações administrativas |
+| Vínculo workspace | environment.workspace_id | mesma fonte de ownership | deixar workspace_environment para fase posterior |
+| Banco | baseline atual | estrutura refinada | validar instalação limpa, sem obrigação de upgrade legado |
+| Lifecycle dos descendentes | sem hierarquia | acesso condicionado ao pai | detalhar persistência e exclusão posteriormente |
 | Promoção | fora deste refinamento | configuração posterior | não implementar aqui |
 
 ## 25. Ondas
@@ -573,15 +578,16 @@ Baseline estrutural:
 - mapear referências ao catálogo atual;
 - mapear DEFAULT/CUSTOM existentes;
 - ampliar regressão;
-- validar upgrade Flyway.
+- validar instalação limpa das migrations reestruturadas.
 
 ### E1 — EnvironmentType dinâmico
 
-- mover responsabilidade Java para Environment;
+- mover responsabilidade Java para core/environment;
+- implementar CRUD administrativo com code único;
 - manter modelo mínimo;
 - adicionar `root_allowed`;
 - criar compatibilidade N:N;
-- preservar DEFAULT/CUSTOM;
+- manter DEFAULT/CUSTOM;
 - garantir validação sem códigos concretos;
 - testes.
 
@@ -590,8 +596,9 @@ Baseline estrutural:
 - adicionar parent;
 - FKs/índices;
 - validação genérica de root/compatibilidade;
-- ciclos;
+- ciclos e isolamento por workspace;
 - CRUD;
+- não fixar agora a regra de exclusão/inativação de nós com filhos;
 - testes.
 
 ### E3 — Consultas hierárquicas
@@ -599,6 +606,7 @@ Baseline estrutural:
 - roots;
 - children;
 - tree;
+- ocultar descendentes de pai inativo na navegação;
 - sem cache antecipado.
 
 ### E4 — Semântica de folha
@@ -646,18 +654,23 @@ Refinamento separado para:
 9. `parent_required`, `children_allowed` e `system_type` não são necessários.
 10. A árvore real do workspace é materializada por `Environment.parent`.
 11. A ausência de compatibilidade significa que a relação pai/filho não é permitida.
-12. EnvironmentType passa para a responsabilidade da feature Environment.
-13. Tipos/compatibilidades são governados pela plataforma, não pelo usuário da conta.
-14. A ordem de promoção fica fora deste refinamento.
-15. Migrations existentes permanecem imutáveis.
+12. EnvironmentType passa do catálogo Foundation para CRUD administrativo em `core/environment`.
+13. O tipo possui `code` único, com possibilidade futura de schema por tipo.
+14. Tipos/compatibilidades são governados pela plataforma, não pelo usuário da conta.
+15. `environment.workspace_id` é o vínculo persistido nesta fase; `workspace_environment` fica para configuração posterior da conta no ambiente.
+16. Inativar o pai torna descendentes inacessíveis na navegação; persistência dessa inativação e exclusão com filhos permanecem pendentes.
+17. A ordem de promoção fica fora deste refinamento.
+18. Não há exigência de migration incremental nem de preservação de dados de produção; validar a baseline em instalação limpa.
+
 
 ## 27. Pendências
 
 - nó com filhos deixa de ser configurável?
 - nó com filhos deixa de ser publicável?
-- qual será o mecanismo administrativo para cadastrar novos EnvironmentTypes/compatibilidades?
+- como administrar compatibilidades e qual contrato/autorização usar?
 - mover Environment na árvore será permitido?
-- lifecycle do pai propaga para descendentes?
+- inativação do pai propaga lifecycle aos descendentes ou impede a operação?
+- excluir ambiente com filhos será bloqueado, propagado ou tratado com quarentena?
 - como Application consome a árvore?
 - como Publisher é resolvido?
 - como Promotion Engine define ordem e caminhos de promoção?
