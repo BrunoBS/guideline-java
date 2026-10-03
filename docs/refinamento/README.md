@@ -36,6 +36,13 @@ Esta pasta organiza os refinamentos funcionais e técnicos em sequência de dese
 10. `10-resource-reference/`
    - `resource-reference_V1.md`
 
+11. `11-environment/`
+   - `environment-hierarchy_V1.md`
+   - `environment-hierarchy_V2.md`
+
+12. `12-message-queue/`
+   - `platform-message-queue-refinamento_V1.md`
+
 ## Regra de versionamento
 
 Cada refinamento deve preservar suas versões anteriores.
