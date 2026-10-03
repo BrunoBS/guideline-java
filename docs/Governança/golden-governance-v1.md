@@ -1,6 +1,6 @@
 # Golden Governance v1
 
-> **Status:** Draft 0.1  
+> **Status:** Draft 0.2  
 > **Objetivo:** estabelecer uma governança de trabalho determinística, rastreável, independente de ferramenta e aplicável igualmente a pessoas e agentes.
 
 ## 1. Objetivo
@@ -58,23 +58,27 @@ Um Work Item pode nascer de:
 
 Spike e POC não são equivalentes. Spike reduz incerteza e produz conhecimento. POC implementa experimentalmente uma hipótese para comprovar sua viabilidade.
 
-## 4. Lifecycle definido até este Draft
+## 4. Lifecycle consolidado
 
-Fluxo conceitual atualmente definido:
+O lifecycle oficial do Work Item foi consolidado na Parte 2:
 
 ```text
-Demand
-  -> Refinement
-  -> DoR
-  -> Ready
-  -> Prioritization
-  -> Ready for Execution
-  -> In Progress
-  -> Work Branch
-  -> [etapas posteriores ainda em definição]
+Backlog
+  -> Em Refinamento
+  -> Pronto para Execução
+  -> Em Desenvolvimento
+  -> Em Revisão
+  -> Em Homologação
+  -> Pronto para Produção
+  -> Em Produção
+  -> Concluído
 ```
 
-Cada transição deve poder registrar timestamp e ator para permitir métricas de fluxo e auditoria.
+DoR, priorização, Code Review, Acceptance Validation, gestão de mudança, validação de produção e observação são **gates ou atividades do fluxo**, e não estados adicionais.
+
+A Parte 1 detalha o nascimento, refinamento, priorização e entrada em execução. A Parte 2, em `golden-governance-v1-parte-2-feature-promotion-release.md`, detalha a execução, promoção, revisão, homologação, produção e conclusão.
+
+Cada transição deve preservar timestamp e ator quando aplicável para permitir métricas de fluxo e auditoria.
 
 ## 5. Refinement
 
@@ -111,8 +115,8 @@ O DoR é o gate que determina se existe informação suficiente para permitir qu
 
 Resultado do gate:
 
-- **PASS:** o Work Item pode sair de Refinement e entrar em Ready.
-- **FAIL:** o Work Item permanece em Refinement e as pendências devem ser registradas.
+- **PASS:** o Work Item pode concluir o Refinement e, após a priorização aplicável, tornar-se **Pronto para Execução**.
+- **FAIL:** o Work Item permanece **Em Refinamento** e as pendências devem ser registradas.
 
 A validação deve preservar, quando aplicável:
 
@@ -123,13 +127,13 @@ A validação deve preservar, quando aplicável:
 
 A autoridade de aprovação do DoR pode variar conforme tipo, risco e contexto. A matriz de autoridade ainda será definida.
 
-## 8. Ready
+## 8. Saída do Refinamento
 
-Ready significa que o Work Item passou pelo DoR.
+A aprovação do DoR não cria um estado intermediário chamado `Ready`.
 
-Ready **não significa execução imediata**.
+Após o DoR, o Work Item passa pela priorização aplicável. Quando estiver refinado, priorizado e sem impedimento que impeça sua execução, entra em **Pronto para Execução**.
 
-O Work Item ainda deve passar pela priorização antes de ficar disponível para execução.
+Essa simplificação evita estados semanticamente sobrepostos.
 
 ## 9. Prioritization
 
@@ -222,11 +226,11 @@ Ao concluir a priorização, o Work Item deve possuir no mínimo:
 - justificativa rastreável;
 - situação das dependências bloqueantes conhecida.
 
-Quando autorizado a seguir, entra em **Ready for Execution**.
+Quando autorizado a seguir, entra em **Pronto para Execução**.
 
-## 11. Ready for Execution
+## 11. Pronto para Execução
 
-Ready for Execution significa que o Work Item está priorizado e pode ser assumido para execução.
+Pronto para Execução significa que o Work Item está refinado, passou pelo DoR, foi priorizado e pode ser assumido para execução.
 
 Não é obrigatório existir responsável previamente definido.
 
@@ -254,7 +258,7 @@ A participação e eventuais transferências de responsabilidade devem preservar
 
 ## 13. Execution
 
-Quando o trabalho é efetivamente iniciado, o Work Item entra em **In Progress**.
+Quando o trabalho é efetivamente assumido e iniciado, o Work Item entra em **Em Desenvolvimento**.
 
 Trabalhos que geram alteração de código devem possuir uma unidade de implementação rastreável vinculada ao Work Item.
 
@@ -298,7 +302,7 @@ Exemplos de branch base:
 
 A Work Branch deve ser criada quando o Work Item entrar efetivamente em execução.
 
-Evita-se criar branches durante Refinement ou enquanto o item permanece parado em Ready/Ready for Execution.
+Evita-se criar branches durante Refinement ou enquanto o item permanece parado em Ready/Pronto para Execução.
 
 ## 15. Project Policy / Profile
 
@@ -326,7 +330,7 @@ Isso permitirá calcular posteriormente métricas como:
 - cycle time;
 - tempo em Refinement;
 - tempo aguardando priorização;
-- tempo em Ready for Execution;
+- tempo em Pronto para Execução;
 - tempo efetivo em execução;
 - tempo bloqueado;
 - quantidade de retornos;
@@ -337,42 +341,53 @@ A definição final dos eventos e do modelo de auditoria ainda está pendente.
 
 ## 17. Decisões fechadas neste Draft
 
-Até a versão Draft 0.1, estão consideradas decisões:
+Até a versão Draft 0.2, estão consideradas decisões:
 
 - Golden é independente de ferramenta;
 - humanos e agentes seguem o mesmo processo;
 - todo Work Item passa por Refinement;
 - Acceptance Criteria fazem parte do preparo, mas não são o DoR;
 - DoR funciona como gate PASS/FAIL;
-- Ready não significa execução imediata;
+- não existe um estado intermediário `Ready`; após DoR e priorização o item entra em Pronto para Execução;
 - existe etapa explícita de Prioritization;
 - priorização considera Urgency, Impact, Risk, Business Value, Dependencies e Effort;
 - Expedite é uma exceção justificada ao fluxo normal;
-- Ready for Execution não exige Owner previamente atribuído;
+- Pronto para Execução não exige Owner previamente atribuído;
 - em execução existe exatamente um Owner e podem existir múltiplos Contributors;
 - alterações de código exigem Work Branch rastreável;
 - padrão de nome da branch pertence à política do projeto;
 - particularidades de ferramentas e ambientes pertencem ao Project Policy/Profile.
 
-## 18. Pontos pendentes
+## 18. Continuidade e pontos pendentes
 
-Ainda serão definidos em versões seguintes:
+As etapas posteriores à entrada em execução foram definidas na Parte 2, incluindo:
 
-- transição exata de claim/assunção para In Progress;
+- lifecycle de Em Desenvolvimento até Concluído;
+- contrato e template mínimo da Pull Request;
+- Code Review e Checklist de Revisão Técnica;
+- termo de responsabilidade do Reviewer;
+- rastreabilidade da aprovação pelo HEAD SHA;
+- nova revisão após alteração relevante;
+- Acceptance Validation em homologação;
+- gestão de mudança/GMUD;
+- produção, observação e rollback;
+- consolidação da versão estabilizada na `main`.
+
+Continuam pendentes para refinamento:
+
 - política de transferência de Owner;
 - convenção de commits;
-- abertura e lifecycle de Pull Request;
-- revisão de código;
-- CI/CD e quality gates;
-- tratamento de pipeline RED/GREEN;
-- Definition of Done — DoD;
-- regras de merge;
-- fechamento do Work Item;
-- release/deployment quando aplicável;
-- auditoria final;
+- Definition of Done — DoD formal;
 - matriz de autoridade dos gates;
-- fórmula ou política de composição da prioridade, caso seja necessária;
-- modelo formal de eventos e métricas.
+- fórmula ou política de composição da prioridade, caso necessária;
+- quantidade mínima de aprovações versus Project Profile;
+- formato final das evidências de Acceptance Validation;
+- duração e critérios objetivos da janela de observação;
+- fluxo de hotfix/emergency change;
+- modelo formal de automação, eventos, Audit Trail e métricas.
+
+O próximo bloco da Golden será **Automação, Rastreabilidade e Auditoria**.
+
 
 ---
 
