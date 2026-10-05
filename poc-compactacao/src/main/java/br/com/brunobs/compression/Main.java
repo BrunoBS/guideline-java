@@ -8,10 +8,13 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class Main {
     private static final int[] LEVELS = {1, 3, 6};
     private static final int[] BUFFERS = {32, 64, 128, 256};
+    private static final int[] LEVELS_FOR_COMPARISON = {1, 3, 6, 9, 12, 15, 19};
     private static final long BYTES_PER_MIB = 1024L * 1024L;
 
     private Main() { }
@@ -26,6 +29,7 @@ public final class Main {
             case "compress" -> compress(args);
             case "decompress" -> decompress(args);
             case "benchmark" -> benchmark(args);
+            case "benchmark-levels" -> benchmarkLevels(args);
             default -> throw new IllegalArgumentException("Comando desconhecido: " + args[0]);
         }
     }
@@ -106,6 +110,109 @@ public final class Main {
         System.out.printf("Benchmark concluído: %s%n", report);
     }
 
+    private static void benchmarkLevels(String[] args) throws IOException {
+        if (args.length < 3 || args.length > 6) {
+            throw new IllegalArgumentException(
+                    "Uso: benchmark-levels <entrada.json> <relatorio.csv> [níveis] [buffer-KiB] [rodadas]");
+        }
+        Path input = Path.of(args[1]).toAbsolutePath();
+        Path report = Path.of(args[2]).toAbsolutePath();
+        int[] levels = args.length >= 4 ? parseLevels(args[3]) : LEVELS_FOR_COMPARISON.clone();
+        int bufferKiB = args.length >= 5 ? Integer.parseInt(args[4]) : 128;
+        int repetitions = args.length >= 6 ? Integer.parseInt(args[5]) : 3;
+        if (bufferKiB < 1) throw new IllegalArgumentException("O buffer deve ser maior que zero.");
+        if (repetitions < 1) throw new IllegalArgumentException("O número de rodadas deve ser maior que zero.");
+
+        int bufferSize = Math.multiplyExact(bufferKiB, 1024);
+        String sourceHash = sha256(input);
+        Runtime runtime = Runtime.getRuntime();
+        Path work = Files.createTempDirectory("compression-levels-");
+        Path compressed = work.resolve("dataset.zst");
+        Path restored = work.resolve("dataset-restored.json");
+
+        try (BufferedWriter csv = Files.newBufferedWriter(report, StandardCharsets.UTF_8)) {
+            csv.write("run,level,buffer_kib,original_bytes,compressed_bytes,reduction_percent,compress_ms,compress_mib_s,decompress_ms,decompress_mib_s,sha256_match,heap_used_before_bytes,heap_used_after_bytes");
+            csv.newLine();
+
+            System.out.printf("Aquecendo cada nível uma vez; buffer %d KiB; %d rodadas medidas.%n",
+                    bufferKiB, repetitions);
+            for (int level : levels) {
+                measure(input, compressed, restored, level, bufferSize, sourceHash, runtime);
+                System.out.printf("Aquecimento do nível %d concluído.%n", level);
+            }
+
+            for (int run = 1; run <= repetitions; run++) {
+                for (int offset = 0; offset < levels.length; offset++) {
+                    int level = levels[(offset + run - 1) % levels.length];
+                    BenchmarkMeasurement measurement =
+                            measure(input, compressed, restored, level, bufferSize, sourceHash, runtime);
+                    var c = measurement.compression();
+                    var d = measurement.decompression();
+                    double reduction = 100d * (c.originalBytes() - c.compressedBytes()) / c.originalBytes();
+                    csv.write(String.format(java.util.Locale.ROOT,
+                            "%d,%d,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%s,%d,%d",
+                            run, level, bufferKiB, c.originalBytes(), c.compressedBytes(), reduction,
+                            c.elapsedNanos() / 1_000_000d, mibPerSecond(c.originalBytes(), c.elapsedNanos()),
+                            d.elapsedNanos() / 1_000_000d,
+                            mibPerSecond(d.decompressedBytes(), d.elapsedNanos()), true,
+                            measurement.heapBefore(), measurement.heapAfter()));
+                    csv.newLine();
+                    csv.flush();
+                    System.out.printf("Rodada %d/%d — nível %d: %.3f%% de redução, %.3f ms.%n",
+                            run, repetitions, level, reduction, c.elapsedNanos() / 1_000_000d);
+                }
+            }
+        } finally {
+            Files.deleteIfExists(compressed);
+            Files.deleteIfExists(restored);
+            Files.deleteIfExists(work);
+        }
+        System.out.printf("Benchmark de níveis concluído: %s%n", report);
+    }
+
+    private static BenchmarkMeasurement measure(Path input, Path compressed, Path restored, int level,
+                                                int bufferSize, String sourceHash, Runtime runtime)
+            throws IOException {
+        long heapBefore = usedHeap(runtime);
+        var compression = new ZstdCompressionEngine().compress(Files.newInputStream(input),
+                Files.newOutputStream(compressed), level, bufferSize);
+        long heapAfterCompress = usedHeap(runtime);
+        var decompression = new ZstdCompressionEngine().decompress(Files.newInputStream(compressed),
+                Files.newOutputStream(restored), bufferSize);
+        long heapAfter = usedHeap(runtime);
+        if (!sourceHash.equals(sha256(restored))) {
+            throw new IOException("SHA-256 diferente no nível " + level + "; benchmark interrompido.");
+        }
+        return new BenchmarkMeasurement(compression, decompression, heapBefore,
+                Math.max(heapAfterCompress, heapAfter));
+    }
+
+    private static int[] parseLevels(String value) {
+        String[] parts = value.split(",", -1);
+        int[] levels = new int[parts.length];
+        Set<Integer> unique = new HashSet<>();
+        for (int i = 0; i < parts.length; i++) {
+            int level;
+            try {
+                level = Integer.parseInt(parts[i].trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Níveis devem ser números separados por vírgula: " + value, e);
+            }
+            if (level < 1 || level > 19) {
+                throw new IllegalArgumentException("Níveis aceitos neste benchmark: de 1 a 19.");
+            }
+            if (!unique.add(level)) throw new IllegalArgumentException("Nível repetido: " + level);
+            levels[i] = level;
+        }
+        return levels;
+    }
+
+    private record BenchmarkMeasurement(
+            CompressionEngine.CompressionResult compression,
+            CompressionEngine.DecompressionResult decompression,
+            long heapBefore,
+            long heapAfter) { }
+
     private static long usedHeap(Runtime runtime) {
         return runtime.totalMemory() - runtime.freeMemory();
     }
@@ -133,7 +240,8 @@ public final class Main {
     }
 
     private static void printUsage() {
-        System.out.println("Comandos: generate, compress, decompress, benchmark");
+        System.out.println("Comandos: generate, compress, decompress, benchmark, benchmark-levels");
         System.out.println("Ex.: generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset.json repetitive 1");
+        System.out.println("Ex.: benchmark-levels dataset.json benchmark-niveis.csv");
     }
 }
