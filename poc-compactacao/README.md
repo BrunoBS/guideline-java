@@ -45,4 +45,4 @@ O CSV registra bytes de entrada e saída, redução percentual, latência e thro
 Os resultados dependem da CPU, sistema operacional, JVM, dispositivo de armazenamento e conteúdo do JSON. O objetivo de 95% de redução é apenas uma hipótese para dados repetitivos, não uma garantia.
 
 ## Limites desta primeira versão
-Esta POC ainda não mede concorrência progressiva. HTTP, Spring, transporte, chunks, dicionários e política adaptativa permanecem fora do escopo.
+Esta POC ainda não mede concorrência progressiva. O treinamento e benchmark com dicionário são experimentos isolados; ainda não há política de seleção ou gestão de dicionários no engine. HTTP, Spring, transporte, chunks e política adaptativa permanecem fora do escopo.
