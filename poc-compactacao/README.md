@@ -37,7 +37,7 @@ O comando `benchmark-levels` aceita `<entrada.json> <relatorio.csv> [níveis] [b
 
 ## Experimento com dicionário
 
-Execute os comandos a partir do diretório `poc-compactacao), na branch `feature/poc-compactacao`. Depois de atualizar a branch, recompile para garantir que os novos comandos estejam disponíveis:
+Execute os comandos a partir do diretório `poc-compactacao`, na branch `feature/poc-compactacao`. Depois de atualizar a branch, recompile para garantir que os novos comandos estejam disponíveis:
 
 ```bash
 git pull origin feature/poc-compactacao
@@ -47,7 +47,7 @@ mvn -q clean package
 Gere um corpus de treinamento separado do arquivo de benchmark. O seed explícito cria uma sequência diferente da geração padrão:
 
 ```bash
-mvn -q exec:java -Dexec.args="generate '{\\"application\\":\\"app-a\\",\\"key\\":\\"feature.enabled\\",\\"value\\":\\"true\\"}' dataset-realista-treino.json realistic 20 987654321"
+mvn -q exec:java -Dexec.args="generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset-realista-treino.json realistic 20 987654321"
 ```
 
 Treine um dicionário de 32 KiB usando até 4 MiB desse corpus:
