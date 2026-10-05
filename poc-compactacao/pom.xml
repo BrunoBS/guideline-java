@@ -13,6 +13,7 @@
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <zstd-jni.version>1.5.7-14</zstd-jni.version>
+        <jackson-core.version>2.22.3</jackson-core.version>
     </properties>
 
     <dependencies>
@@ -20,6 +21,11 @@
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
             <version>${zstd-jni.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson-core.version}</version>
         </dependency>
     </dependencies>
 
