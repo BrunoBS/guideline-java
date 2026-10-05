@@ -1,6 +1,6 @@
 # POC de compressão Zstandard
 
-Projeto Maven isolado, em Java 25, sem Spring. O caminho principal lê e escreve por streams; não carrega o dataset inteiro em memória. O gerador replica um objeto JSON fornecido pelo usuário até atingir pelo menos o alvo indicado em MiB. O tamanho final pode passar do alvo em até aproximadamente o tamanho de um objeto.
+Projeto Maven isolado, em Java 25, sem Spring. O caminho de compressão lê e escreve por streams; não carrega o dataset inteiro em memória. O gerador recebe um registro-modelo `ConfigurationData` e produz novos registros variados até atingir o tamanho-alvo em MiB. O arquivo gerado é um array JSON válido; cada campo `value` continua sendo uma string.
 
 ## Requisitos
 
@@ -12,8 +12,9 @@ Projeto Maven isolado, em Java 25, sem Spring. O caminho principal lê e escreve
 ```bash
 mvn -q package
 
-# Gera uma lista JSON repetindo o objeto-modelo até 1 MiB.
-mvn -q exec:java -Dexec.args='generate 1 {"application":"app-a","key":"feature.enabled","value":"true"} dataset.json'
+# Gera registros diferentes a partir do modelo até 1 MiB (perfil repetitivo).
+mvn -q exec:java -Dexec.args='generate 1 {"application":"app-a","key":"feature.enabled","value":"true"} dataset.json repetitive'
+mvn -q exec:java -Dexec.args='generate 10 {"application":"app-a","key":"feature.enabled","value":"true"} dataset-realista.json realistic'
 
 # Compacta e descompacta por streaming.
 mvn -q exec:java -Dexec.args='compress 3 64 dataset.json dataset.json.zst'
@@ -23,7 +24,7 @@ mvn -q exec:java -Dexec.args='decompress 64 dataset.json.zst restored.json'
 mvn -q exec:java -Dexec.args='benchmark dataset.json benchmark.csv'
 ```
 
-O argumento `generate` é `<tamanho-MiB> <objeto-JSON> <arquivo-saida>`. Para objetos grandes ou strings com aspas, use um arquivo/script shell que passe o JSON como um único argumento.
+O argumento `generate` é `<tamanho-MiB> <modelo-ConfigurationData> <arquivo-saida> [repetitive|realistic]`. O modelo deve conter `application`, `key` e `value`, todos como strings. O gerador mantém esses campos, varia aplicações e chaves, e cria valores string que representam booleanos, números, textos, JSON pequeno e JSON maior. O JSON pequeno ou grande fica serializado dentro do campo `value`; ele não vira um objeto JSON externo. O perfil `repetitive` usa cardinalidade baixa e conteúdo mais repetido; `realistic` usa mais variação e maior entropia. Para objetos grandes ou strings com aspas, use um arquivo/script shell que passe o JSON como um único argumento.
 
 ## Saída do benchmark
 
@@ -33,4 +34,4 @@ Os resultados dependem da CPU, sistema operacional, JVM, dispositivo de armazena
 
 ## Limites desta primeira versão
 
-Esta POC ainda não mede concorrência progressiva nem compara perfis sintéticos de entropia. O gerador usa o objeto-modelo informado. HTTP, Spring, transporte, chunks, dicionários e política adaptativa permanecem fora do escopo.
+Esta POC ainda não mede concorrência progressiva. HTTP, Spring, transporte, chunks, dicionários e política adaptativa permanecem fora do escopo.
