@@ -24,7 +24,7 @@ mvn -q exec:java -Dexec.args='decompress 64 dataset.json.zst restored.json'
 mvn -q exec:java -Dexec.args='benchmark dataset.json benchmark.csv'
 ```
 
-O argumento `generate` é `<tamanho-MiB> <modelo-ConfigurationData> <arquivo-saida> [repetitive|realistic]`. O modelo deve conter `application`, `key` e `value`, todos como strings. O gerador mantém esses campos, varia aplicações e chaves, e cria valores string que representam booleanos, números, textos, JSON pequeno e JSON maior. O JSON pequeno ou grande fica serializado dentro do campo `value`; ele não vira um objeto JSON externo. O perfil `repetitive` usa cardinalidade baixa e conteúdo mais repetido; `realistic` usa mais variação e maior entropia. Para objetos grandes ou strings com aspas, use um arquivo/script shell que passe o JSON como um único argumento.
+O comando `generate` recebe, nesta ordem, `<tamanho-MiB> <modelo-ConfigurationData> <dataset.json> <repetitive|realistic>`. O perfil é obrigatório. O modelo deve conter `application`, `key` e `value`, todos como strings. O gerador mantém esses campos, varia aplicações e chaves, e cria valores string que representam booleanos, números, textos, JSON pequeno e JSON maior. O JSON pequeno ou grande fica serializado dentro do campo `value`; ele não vira um objeto JSON externo. O perfil `repetitive` usa cardinalidade baixa e conteúdo mais repetido; `realistic` usa mais variação e maior entropia. Para objetos grandes ou strings com aspas, use um arquivo/script shell que passe o JSON como um único argumento.
 
 ## Saída do benchmark
 
