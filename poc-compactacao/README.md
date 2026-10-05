@@ -13,8 +13,8 @@ Projeto Maven isolado, em Java 25, sem Spring. O caminho de compressão lê e es
 mvn -q package
 
 # Gera registros diferentes a partir do modelo até 1 MiB (perfil repetitivo).
-mvn -q exec:java -Dexec.args='generate 1 {"application":"app-a","key":"feature.enabled","value":"true"} dataset.json repetitive'
-mvn -q exec:java -Dexec.args='generate 10 {"application":"app-a","key":"feature.enabled","value":"true"} dataset-realista.json realistic'
+mvn -q exec:java -Dexec.args='generate {"application":"app-a","key":"feature.enabled","value":"true"} dataset.json repetitive 1'
+mvn -q exec:java -Dexec.args='generate {"application":"app-a","key":"feature.enabled","value":"true"} dataset-realista.json realistic 10'
 
 # Compacta e descompacta por streaming.
 mvn -q exec:java -Dexec.args='compress 3 64 dataset.json dataset.json.zst'
@@ -24,7 +24,7 @@ mvn -q exec:java -Dexec.args='decompress 64 dataset.json.zst restored.json'
 mvn -q exec:java -Dexec.args='benchmark dataset.json benchmark.csv'
 ```
 
-O comando `generate` recebe, nesta ordem, `<tamanho-MiB> <modelo-ConfigurationData> <dataset.json> <repetitive|realistic>`. O perfil é obrigatório. O modelo deve conter `application`, `key` e `value`, todos como strings. O gerador mantém esses campos, varia aplicações e chaves, e cria valores string que representam booleanos, números, textos, JSON pequeno e JSON maior. O JSON pequeno ou grande fica serializado dentro do campo `value`; ele não vira um objeto JSON externo. O perfil `repetitive` usa cardinalidade baixa e conteúdo mais repetido; `realistic` usa mais variação e maior entropia. Para objetos grandes ou strings com aspas, use um arquivo/script shell que passe o JSON como um único argumento.
+O comando `generate` recebe, nesta ordem, `<modelo-ConfigurationData> <dataset.json> <repetitive|realistic> <tamanho-MiB>`. O perfil é obrigatório; o tamanho fica no fim para facilitar variar esse argumento entre execuções. O modelo deve conter `application`, `key` e `value`, todos como strings. O gerador mantém esses campos, varia aplicações e chaves, e cria valores string que representam booleanos, números, textos, JSON pequeno e JSON maior. O JSON pequeno ou grande fica serializado dentro do campo `value`; ele não vira um objeto JSON externo. O perfil `repetitive` usa cardinalidade baixa e conteúdo mais repetido; `realistic` usa mais variação e maior entropia. Para objetos grandes ou strings com aspas, use um arquivo/script shell que passe o JSON como um único argumento.
 
 ## Saída do benchmark
 
