@@ -33,13 +33,13 @@ public final class Main {
     private static void generate(String[] args) throws IOException {
         if (args.length != 5) {
             throw new IllegalArgumentException(
-                    "Uso: generate <tamanho-MiB> <modelo-ConfigurationData> <dataset.json> <repetitive|realistic>");
+                    "Uso: generate <modelo-ConfigurationData> <dataset.json> <repetitive|realistic> <tamanho-MiB>");
         }
-        long size = Long.parseLong(args[1]);
+        long size = Long.parseLong(args[4]);
         JsonDatasetGenerator.Profile profile = JsonDatasetGenerator.Profile.valueOf(
-                args[4].toUpperCase(java.util.Locale.ROOT));
-        long bytes = JsonDatasetGenerator.generate(args[2], size, Path.of(args[3]), profile);
-        System.out.printf("Arquivo gerado: %s (%d bytes; alvo %d MiB)%n", args[3], bytes, size);
+                args[3].toUpperCase(java.util.Locale.ROOT));
+        long bytes = JsonDatasetGenerator.generate(args[1], size, Path.of(args[2]), profile);
+        System.out.printf("Arquivo gerado: %s (%d bytes; alvo %d MiB)%n", args[2], bytes, size);
     }
 
     private static void compress(String[] args) throws IOException {
@@ -134,6 +134,6 @@ public final class Main {
 
     private static void printUsage() {
         System.out.println("Comandos: generate, compress, decompress, benchmark");
-        System.out.println("Ex.: generate 1 '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset.json repetitive");
+        System.out.println("Ex.: generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset.json repetitive 1");
     }
 }
