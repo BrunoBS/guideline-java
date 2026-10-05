@@ -323,12 +323,6 @@ public final class Main {
         return levels;
     }
 
-    private record DictionaryMeasurement(
-            CompressionEngine.CompressionResult compression,
-            CompressionEngine.DecompressionResult decompression,
-            long heapBefore,
-            long heapAfter) { }
-
     private record BenchmarkMeasurement(
             CompressionEngine.CompressionResult compression,
             CompressionEngine.DecompressionResult decompression,
