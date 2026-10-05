@@ -30,20 +30,44 @@ public final class Main {
             case "decompress" -> decompress(args);
             case "benchmark" -> benchmark(args);
             case "benchmark-levels" -> benchmarkLevels(args);
+            case "train-dictionary" -> trainDictionary(args);
+            case "benchmark-dictionary" -> benchmarkDictionary(args);
             default -> throw new IllegalArgumentException("Comando desconhecido: " + args[0]);
         }
     }
 
     private static void generate(String[] args) throws IOException {
-        if (args.length != 5) {
+        if (args.length < 5 || args.length > 6) {
             throw new IllegalArgumentException(
-                    "Uso: generate <modelo-ConfigurationData> <dataset.json> <repetitive|realistic> <tamanho-MiB>");
+                    "Uso: generate <modelo-ConfigurationData> <dataset.json> <repetitive|realistic> <tamanho-MiB> [seed]");
         }
         long size = Long.parseLong(args[4]);
         JsonDatasetGenerator.Profile profile = JsonDatasetGenerator.Profile.valueOf(
                 args[3].toUpperCase(java.util.Locale.ROOT));
-        long bytes = JsonDatasetGenerator.generate(args[1], size, Path.of(args[2]), profile);
+        long bytes = args.length == 6
+                ? JsonDatasetGenerator.generate(args[1], size, Path.of(args[2]), profile, Long.parseLong(args[5]))
+                : JsonDatasetGenerator.generate(args[1], size, Path.of(args[2]), profile);
         System.out.printf("Arquivo gerado: %s (%d bytes; alvo %d MiB)%n", args[2], bytes, size);
+    }
+
+    private static void trainDictionary(String[] args) throws IOException {
+        if (args.length < 3 || args.length > 5) {
+            throw new IllegalArgumentException(
+                    "Uso: train-dictionary <amostras.json> <dictionary.zdict> [capacidade-amostras-MiB] [dicionario-KiB]");
+        }
+        int sampleCapacityMiB = args.length >= 4 ? Integer.parseInt(args[3]) : 4;
+        int dictionaryKiB = args.length >= 5 ? Integer.parseInt(args[4]) : 32;
+        if (sampleCapacityMiB < 1) throw new IllegalArgumentException("A capacidade de amostras deve ser positiva.");
+        if (dictionaryKiB < 1) throw new IllegalArgumentException("O tamanho do dicionário deve ser positivo.");
+
+        long started = System.nanoTime();
+        JsonDictionaryTrainer.TrainingResult result = JsonDictionaryTrainer.train(
+                Path.of(args[1]), Path.of(args[2]),
+                Math.toIntExact(Math.multiplyExact((long) sampleCapacityMiB, BYTES_PER_MIB)),
+                Math.multiplyExact(dictionaryKiB, 1024));
+        System.out.printf("Dicionário treinado: %s; amostras: %d; bytes de amostras: %d; bytes do dicionário: %d; tempo: %.3f ms%n",
+                args[2], result.sampleCount(), result.sampleBytes(), result.dictionaryBytes(),
+                (System.nanoTime() - started) / 1_000_000d);
     }
 
     private static void compress(String[] args) throws IOException {
@@ -170,6 +194,98 @@ public final class Main {
         System.out.printf("Benchmark de níveis concluído: %s%n", report);
     }
 
+    private static void benchmarkDictionary(String[] args) throws IOException {
+        if (args.length < 4 || args.length > 7) {
+            throw new IllegalArgumentException(
+                    "Uso: benchmark-dictionary <entrada.json> <dictionary.zdict> <relatorio.csv> [nível] [buffer-KiB] [rodadas]");
+        }
+        Path input = Path.of(args[1]).toAbsolutePath();
+        Path dictionaryFile = Path.of(args[2]).toAbsolutePath();
+        Path report = Path.of(args[3]).toAbsolutePath();
+        int level = args.length >= 5 ? parseLevels(args[4])[0] : 19;
+        int bufferKiB = args.length >= 6 ? Integer.parseInt(args[5]) : 128;
+        int repetitions = args.length >= 7 ? Integer.parseInt(args[6]) : 3;
+        if (bufferKiB < 1) throw new IllegalArgumentException("O buffer deve ser maior que zero.");
+        if (repetitions < 1) throw new IllegalArgumentException("O número de rodadas deve ser maior que zero.");
+
+        byte[] dictionary = Files.readAllBytes(dictionaryFile);
+        if (dictionary.length == 0) throw new IOException("O arquivo de dicionário está vazio.");
+        int bufferSize = Math.multiplyExact(bufferKiB, 1024);
+        String sourceHash = sha256(input);
+        Runtime runtime = Runtime.getRuntime();
+        Path work = Files.createTempDirectory("compression-dictionary-");
+        Path compressed = work.resolve("dataset.zst");
+        Path restored = work.resolve("dataset-restored.json");
+
+        try (BufferedWriter csv = Files.newBufferedWriter(report, StandardCharsets.UTF_8)) {
+            csv.write("run,mode,level,original_bytes,compressed_bytes,dictionary_bytes,total_stored_bytes,reduction_percent,compress_ms,compress_mib_s,decompress_ms,decompress_mib_s,sha256_match,heap_used_before_bytes,heap_used_after_bytes");
+            csv.newLine();
+
+            System.out.printf("Aquecendo nível %d com e sem dicionário; buffer %d KiB; dicionário %d bytes.%n",
+                    level, bufferKiB, dictionary.length);
+            measureDictionary(input, compressed, restored, level, bufferSize, null, sourceHash, runtime);
+            measureDictionary(input, compressed, restored, level, bufferSize, dictionary, sourceHash, runtime);
+
+            for (int run = 1; run <= repetitions; run++) {
+                for (int order = 0; order < 2; order++) {
+                    boolean useDictionary = (run + order) % 2 == 0;
+                    DictionaryMeasurement measurement = measureDictionary(
+                            input, compressed, restored, level, bufferSize,
+                            useDictionary ? dictionary : null, sourceHash, runtime);
+                    var c = measurement.compression();
+                    var d = measurement.decompression();
+                    long dictionaryBytes = useDictionary ? dictionary.length : 0;
+                    long totalStoredBytes = c.compressedBytes() + dictionaryBytes;
+                    double reduction = 100d * (c.originalBytes() - totalStoredBytes) / c.originalBytes();
+                    String mode = useDictionary ? "with_dictionary" : "without_dictionary";
+                    csv.write(String.format(java.util.Locale.ROOT,
+                            "%d,%s,%d,%d,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%s,%d,%d",
+                            run, mode, level, c.originalBytes(), c.compressedBytes(), dictionaryBytes,
+                            totalStoredBytes, reduction, c.elapsedNanos() / 1_000_000d,
+                            mibPerSecond(c.originalBytes(), c.elapsedNanos()),
+                            d.elapsedNanos() / 1_000_000d,
+                            mibPerSecond(d.decompressedBytes(), d.elapsedNanos()), true,
+                            measurement.heapBefore(), measurement.heapAfter()));
+                    csv.newLine();
+                    csv.flush();
+                    System.out.printf("Rodada %d/%d — %s: %.3f%%; compactado %d bytes; tempo %.3f ms.%n",
+                            run, repetitions, mode, reduction, c.compressedBytes(),
+                            c.elapsedNanos() / 1_000_000d);
+                }
+            }
+        } finally {
+            Files.deleteIfExists(compressed);
+            Files.deleteIfExists(restored);
+            Files.deleteIfExists(work);
+        }
+        System.out.printf("Benchmark com dicionário concluído: %s%n", report);
+    }
+
+    private static DictionaryMeasurement measureDictionary(Path input, Path compressed, Path restored,
+                                                            int level, int bufferSize, byte[] dictionary,
+                                                            String sourceHash, Runtime runtime)
+            throws IOException {
+        long heapBefore = usedHeap(runtime);
+        ZstdCompressionEngine engine = new ZstdCompressionEngine();
+        var compression = engine.compress(Files.newInputStream(input), Files.newOutputStream(compressed),
+                level, bufferSize, dictionary);
+        long heapAfterCompress = usedHeap(runtime);
+        var decompression = engine.decompress(Files.newInputStream(compressed), Files.newOutputStream(restored),
+                bufferSize, dictionary);
+        long heapAfter = usedHeap(runtime);
+        if (!sourceHash.equals(sha256(restored))) {
+            throw new IOException("SHA-256 diferente no benchmark com dicionário; benchmark interrompido.");
+        }
+        return new DictionaryMeasurement(compression, decompression, heapBefore,
+                Math.max(heapAfterCompress, heapAfter));
+    }
+
+    private record DictionaryMeasurement(
+            CompressionEngine.CompressionResult compression,
+            CompressionEngine.DecompressionResult decompression,
+            long heapBefore,
+            long heapAfter) { }
+
     private static BenchmarkMeasurement measure(Path input, Path compressed, Path restored, int level,
                                                 int bufferSize, String sourceHash, Runtime runtime)
             throws IOException {
@@ -207,6 +323,12 @@ public final class Main {
         return levels;
     }
 
+    private record DictionaryMeasurement(
+            CompressionEngine.CompressionResult compression,
+            CompressionEngine.DecompressionResult decompression,
+            long heapBefore,
+            long heapAfter) { }
+
     private record BenchmarkMeasurement(
             CompressionEngine.CompressionResult compression,
             CompressionEngine.DecompressionResult decompression,
@@ -240,8 +362,9 @@ public final class Main {
     }
 
     private static void printUsage() {
-        System.out.println("Comandos: generate, compress, decompress, benchmark, benchmark-levels");
+        System.out.println("Comandos: generate, compress, decompress, benchmark, benchmark-levels, train-dictionary, benchmark-dictionary");
         System.out.println("Ex.: generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset.json repetitive 1");
-        System.out.println("Ex.: benchmark-levels dataset.json benchmark-niveis.csv");
+        System.out.println("Ex.: train-dictionary amostras.json dictionary.zdict");
+        System.out.println("Ex.: benchmark-dictionary dataset.json dictionary.zdict benchmark-dictionary.csv");
     }
 }
