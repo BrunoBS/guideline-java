@@ -20,6 +20,7 @@ import java.util.UUID;
 /** Streams varied ConfigurationData records using one record as a seed. */
 public final class JsonDatasetGenerator {
     private static final long BYTES_PER_MIB = 1024L * 1024L;
+    private static final long DEFAULT_RANDOM_SEED = 0x5EEDC0DEL;
     private static final JsonFactory JSON = new JsonFactory();
 
     public enum Profile { REPETITIVE, REALISTIC }
@@ -28,10 +29,15 @@ public final class JsonDatasetGenerator {
 
     public static long generate(String templateJson, long targetMiB, Path destination, Profile profile)
             throws IOException {
+        return generate(templateJson, targetMiB, destination, profile, DEFAULT_RANDOM_SEED);
+    }
+
+    public static long generate(String templateJson, long targetMiB, Path destination, Profile profile, long seed)
+            throws IOException {
         if (targetMiB < 1) throw new IllegalArgumentException("O tamanho deve ser de pelo menos 1 MiB.");
         long targetBytes = Math.multiplyExact(targetMiB, BYTES_PER_MIB);
         ConfigurationTemplate template = parseTemplate(templateJson);
-        Random random = new Random(0x5EEDC0DEL);
+        Random random = new Random(seed);
         long written = 0;
         long index = 0;
 
