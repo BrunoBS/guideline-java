@@ -35,9 +35,40 @@ O comando `generate` recebe `<modelo-ConfigurationData> <dataset.json> <repetiti
 O comando `benchmark-levels` aceita `<entrada.json> <relatorio.csv> [níveis] [buffer-KiB] [rodadas]`. Se omitidos, os níveis são `1,3,6,9,12,15,19`, o buffer é 128 KiB e são feitas três rodadas medidas. Os níveis precisam ser únicos e estar entre 1 e 19. O benchmark faz uma execução completa de aquecimento por nível, não incluída no CSV, e depois intercala a ordem dos níveis entre as rodadas para reduzir o efeito de ordem. Cada rodada compacta e descompacta o mesmo arquivo e valida SHA-256 antes de registrar a linha no CSV. O arquivo de entrada não é regenerado nem alterado.
 
 
-O comando `train-dictionary` recebe `<amostras.json> <dictionary.zdict> [capacidade-amostras-MiB] [dicionario-KiB]`. Ele lê o array JSON por streaming e usa registros completos como amostras. O padrão é limitar a coleta a 4 MiB de amostras e gerar um dicionário de 32 KiB.
+## Experimento com dicionário
 
-O comando `benchmark-dictionary` recebe `<entrada.json> <dictionary.zdict> <relatorio.csv> [nível] [buffer-KiB] [rodadas]`. Ele compara o mesmo arquivo com e sem dicionário, faz uma rodada de aquecimento por modo, alterna a ordem nas medições e valida SHA-256 em cada descompressão. A coluna `total_stored_bytes` soma o tamanho do frame e o dicionário uma vez, para que a redução reflita o custo de armazenar ambos para esse arquivo. Se um dicionário for compartilhado por vários arquivos, esse custo pode ser amortizado; o CSV mostra separadamente `dictionary_bytes` e `compressed_bytes`.
+Execute os comandos a partir do diretório `poc-compactacao), na branch `feature/poc-compactacao`. Depois de atualizar a branch, recompile para garantir que os novos comandos estejam disponíveis:
+
+```bash
+git pull origin feature/poc-compactacao
+mvn -q clean package
+```
+
+Gere um corpus de treinamento separado do arquivo de benchmark. O seed explícito cria uma sequência diferente da geração padrão:
+
+```bash
+mvn -q exec:java -Dexec.args="generate '{\\"application\\":\\"app-a\\",\\"key\\":\\"feature.enabled\\",\\"value\\":\\"true\\"}' dataset-realista-treino.json realistic 20 987654321"
+```
+
+Treine um dicionário de 32 KiB usando até 4 MiB desse corpus:
+
+```bash
+mvn -q exec:java -Dexec.args='train-dictionary dataset-realista-treino.json dictionary-realista.zdict 4 32'
+```
+
+Comece comparando com e sem dicionário no nível 1, com três rodadas medidas:
+
+```bash
+mvn -q exec:java -Dexec.args='benchmark-dictionary dataset-realista.json dictionary-realista.zdict benchmark-dictionary-nivel1.csv 1 128 3'
+```
+
+Se houver ganho, compare também no nível 19. Uma rodada medida reduz o tempo de execução; o comando ainda faz um aquecimento de cada modo:
+
+```bash
+mvn -q exec:java -Dexec.args='benchmark-dictionary dataset-realista.json dictionary-realista.zdict benchmark-dictionary-nivel19.csv 19 128 1'
+```
+
+Use como entrada o mesmo `dataset-realista.json` de aproximadamente 200 MiB usado no benchmark de níveis. Cada execução valida o round-trip por SHA-256. No CSV, `total_stored_bytes` soma o frame comprimido e o dicionário uma vez, para que a redução considere o custo de armazenar os dois arquivos. Se o dicionário for reutilizado em vários payloads, esse custo pode ser amortizado.
 
 ## Saída do benchmark
 O CSV registra bytes de entrada e saída, redução percentual, latência e throughput de compressão/descompressão, igualdade SHA-256 e heap observado antes/depois de cada operação. A medição de heap é uma amostra antes/depois e não equivale ao pico de heap; execute cada cenário em processo isolado se precisar medir pico com uma ferramenta externa. O benchmark inclui leitura/escrita de arquivos, portanto mede o fluxo fim a fim com I/O.
