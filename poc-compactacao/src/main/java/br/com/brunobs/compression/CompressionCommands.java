@@ -73,7 +73,10 @@ final class CompressionCommands {
                     options.input(), compressed, restored, options.analysisCsv());
             roundTrip(run);
         }
+        Path report = Path.of("RELATORIO-COMPARACAO-ALGORITMOS.md");
+        ComparisonReport.generate(options.analysisCsv(), report);
         System.out.printf("Comparação concluída. Arquivos e CSV em: %s%n", options.outputDirectory());
+        System.out.printf("Relatório Markdown atualizado: %s%n", report);
     }
 
     private static void printResourceUsage(String phase,
