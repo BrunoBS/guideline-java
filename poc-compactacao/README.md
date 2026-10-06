@@ -10,7 +10,7 @@ Rode os comandos a partir do diretório `poc-compactacao`:
 mvn -q clean package
 
 # Gera uma entrada JSON de 200 MiB
-mvn -q exec:java -Dexec.args="generate '{\\"application\\":\\"app-a\\",\\"key\\":\\"feature.enabled\\",\\"value\\":\\"true\\"}' dataset-realista.json realistic 200"
+mvn -q exec:java -Dexec.args="generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset-realista.json realistic 200"
 
 # Comprime e descomprime o mesmo arquivo com Zstd, GZIP, Brotli e XZ.
 # Acrescenta quatro linhas ao CSV; o buffer padrão é 128 KiB.
