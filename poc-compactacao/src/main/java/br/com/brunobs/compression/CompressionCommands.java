@@ -57,7 +57,7 @@ final class CompressionCommands {
         String inputName = options.input().getFileName().toString();
         for (CompressionAlgorithm algorithm : CompressionAlgorithm.values()) {
             String compressedName = inputName + "." + extension(algorithm);
-            String restoredName = inputName + "." + algorithm.commandName() + ".restored.json";
+            String restoredName = inputName + "." + extension(algorithm) + ".restored.json";
             Path compressed = options.outputDirectory().resolve(compressedName);
             Path restored = options.outputDirectory().resolve(restoredName);
             var run = new ApplicationOptions.RoundTrip(
