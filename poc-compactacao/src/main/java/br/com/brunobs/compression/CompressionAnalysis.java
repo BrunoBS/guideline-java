@@ -17,23 +17,29 @@ final class CompressionAnalysis {
     private static final String CSV_HEADER =
             "measured_at,algorithm,setting_name,setting_value,buffer_kib,original_bytes,compressed_bytes,"
             + "reduction_percent,compress_ms,compress_mib_s,decompress_ms,decompress_mib_s,"
-            + "sha256_match,heap_used_before_bytes,heap_used_after_bytes";
+            + "sha256_match,heap_used_before_bytes,heap_used_after_bytes,"
+            + "compress_process_cpu_ms,compress_cpu_percent_one_core,"
+            + "compress_heap_before_bytes,compress_heap_peak_bytes,compress_heap_after_bytes,"
+            + "decompress_process_cpu_ms,decompress_cpu_percent_one_core,"
+            + "decompress_heap_before_bytes,decompress_heap_peak_bytes,decompress_heap_after_bytes";
 
     private CompressionAnalysis() { }
 
     static Result run(ApplicationOptions.RoundTrip options) throws IOException {
-        Runtime runtime = Runtime.getRuntime();
-        long heapBefore = usedHeap(runtime);
+        long heapBefore = usedHeap();
 
-        var compression = options.algorithm().engine().compress(
-                Files.newInputStream(options.input()), Files.newOutputStream(options.compressed()),
-                options.setting(), options.bufferSize());
-        long heapAfterCompress = usedHeap(runtime);
+        var compressionResources = ResourceMonitor.measure(() ->
+                options.algorithm().engine().compress(
+                        Files.newInputStream(options.input()), Files.newOutputStream(options.compressed()),
+                        options.setting(), options.bufferSize()));
+        var compression = compressionResources.value();
 
-        var decompression = options.algorithm().engine().decompress(
-                Files.newInputStream(options.compressed()), Files.newOutputStream(options.restored()),
-                options.bufferSize());
-        long heapAfter = usedHeap(runtime);
+        var decompressionResources = ResourceMonitor.measure(() ->
+                options.algorithm().engine().decompress(
+                        Files.newInputStream(options.compressed()), Files.newOutputStream(options.restored()),
+                        options.bufferSize()));
+        var decompression = decompressionResources.value();
+        long heapAfter = usedHeap();
 
         boolean hashMatches = sha256(options.input()).equals(sha256(options.restored()));
         if (!hashMatches) {
@@ -41,7 +47,7 @@ final class CompressionAnalysis {
         }
 
         Result result = new Result(compression, decompression, hashMatches,
-                heapBefore, Math.max(heapAfterCompress, heapAfter));
+                heapBefore, heapAfter, compressionResources, decompressionResources);
         if (options.analysisCsv() != null) {
             appendCsv(options, result);
         }
@@ -59,9 +65,12 @@ final class CompressionAnalysis {
             }
             var compression = result.compression();
             var decompression = result.decompression();
+            var compressionResources = result.compressionResources();
+            var decompressionResources = result.decompressionResources();
             double reduction = percentageReduced(compression.originalBytes(), compression.compressedBytes());
             csv.write(String.format(java.util.Locale.ROOT,
-                    "%s,%s,%s,%d,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%s,%d,%d",
+                    "%s,%s,%s,%d,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%s,%d,%d,"
+                            + "%s,%s,%d,%d,%d,%s,%s,%d,%d,%d",
                     Instant.now(), options.algorithm().commandName(), options.algorithm().settingName(),
                     options.setting(), options.bufferSize() / 1024,
                     compression.originalBytes(), compression.compressedBytes(), reduction,
@@ -69,7 +78,15 @@ final class CompressionAnalysis {
                     mibPerSecond(compression.originalBytes(), compression.elapsedNanos()),
                     milliseconds(decompression.elapsedNanos()),
                     mibPerSecond(decompression.decompressedBytes(), decompression.elapsedNanos()),
-                    result.sha256Match(), result.heapBefore(), result.heapAfter()));
+                    result.sha256Match(), result.heapBefore(), result.heapAfter(),
+                    optionalMilliseconds(compressionResources.processCpuNanos()),
+                    optionalPercent(compressionResources.processCpuPercentOfOneCore()),
+                    compressionResources.heapBeforeBytes(), compressionResources.heapPeakBytes(),
+                    compressionResources.heapAfterBytes(),
+                    optionalMilliseconds(decompressionResources.processCpuNanos()),
+                    optionalPercent(decompressionResources.processCpuPercentOfOneCore()),
+                    decompressionResources.heapBeforeBytes(), decompressionResources.heapPeakBytes(),
+                    decompressionResources.heapAfterBytes()));
             csv.newLine();
         }
     }
@@ -83,12 +100,21 @@ final class CompressionAnalysis {
         return nanos / 1_000_000d;
     }
 
+    private static String optionalMilliseconds(long nanos) {
+        return nanos < 0 ? "" : String.format(java.util.Locale.ROOT, "%.3f", milliseconds(nanos));
+    }
+
+    private static String optionalPercent(double percent) {
+        return percent < 0 ? "" : String.format(java.util.Locale.ROOT, "%.2f", percent);
+    }
+
     private static double mibPerSecond(long bytes, long nanos) {
         if (nanos <= 0) return 0;
         return bytes / (double) BYTES_PER_MIB / (nanos / 1_000_000_000d);
     }
 
-    private static long usedHeap(Runtime runtime) {
+    private static long usedHeap() {
+        Runtime runtime = Runtime.getRuntime();
         return runtime.totalMemory() - runtime.freeMemory();
     }
 
@@ -108,5 +134,7 @@ final class CompressionAnalysis {
 
     record Result(CompressionEngine.CompressionResult compression,
                   CompressionEngine.DecompressionResult decompression,
-                  boolean sha256Match, long heapBefore, long heapAfter) { }
+                  boolean sha256Match, long heapBefore, long heapAfter,
+                  ResourceMonitor.Measurement<CompressionEngine.CompressionResult> compressionResources,
+                  ResourceMonitor.Measurement<CompressionEngine.DecompressionResult> decompressionResources) { }
 }
