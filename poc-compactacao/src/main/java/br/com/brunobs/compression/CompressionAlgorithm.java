@@ -1,9 +1,10 @@
 package br.com.brunobs.compression;
 
 public enum CompressionAlgorithm {
-    ZSTD("zstd", "nível", 1, new ZstdCompressionEngine()),
-    GZIP("gzip", "nível", 6, new GzipCompressionEngine()),
-    BROTLI("brotli", "qualidade", 5, new BrotliCompressionEngine());
+    XZ("xz", "preset", 6, new XzCompressionEngine()),
+    ZSTD("zstd", "level", 1, new ZstdCompressionEngine()),
+    GZIP("gzip", "level", 6, new GzipCompressionEngine()),
+    BROTLI("brotli", "quality", 5, new BrotliCompressionEngine());
 
     private final String commandName;
     private final String settingName;
@@ -23,9 +24,10 @@ public enum CompressionAlgorithm {
     public CompressionEngine engine() { return engine; }
 
     public static CompressionAlgorithm fromCommand(String value) {
+        if ("lzma".equalsIgnoreCase(value)) return XZ;
         for (CompressionAlgorithm algorithm : values()) {
             if (algorithm.commandName.equalsIgnoreCase(value)) return algorithm;
         }
-        throw new IllegalArgumentException("Algoritmo aceito: zstd, gzip ou brotli.");
+        throw new IllegalArgumentException("Algoritmos aceitos: xz (LZMA2), zstd, gzip ou brotli.");
     }
 }
