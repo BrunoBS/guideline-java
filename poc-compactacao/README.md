@@ -19,7 +19,7 @@ mvn -q exec:java -Dexec.args='compare dataset-realista.json 128'
 
 O comando `compare` usa os parâmetros padrão de cada algoritmo e o mesmo arquivo de entrada. Para cada formato, ele comprime, descomprime e valida o SHA-256. Os quatro arquivos compactados, os quatro arquivos restaurados e `comparacao.csv` ficam na pasta `comparacao-algoritmos/`, criada na raiz do projeto.
 
-Cada execução atualiza os arquivos e recria o CSV com quatro linhas, uma por algoritmo. O buffer padrão é 128 KiB; informe outro valor como segundo argumento para alterá-lo.
+Cada execução atualiza os arquivos e recria o CSV com quatro linhas, uma por algoritmo. O buffer padrão é 128 KiB; informe outro valor como segundo argumento para alterá-lo. O comando também imprime as métricas de recursos de compressão e descompressão no terminal.
 
 Veja o [relatório da comparação, com gráficos de tamanho, tempo e heap observado](RELATORIO-COMPARACAO-ALGORITMOS.md).
 
@@ -53,6 +53,9 @@ Os valores dos parâmetros não são equivalentes entre algoritmos. Brotli4j usa
 
 ## Dados no CSV
 
-O CSV registra data/hora, algoritmo e configuração, tamanho original e compactado, redução percentual, tempos e throughput de compressão/descompressão, validação SHA-256 e heap observado antes/depois. O heap é uma amostra, não o pico. A medição inclui leitura e escrita em arquivo.
+O CSV registra data/hora, algoritmo e configuração, tamanhos, redução, tempos e throughput, validação SHA-256 e heap observado antes/depois do roundtrip. Também registra, separadamente para compressão e descompressão:
 
-Os resultados dependem da máquina, JVM, armazenamento e conteúdo. Cada chamada executa uma rodada por algoritmo, sem treino de dicionário ou matriz de níveis.
+- CPU total do processo em milissegundos e percentual médio de um núcleo. A CPU é medida pelo processo JVM durante cada etapa; pode incluir trabalho de GC e outras threads da JVM. O percentual pode passar de 100% quando várias threads usam CPU ao mesmo tempo. Se a plataforma não oferecer essa métrica, os campos ficam vazios.
+- Heap JVM antes, pico amostrado e depois da etapa. A amostragem ocorre a cada 5 ms e pode não detectar picos mais curtos. Ela não inclui memória nativa, como buffers alocados fora do heap, nem representa o RSS total do processo.
+
+A medição inclui leitura e escrita dos arquivos. Os resultados dependem da máquina, JVM, armazenamento e conteúdo. Cada chamada executa uma rodada por algoritmo, sem treino de dicionário ou matriz de níveis.
