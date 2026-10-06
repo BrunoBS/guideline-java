@@ -1,10 +1,10 @@
 # Comparação dos algoritmos de compressão
 
-**Última medição refletida neste relatório:** 05/10/2026 às 22:16:56 -03:00 (horário de São Paulo). O próximo `compare` substituirá este conteúdo com a data e a hora locais da nova execução, além dos gráficos de CPU e heap por etapa.
+**Última medição refletida neste relatório:** 05/10/2026 às 22:16:56 -03:00 (horário de São Paulo). O próximo `compare` substituirá este conteúdo com a data e a hora locais da nova execução, além dos gráficos de CPU, heap, RSS e memória residente privada por etapa.
 
 ## Escopo da execução
 
-A comparação exibida aqui usou o mesmo arquivo JSON de **209.719.653 bytes (209,72 MB)**, buffer de **128 KiB** e configurações padrão do comando `compare`: Zstd nível 1, GZIP nível 6, Brotli qualidade 5 e XZ preset 6. Todos os roundtrips passaram na validação SHA-256. A partir da próxima execução, o comando `compare` recria automaticamente este Markdown com os dados atuais do CSV, inclusive CPU e heap medidos por etapa.
+A comparação exibida aqui usou o mesmo arquivo JSON de **209.719.653 bytes (209,72 MB)**, buffer de **128 KiB** e configurações padrão do comando `compare`: Zstd nível 1, GZIP nível 6, Brotli qualidade 5 e XZ preset 6. Todos os roundtrips passaram na validação SHA-256. A partir da próxima execução, o comando `compare` recria automaticamente este Markdown com os dados atuais do CSV, inclusive CPU e picos de heap, RSS e memória residente privada medidos separadamente na compressão e na descompressão.
 
 Os gráficos abaixo usam os resultados registrados em `comparacao-algoritmos/comparacao.csv`. Tamanhos estão em MB decimais; tempos estão em segundos.
 
@@ -56,7 +56,7 @@ xychart-beta
     bar [53.17, 53.97, 55.70, 173.30]
 ```
 
-**Esta execução histórica não mediu CPU nem pico de heap por etapa.** Para atualizar este relatório com as novas métricas, execute novamente `mvn -q exec:java -Dexec.args='compare dataset-realista.json 128'` dentro de `poc-compactacao`. O comando recria o CSV e este Markdown com os novos dados.
+**Esta execução histórica não mediu CPU nem picos de memória por etapa.** Os valores de heap antes/depois abaixo são apenas as amostras disponíveis nessa execução; não são picos nem representam todo o consumo de memória do processo. Para atualizar este relatório com as novas métricas, execute novamente `mvn -q exec:java -Dexec.args='compare dataset-realista.json 128'` dentro de `poc-compactacao`. O comando recria o CSV e este Markdown com os novos dados.
 
 ### Amostras de heap em bytes
 
@@ -76,4 +76,4 @@ xychart-beta
 | Brotli | 63.057.549 | 69,932% | 2,433 s | 0,340 s | Confere |
 | XZ | 48.954.200 | 76,657% | 74,323 s | 3,295 s | Confere |
 
-Nesta amostra, o XZ produziu o menor arquivo. O Zstd teve o menor tempo de compressão e descompressão. Os tempos variam com máquina, JVM, armazenamento e carga do sistema; uma comparação de CPU e memória de pico exige métricas adicionais.
+Nesta amostra, o XZ produziu o menor arquivo. O Zstd teve o menor tempo de compressão e descompressão. Os tempos variam com máquina, JVM, armazenamento e carga do sistema; os gráficos de CPU e de picos de memória estarão disponíveis após a próxima execução do `compare`.
