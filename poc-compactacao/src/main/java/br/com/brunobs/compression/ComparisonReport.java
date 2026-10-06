@@ -53,7 +53,8 @@ final class ComparisonReport {
 
         StringBuilder markdown = new StringBuilder();
         markdown.append("# Comparação dos algoritmos de compressão\n\n")
-                .append("Atualizado automaticamente pelo comando `compare`.\n\n")
+                .append("Atualizado automaticamente pelo comando `compare`. Última medição: `")
+                .append(rows.getLast().measuredAt()).append("`.\n\n")
                 .append("Arquivo original: **").append(formatBytes(first.originalBytes()))
                 .append(" bytes (").append(formatPt(originalMb, 2)).append(" MB)**; buffer: **")
                 .append(first.bufferKiB()).append(" KiB**. Os dados detalhados estão em [")
@@ -110,7 +111,7 @@ final class ComparisonReport {
                 .append("O percentual é relativo a um núcleo: 100% equivale a um núcleo ocupado por todo o tempo da etapa; ")
                 .append("pode passar de 100% se o processo usar vários núcleos. GC, JIT e outras threads da JVM também ")
                 .append("podem contribuir para esse valor.\n")
-                .append("- Heap é amostrado a cada 5 ms; o pico pode deixar passar picos mais curtos. ")
+                .append("- Heap é amostrado a cada 10 ms; o pico pode deixar passar picos mais curtos. ")
                 .append("A amostra inclui objetos ainda não coletados pelo GC e não inclui memória nativa nem o RSS completo ")
                 .append("do processo.\n")
                 .append("- Os tempos incluem leitura e escrita dos arquivos e variam conforme máquina, JVM, armazenamento ")
