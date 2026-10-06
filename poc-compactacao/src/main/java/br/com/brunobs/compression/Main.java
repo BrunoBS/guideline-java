@@ -20,7 +20,7 @@ public final class Main {
 
     private static void printUsage() {
         System.out.println("Comandos: generate, compress, decompress, roundtrip");
-        System.out.println("Ex.: generate '{\\"application\\":\\"app-a\\",\\"key\\":\\"feature.enabled\\",\\"value\\":\\"true\\"}' dataset.json realistic 200");
+        System.out.println("Ex.: generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset.json realistic 200");
         System.out.println("Ex.: roundtrip zstd 1 128 dataset.json dataset.json.zst restored.json --analysis analise.csv");
     }
 }
