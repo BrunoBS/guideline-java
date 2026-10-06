@@ -19,6 +19,8 @@ final class ApplicationOptions {
     record RoundTrip(CompressionAlgorithm algorithm, int setting, int bufferSize,
                      Path input, Path compressed, Path restored, Path analysisCsv) { }
 
+    record Compare(Path input, Path analysisCsv, int bufferSize) { }
+
     static Generate generate(String[] args) {
         requireLength(args, 5, 6,
                 "generate <modelo-ConfigurationData> <dataset.json> <repetitive|realistic> <tamanho-MiB> [seed]");
@@ -64,6 +66,12 @@ final class ApplicationOptions {
         }
         return new RoundTrip(CompressionAlgorithm.fromCommand(args[1]), Integer.parseInt(args[2]),
                 bufferSize(args[3]), Path.of(args[4]), Path.of(args[5]), Path.of(args[6]), analysisCsv);
+    }
+
+    static Compare compare(String[] args) {
+        requireLength(args, 3, 4, "compare <entrada.json> <relatorio.csv> [buffer-KiB]");
+        String bufferKiB = args.length == 4 ? args[3] : "128";
+        return new Compare(Path.of(args[1]), Path.of(args[2]), bufferSize(bufferKiB));
     }
 
     private static Compress compress(CompressionAlgorithm algorithm, String setting, String bufferKiB,
