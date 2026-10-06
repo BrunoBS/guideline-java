@@ -27,7 +27,7 @@ public final class Main {
 
     private static void printUsage() {
         System.out.println("Comandos: generate, compress, decompress, benchmark, benchmark-levels, benchmark-dictionary, benchmark-algorithms, train-dictionary");
-        System.out.println("Ex.: generate '{\\"application\\":\\"app-a\\",\\"key\\":\\"feature.enabled\\",\\"value\\":\\"true\\"}' dataset.json repetitive 1");
+        System.out.println("Ex.: generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset.json repetitive 1");
         System.out.println("Ex.: benchmark-algorithms dataset.json benchmark-algoritmos.csv 128 1");
         System.out.println("Ex.: compress xz 6 128 dataset.json dataset.json.xz");
         System.out.println("Ex.: decompress xz 128 dataset.json.xz restored.json");
