@@ -58,22 +58,15 @@ xychart-beta
 
 **Esta execução histórica não mediu CPU nem picos de memória por etapa.** Os valores de heap antes/depois abaixo são apenas as amostras disponíveis nessa execução; não são picos nem representam todo o consumo de memória do processo. Para atualizar este relatório com as novas métricas, execute novamente `mvn -q exec:java -Dexec.args='compare dataset-realista.json 128'` dentro de `poc-compactacao`. O comando recria o CSV e este Markdown com os novos dados.
 
-### Amostras de heap em bytes
+## Métricas por algoritmo — execução histórica
 
-| Algoritmo | Heap antes (bytes) | Heap depois (bytes) |
-|---|---:|---:|
-| Zstd | 55.753.224 | 55.753.224 |
-| GZIP | 55.753.224 | 56.591.936 |
-| Brotli | 56.723.040 | 58.400.792 |
-| XZ | 58.400.792 | 181.719.336 |
+Nesta execução, a memória disponível é o heap medido antes e depois do roundtrip. As medições de CPU e os valores de memória por etapa, incluindo RSS e picos, não foram registrados nessa rodada. Os valores de heap são mantidos em bytes, como no CSV original.
 
-## Resultado registrado
-
-| Algoritmo | Compactado (bytes) | Redução | Compressão | Descompressão | SHA-256 |
-|---|---:|---:|---:|---:|---|
-| Zstd | 52.041.794 | 75,185% | 0,518 s | 0,118 s | Confere |
-| GZIP | 64.647.507 | 69,174% | 2,214 s | 0,436 s | Confere |
-| Brotli | 63.057.549 | 69,932% | 2,433 s | 0,340 s | Confere |
-| XZ | 48.954.200 | 76,657% | 74,323 s | 3,295 s | Confere |
+| Algoritmo | Compactado (bytes) | Redução | Compressão | Descompressão | Heap antes (bytes) | Heap depois (bytes) | SHA-256 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Zstd | 52.041.794 | 75,185% | 0,518 s | 0,118 s | 55.753.224 | 55.753.224 | Confere |
+| GZIP | 64.647.507 | 69,174% | 2,214 s | 0,436 s | 55.753.224 | 56.591.936 | Confere |
+| Brotli | 63.057.549 | 69,932% | 2,433 s | 0,340 s | 56.723.040 | 58.400.792 | Confere |
+| XZ | 48.954.200 | 76,657% | 74,323 s | 3,295 s | 58.400.792 | 181.719.336 | Confere |
 
 Nesta amostra, o XZ produziu o menor arquivo. O Zstd teve o menor tempo de compressão e descompressão. Os tempos variam com máquina, JVM, armazenamento e carga do sistema; os gráficos de CPU e de picos de memória estarão disponíveis após a próxima execução do `compare`.
