@@ -11,7 +11,7 @@ import java.util.concurrent.locks.LockSupport;
  * Heap peak is sampled and can miss short-lived peaks; native memory is not included.
  */
 final class ResourceMonitor {
-    private static final long HEAP_SAMPLE_INTERVAL_NANOS = 5_000_000L;
+    private static final long HEAP_SAMPLE_INTERVAL_NANOS = 10_000_000L;
     private static final Runtime RUNTIME = Runtime.getRuntime();
     private static final com.sun.management.OperatingSystemMXBean OPERATING_SYSTEM =
             ManagementFactory.getOperatingSystemMXBean()
