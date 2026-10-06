@@ -19,7 +19,7 @@ mvn -q exec:java -Dexec.args='compare dataset-realista.json 128'
 
 O comando `compare` usa os parâmetros padrão de cada algoritmo e o mesmo arquivo de entrada. Para cada formato, ele comprime, descomprime e valida o SHA-256. O cabeçalho do relatório inclui a data e a hora local em que a geração terminou. Os quatro arquivos compactados, os quatro arquivos restaurados e `comparacao.csv` ficam na pasta `comparacao-algoritmos/`, criada na raiz do projeto.
 
-Cada execução atualiza os arquivos e recria o CSV com quatro linhas, uma por algoritmo. Ao concluir, o comando também recria `RELATORIO-COMPARACAO-ALGORITMOS.md` usando os dados recém-gravados no CSV, com tabelas e gráficos de tamanho, tempo, CPU e heap. O buffer padrão é 128 KiB; informe outro valor como segundo argumento para alterá-lo. As métricas de recursos também são impressas no terminal.
+Cada execução atualiza os arquivos e recria o CSV com quatro linhas, uma por algoritmo. Ao concluir, o comando também recria `RELATORIO-COMPARACAO-ALGORITMOS.md` usando os dados recém-gravados no CSV, com tabelas e gráficos de tamanho, tempo, CPU, heap, RSS do processo e memória residente privada. O buffer padrão é 128 KiB; informe outro valor como segundo argumento para alterá-lo. As métricas de recursos também são impressas no terminal.
 
 Veja o [relatório da comparação, atualizado automaticamente a cada execução](RELATORIO-COMPARACAO-ALGORITMOS.md).
 
@@ -56,6 +56,6 @@ Os valores dos parâmetros não são equivalentes entre algoritmos. Brotli4j usa
 O CSV registra data/hora, algoritmo e configuração, tamanhos, redução, tempos e throughput, validação SHA-256 e heap observado antes/depois do roundtrip. Também registra, separadamente para compressão e descompressão:
 
 - CPU total do processo em milissegundos e percentual médio de um núcleo. A CPU é medida pelo processo JVM durante cada etapa; pode incluir trabalho de GC e outras threads da JVM. O percentual pode passar de 100% quando várias threads usam CPU ao mesmo tempo. Se a plataforma não oferecer essa métrica, os campos ficam vazios.
-- Heap JVM antes, pico amostrado e depois da etapa. A amostragem ocorre a cada 10 ms e pode não detectar picos mais curtos. Ela não inclui memória nativa, como buffers alocados fora do heap, nem representa o RSS total do processo.
+- Heap JVM, RSS do processo e memória residente privada, cada um com valor antes, pico amostrado e depois da etapa. O amostrador lê as métricas a cada 20 ms; picos mais curtos podem passar despercebidos. O RSS inclui páginas compartilhadas; a memória residente privada exclui essas páginas e se aproxima do valor atribuído ao processo pelo sistema operacional. RSS e memória privada dependem do suporte da plataforma; quando indisponíveis, os campos correspondentes ficam vazios e o relatório omite o gráfico.
 
 A medição inclui leitura e escrita dos arquivos. Para `roundtrip --analysis`, use um CSV novo ou remova o anterior se ele tiver sido gerado pela versão antiga, pois o cabeçalho agora inclui as métricas por etapa. Os resultados dependem da máquina, JVM, armazenamento e conteúdo. Cada chamada executa uma rodada por algoritmo, sem treino de dicionário ou matriz de níveis.
