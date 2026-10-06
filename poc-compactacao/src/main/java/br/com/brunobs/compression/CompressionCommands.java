@@ -5,6 +5,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 final class CompressionCommands {
+    private static final double BYTES_PER_MIB = 1024d * 1024d;
+
     private CompressionCommands() { }
 
     static void generate(ApplicationOptions.Generate options) throws IOException {
@@ -45,6 +47,8 @@ final class CompressionCommands {
                 percentageReduced(compression.originalBytes(), compression.compressedBytes()),
                 compression.elapsedNanos() / 1_000_000d, decompression.elapsedNanos() / 1_000_000d,
                 result.sha256Match() ? "confere" : "diverge");
+        printResourceUsage("compressão", result.compressionResources());
+        printResourceUsage("descompressão", result.decompressionResources());
         if (options.analysisCsv() != null) {
             System.out.printf("Análise adicionada a: %s%n", options.analysisCsv());
         }
@@ -66,6 +70,27 @@ final class CompressionCommands {
             roundTrip(run);
         }
         System.out.printf("Comparação concluída. Arquivos e CSV em: %s%n", options.outputDirectory());
+    }
+
+    private static void printResourceUsage(String phase,
+                                           ResourceMonitor.Measurement<?> measurement) {
+        System.out.printf("  Recursos na %s: CPU do processo %s; heap JVM amostrado "
+                        + "%.2f MiB antes, pico %.2f MiB, %.2f MiB depois.%n",
+                phase, cpuDescription(measurement),
+                mib(measurement.heapBeforeBytes()), mib(measurement.heapPeakBytes()),
+                mib(measurement.heapAfterBytes()));
+    }
+
+    private static String cpuDescription(ResourceMonitor.Measurement<?> measurement) {
+        if (measurement.processCpuNanos() < 0) return "indisponível";
+        return String.format(java.util.Locale.getDefault(),
+                "%.3f ms (%.1f%% de 1 core)",
+                measurement.processCpuNanos() / 1_000_000d,
+                measurement.processCpuPercentOfOneCore());
+    }
+
+    private static double mib(long bytes) {
+        return bytes / BYTES_PER_MIB;
     }
 
     private static String extension(CompressionAlgorithm algorithm) {
