@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,10 +53,12 @@ final class ComparisonReport {
         int compressAxis = axisMaximum(rows.stream().mapToDouble(Row::compressSeconds).max().orElse(0), 10);
         int decompressAxis = axisMaximum(rows.stream().mapToDouble(Row::decompressSeconds).max().orElse(0), 1);
 
+        String generatedAt = ZonedDateTime.now().format(
+                DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm:ss XXX", Locale.forLanguageTag("pt-BR")));
         StringBuilder markdown = new StringBuilder();
         markdown.append("# Comparação dos algoritmos de compressão\n\n")
-                .append("Atualizado automaticamente pelo comando `compare`. Última medição: `")
-                .append(rows.getLast().measuredAt()).append("`.\n\n")
+                .append("**Gerado em:** ").append(generatedAt)
+                .append(" (horário local da máquina do benchmark).\n\n")
                 .append("Arquivo original: **").append(formatBytes(first.originalBytes()))
                 .append(" bytes (").append(formatPt(originalMb, 2)).append(" MB)**; buffer: **")
                 .append(first.bufferKiB()).append(" KiB**. Os dados detalhados estão em [")
