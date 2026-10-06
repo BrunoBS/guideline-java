@@ -23,6 +23,6 @@ public final class Main {
         System.out.println("Comandos: generate, compress, decompress, roundtrip, compare");
         System.out.println("Ex.: generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset.json realistic 200");
         System.out.println("Ex.: roundtrip zstd 1 128 dataset.json dataset.json.zst restored.json --analysis analise.csv");
-        System.out.println("Ex.: compare dataset.json comparacao.csv 128");
+        System.out.println("Ex.: compare dataset.json 128  (atualiza CSV e RELATORIO-COMPARACAO-ALGORITMOS.md)");
     }
 }
