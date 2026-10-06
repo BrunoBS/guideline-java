@@ -14,12 +14,12 @@ mvn -q exec:java -Dexec.args="generate '{\"application\":\"app-a\",\"key\":\"fea
 
 # Comprime e descomprime o mesmo arquivo com Zstd, GZIP, Brotli e XZ.
 # Acrescenta quatro linhas ao CSV; o buffer padrão é 128 KiB.
-mvn -q exec:java -Dexec.args='compare dataset-realista.json comparacao.csv 128'
+mvn -q exec:java -Dexec.args='compare dataset-realista.json 128'
 ```
 
-O comando `compare` usa os parâmetros padrão de cada algoritmo e o mesmo arquivo de entrada. Para cada formato, ele comprime, descomprime e valida o SHA-256. Os arquivos intermediários são temporários e removidos ao final; o JSON original e o CSV permanecem.
+O comando `compare` usa os parâmetros padrão de cada algoritmo e o mesmo arquivo de entrada. Para cada formato, ele comprime, descomprime e valida o SHA-256. Os quatro arquivos compactados, os quatro arquivos restaurados e `comparacao.csv` ficam na pasta `comparacao-algoritmos/`, criada na raiz do projeto.
 
-Cada execução acrescenta quatro linhas ao CSV, uma por algoritmo. Execute novamente para obter outra rodada. O CSV abre com cabeçalho apenas quando é criado ou está vazio.
+Cada execução atualiza os arquivos e recria o CSV com quatro linhas, uma por algoritmo. O buffer padrão é 128 KiB; informe outro valor como segundo argumento para alterá-lo.
 
 ## Comandos individuais
 
@@ -32,7 +32,7 @@ mvn -q exec:java -Dexec.args='compress gzip 6 128 dataset-realista.json dataset.
 mvn -q exec:java -Dexec.args='decompress gzip 128 dataset.json.gz restaurado.json'
 ```
 
-Sintaxe do comparador: `compare <entrada.json> <relatorio.csv> [buffer-KiB]`. O buffer padrão é 128 KiB. `roundtrip` recebe `<algoritmo> <nível/qualidade/preset> <buffer-KiB> <entrada> <compactado> <restaurado> [--analysis <csv>]`.
+Sintaxe do comparador: `compare <entrada.json> [buffer-KiB]`. O buffer padrão é 128 KiB. `roundtrip` recebe `<algoritmo> <nível/qualidade/preset> <buffer-KiB> <entrada> <compactado> <restaurado> [--analysis <csv>]`.
 
 ## Geração do JSON
 
