@@ -73,7 +73,7 @@ final class CompressionBenchmarks {
             Files.deleteIfExists(work);
         }
         System.out.printf("Benchmark dos algoritmos concluído: %s%n", report);
-    
+
     }
 
     static void runBasic(BenchmarkOptions.Basic options) throws IOException {
@@ -118,7 +118,7 @@ final class CompressionBenchmarks {
             Files.deleteIfExists(work);
         }
         System.out.printf("Benchmark concluído: %s%n", report);
-    
+
     }
 
     static void runLevels(BenchmarkOptions.Levels options) throws IOException {
@@ -172,7 +172,7 @@ final class CompressionBenchmarks {
             Files.deleteIfExists(work);
         }
         System.out.printf("Benchmark de níveis concluído: %s%n", report);
-    
+
     }
 
     static void runDictionary(BenchmarkOptions.Dictionary options) throws IOException {
@@ -233,7 +233,7 @@ final class CompressionBenchmarks {
             Files.deleteIfExists(work);
         }
         System.out.printf("Benchmark com dicionário concluído: %s%n", report);
-    
+
     }
 
     private static AlgorithmMeasurement measureAlgorithm(Path input, Path compressed, Path restored,
@@ -254,7 +254,7 @@ final class CompressionBenchmarks {
                 Math.max(heapAfterCompress, heapAfter));
     }
 
-private static DictionaryMeasurement measureDictionary(Path input, Path compressed, Path restored,
+    private static DictionaryMeasurement measureDictionary(Path input, Path compressed, Path restored,
                                                             int level, int bufferSize, byte[] dictionary,
                                                             String sourceHash, Runtime runtime)
             throws IOException {
@@ -273,7 +273,7 @@ private static DictionaryMeasurement measureDictionary(Path input, Path compress
                 Math.max(heapAfterCompress, heapAfter));
     }
 
-private static BenchmarkMeasurement measure(Path input, Path compressed, Path restored, int level,
+    private static BenchmarkMeasurement measure(Path input, Path compressed, Path restored, int level,
                                                 int bufferSize, String sourceHash, Runtime runtime)
             throws IOException {
         long heapBefore = usedHeap(runtime);
@@ -290,15 +290,15 @@ private static BenchmarkMeasurement measure(Path input, Path compressed, Path re
                 Math.max(heapAfterCompress, heapAfter));
     }
 
-private static long usedHeap(Runtime runtime) {
+    private static long usedHeap(Runtime runtime) {
         return runtime.totalMemory() - runtime.freeMemory();
     }
 
-private static double mibPerSecond(long bytes, long nanos) {
+    private static double mibPerSecond(long bytes, long nanos) {
         return bytes / (double) BYTES_PER_MIB / (nanos / 1_000_000_000d);
     }
 
-private static String sha256(Path path) throws IOException {
+    private static String sha256(Path path) throws IOException {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             try (var input = Files.newInputStream(path)) {
