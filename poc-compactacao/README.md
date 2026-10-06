@@ -19,7 +19,7 @@ mvn -q compile exec:java -Dexec.args='compare dataset-realista.json 128'
 
 O comando `compare` usa os parâmetros padrão de cada algoritmo e o mesmo arquivo de entrada. Para cada formato, ele comprime, descomprime e valida o SHA-256. O cabeçalho do relatório inclui a data e a hora local em que a geração terminou. Os quatro arquivos compactados, os quatro arquivos restaurados e `comparacao.csv` ficam na pasta `comparacao-algoritmos/`, criada na raiz do projeto.
 
-Cada execução atualiza os arquivos e recria o CSV com quatro linhas, uma por algoritmo. Ao concluir, o comando também recria `RELATORIO-COMPARACAO-ALGORITMOS.md` usando os dados recém-gravados no CSV, com tabelas e gráficos de tamanho, tempo, CPU, heap, RSS do processo e memória residente privada. O buffer padrão é 128 KiB; informe outro valor como segundo argumento para alterá-lo. As métricas de recursos também são impressas no terminal.
+Cada execução atualiza os arquivos e recria o CSV com quatro linhas, uma por algoritmo. Ao concluir, o comando também recria `RELATORIO-COMPARACAO-ALGORITMOS.md` usando os dados recém-gravados no CSV, com tabelas e gráficos de tamanho, tempo, CPU, heap, RSS do processo e memória residente privada, além de uma análise e sugestão balanceada de algoritmo. O buffer padrão é 128 KiB; informe outro valor como segundo argumento para alterá-lo. As métricas de recursos também são impressas no terminal.
 
 Veja o [relatório da comparação, atualizado automaticamente a cada execução](RELATORIO-COMPARACAO-ALGORITMOS.md).
 
