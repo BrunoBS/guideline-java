@@ -69,4 +69,18 @@ Nesta execução, a memória disponível é o heap medido antes e depois do roun
 | Brotli | 63.057.549 | 69,932% | 2,433 s | 0,340 s | 56.723.040 | 58.400.792 | Confere |
 | XZ | 48.954.200 | 76,657% | 74,323 s | 3,295 s | 58.400.792 | 181.719.336 | Confere |
 
-Nesta amostra, o XZ produziu o menor arquivo. O Zstd teve o menor tempo de compressão e descompressão. Os tempos variam com máquina, JVM, armazenamento e carga do sistema; os gráficos de CPU e de picos de memória estarão disponíveis após a próxima execução do `compare`.
+## Análise e recomendação — execução histórica
+
+**Menor arquivo:** XZ (48.954.200 bytes; 76,657% de redução).  
+**Compressão e descompressão mais rápidas:** Zstd (0,518 s e 0,118 s; 0,636 s no roundtrip).
+
+Como CPU e memória por etapa não foram medidas nessa execução, a sugestão histórica considera apenas tamanho compactado e tempo total do roundtrip, com peso igual para ambos. A posição 1 é a melhor em cada critério.
+
+| Algoritmo | Posição por tamanho | Roundtrip (s) | Posição por tempo | Média das posições |
+|---|---:|---:|---:|---:|
+| Zstd | 2 | 0,636 | 1 | 1,50 |
+| GZIP | 4 | 2,650 | 2 | 3,00 |
+| Brotli | 3 | 2,773 | 3 | 3,00 |
+| XZ | 1 | 77,618 | 4 | 2,50 |
+
+**Sugestão para esta execução: Zstd.** Ele não gera o menor arquivo, mas oferece o melhor equilíbrio entre tamanho e tempo nessa amostra. A recomendação pode mudar quando houver medições de CPU e memória, ou se a prioridade principal for reduzir ao máximo o tamanho do arquivo. Os resultados também dependem da máquina, do conteúdo e do buffer.
