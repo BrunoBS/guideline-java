@@ -21,6 +21,8 @@ O comando `compare` usa os parâmetros padrão de cada algoritmo e o mesmo arqui
 
 Cada execução atualiza os arquivos e recria o CSV com quatro linhas, uma por algoritmo. O buffer padrão é 128 KiB; informe outro valor como segundo argumento para alterá-lo.
 
+Veja o [relatório da comparação, com gráficos de tamanho, tempo e heap observado](RELATORIO-COMPARACAO-ALGORITMOS.md).
+
 ## Comandos individuais
 
 ```bash
