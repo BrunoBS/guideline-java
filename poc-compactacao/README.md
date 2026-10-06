@@ -28,7 +28,7 @@ Execute os comandos a partir de `poc-compactacao`.
 mvn -q clean package
 
 # Gera um dataset de 200 MiB
-mvn -q exec:java -Dexec.args="generate '{\\"application\\":\\"app-a\\",\\"key\\":\\"feature.enabled\\",\\"value\\":\\"true\\"}' dataset-realista.json realistic 200"
+mvn -q exec:java -Dexec.args="generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset-realista.json realistic 200"
 
 # Compara os quatro algoritmos; uma rodada medida, além do aquecimento
 mvn -q exec:java -Dexec.args='benchmark-algorithms dataset-realista.json benchmark-algoritmos.csv 128 1'
@@ -59,7 +59,7 @@ O comando `generate` recebe `<modelo-ConfigurationData> <dataset.json> <repetiti
 Como o `exec-maven-plugin` também interpreta aspas em `exec.args`, use aspas duplas no valor da propriedade e aspas simples ao redor do JSON, como no exemplo:
 
 ```bash
-mvn -q exec:java -Dexec.args="generate '{\\"application\\":\\"app-a\\",\\"key\\":\\"feature.enabled\\",\\"value\\":\\"true\\"}' dataset-realista.json realistic 200"
+mvn -q exec:java -Dexec.args="generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset-realista.json realistic 200"
 ```
 
 ## Benchmark
@@ -75,7 +75,7 @@ Resultados dependem da CPU, sistema operacional, JVM, armazenamento e conteúdo.
 O treino deve usar um corpus separado do arquivo de benchmark. Este exemplo gera um corpus de treino de 20 MiB com seed diferente, treina um dicionário de 32 KiB usando até 4 MiB de amostras e compara os modos:
 
 ```bash
-mvn -q exec:java -Dexec.args="generate '{\\"application\\":\\"app-a\\",\\"key\\":\\"feature.enabled\\",\\"value\\":\\"true\\"}' dataset-realista-treino.json realistic 20 987654321"
+mvn -q exec:java -Dexec.args="generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset-realista-treino.json realistic 20 987654321"
 mvn -q exec:java -Dexec.args='train-dictionary dataset-realista-treino.json dictionary-realista.zdict 4 32'
 mvn -q exec:java -Dexec.args='benchmark-dictionary dataset-realista.json dictionary-realista.zdict benchmark-dictionary-nivel1.csv 1 128 3'
 ```
