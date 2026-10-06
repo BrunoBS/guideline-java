@@ -32,6 +32,7 @@ public final class Main {
             case "benchmark-levels" -> benchmarkLevels(args);
             case "train-dictionary" -> trainDictionary(args);
             case "benchmark-dictionary" -> benchmarkDictionary(args);
+            case "benchmark-algorithms" -> benchmarkAlgorithms(args);
             default -> throw new IllegalArgumentException("Comando desconhecido: " + args[0]);
         }
     }
@@ -71,22 +72,143 @@ public final class Main {
     }
 
     private static void compress(String[] args) throws IOException {
-        requireArgs(args, 5, "compress <nível> <buffer-KiB> <entrada> <saída.zst>");
-        int level = Integer.parseInt(args[1]);
-        int bufferSize = Math.multiplyExact(Integer.parseInt(args[2]), 1024);
-        var result = new ZstdCompressionEngine().compress(
-                Files.newInputStream(Path.of(args[3])), Files.newOutputStream(Path.of(args[4])), level, bufferSize);
-        System.out.printf("Original: %d bytes; comprimido: %d bytes; tempo: %.3f ms%n",
-                result.originalBytes(), result.compressedBytes(), result.elapsedNanos() / 1_000_000d);
+        CompressionAlgorithm algorithm;
+        int setting;
+        int bufferIndex;
+        int inputIndex;
+        int outputIndex;
+        if (args.length == 5) {
+            algorithm = CompressionAlgorithm.ZSTD; // Backward-compatible command form.
+            setting = Integer.parseInt(args[1]);
+            bufferIndex = 2;
+            inputIndex = 3;
+            outputIndex = 4;
+        } else if (args.length == 6) {
+            algorithm = CompressionAlgorithm.fromCommand(args[1]);
+            setting = Integer.parseInt(args[2]);
+            bufferIndex = 3;
+            inputIndex = 4;
+            outputIndex = 5;
+        } else {
+            throw new IllegalArgumentException(
+                    "Uso: compress <algoritmo> <nível/qualidade/preset> <buffer-KiB> <entrada> <saída>");
+        }
+        int bufferSize = Math.multiplyExact(Integer.parseInt(args[bufferIndex]), 1024);
+        var result = algorithm.engine().compress(Files.newInputStream(Path.of(args[inputIndex])),
+                Files.newOutputStream(Path.of(args[outputIndex])), setting, bufferSize);
+        System.out.printf("%s: original %d bytes; comprimido %d bytes; tempo %.3f ms%n",
+                algorithm.commandName(), result.originalBytes(), result.compressedBytes(),
+                result.elapsedNanos() / 1_000_000d);
     }
 
     private static void decompress(String[] args) throws IOException {
-        requireArgs(args, 4, "decompress <buffer-KiB> <entrada.zst> <saída.json>");
-        int bufferSize = Math.multiplyExact(Integer.parseInt(args[1]), 1024);
-        var result = new ZstdCompressionEngine().decompress(
-                Files.newInputStream(Path.of(args[2])), Files.newOutputStream(Path.of(args[3])), bufferSize);
-        System.out.printf("Comprimido: %d bytes; descomprimido: %d bytes; tempo: %.3f ms%n",
-                result.compressedBytes(), result.decompressedBytes(), result.elapsedNanos() / 1_000_000d);
+        CompressionAlgorithm algorithm;
+        int bufferIndex;
+        int inputIndex;
+        int outputIndex;
+        if (args.length == 4) {
+            algorithm = CompressionAlgorithm.ZSTD; // Backward-compatible command form.
+            bufferIndex = 1;
+            inputIndex = 2;
+            outputIndex = 3;
+        } else if (args.length == 5) {
+            algorithm = CompressionAlgorithm.fromCommand(args[1]);
+            bufferIndex = 2;
+            inputIndex = 3;
+            outputIndex = 4;
+        } else {
+            throw new IllegalArgumentException(
+                    "Uso: decompress <algoritmo> <buffer-KiB> <entrada-comprimida> <saída-json>");
+        }
+        int bufferSize = Math.multiplyExact(Integer.parseInt(args[bufferIndex]), 1024);
+        var result = algorithm.engine().decompress(Files.newInputStream(Path.of(args[inputIndex])),
+                Files.newOutputStream(Path.of(args[outputIndex])), bufferSize);
+        System.out.printf("%s: comprimido %d bytes; restaurado %d bytes; tempo %.3f ms%n",
+                algorithm.commandName(), result.compressedBytes(), result.decompressedBytes(),
+                result.elapsedNanos() / 1_000_000d);
+    }
+
+    private static void benchmarkAlgorithms(String[] args) throws IOException {
+        if (args.length < 3 || args.length > 5) {
+            throw new IllegalArgumentException(
+                    "Uso: benchmark-algorithms <entrada.json> <relatorio.csv> [buffer-KiB] [rodadas]");
+        }
+        Path input = Path.of(args[1]).toAbsolutePath();
+        Path report = Path.of(args[2]).toAbsolutePath();
+        int bufferKiB = args.length >= 4 ? Integer.parseInt(args[3]) : 128;
+        int repetitions = args.length >= 5 ? Integer.parseInt(args[4]) : 1;
+        if (bufferKiB < 1) throw new IllegalArgumentException("O buffer deve ser maior que zero.");
+        if (repetitions < 1) throw new IllegalArgumentException("O número de rodadas deve ser maior que zero.");
+
+        CompressionAlgorithm[] algorithms = CompressionAlgorithm.values();
+        int bufferSize = Math.multiplyExact(bufferKiB, 1024);
+        String sourceHash = sha256(input);
+        Runtime runtime = Runtime.getRuntime();
+        Path work = Files.createTempDirectory("compression-algorithms-");
+        Path compressed = work.resolve("dataset.compressed");
+        Path restored = work.resolve("dataset-restored.json");
+
+        try (BufferedWriter csv = Files.newBufferedWriter(report, StandardCharsets.UTF_8)) {
+            csv.write("run,algorithm,setting_name,setting_value,buffer_kib,original_bytes,compressed_bytes,reduction_percent,compress_ms,compress_mib_s,decompress_ms,decompress_mib_s,sha256_match,heap_used_before_bytes,heap_used_after_bytes");
+            csv.newLine();
+
+            System.out.printf("Aquecendo %d algoritmos; buffer %d KiB; %d rodadas medidas.%n",
+                    algorithms.length, bufferKiB, repetitions);
+            for (CompressionAlgorithm algorithm : algorithms) {
+                measureAlgorithm(input, compressed, restored, algorithm, bufferSize, sourceHash, runtime);
+                System.out.printf("Aquecimento %s concluído.%n", algorithm.commandName());
+            }
+
+            for (int run = 1; run <= repetitions; run++) {
+                for (int offset = 0; offset < algorithms.length; offset++) {
+                    CompressionAlgorithm algorithm = algorithms[(offset + run - 1) % algorithms.length];
+                    AlgorithmMeasurement measurement = measureAlgorithm(
+                            input, compressed, restored, algorithm, bufferSize, sourceHash, runtime);
+                    var compression = measurement.compression();
+                    var decompression = measurement.decompression();
+                    double reduction = 100d * (compression.originalBytes() - compression.compressedBytes())
+                            / compression.originalBytes();
+                    csv.write(String.format(java.util.Locale.ROOT,
+                            "%d,%s,%s,%d,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%s,%d,%d",
+                            run, algorithm.commandName(), algorithm.settingName(), algorithm.defaultSetting(),
+                            bufferKiB, compression.originalBytes(), compression.compressedBytes(), reduction,
+                            compression.elapsedNanos() / 1_000_000d,
+                            mibPerSecond(compression.originalBytes(), compression.elapsedNanos()),
+                            decompression.elapsedNanos() / 1_000_000d,
+                            mibPerSecond(decompression.decompressedBytes(), decompression.elapsedNanos()),
+                            true, measurement.heapBefore(), measurement.heapAfter()));
+                    csv.newLine();
+                    csv.flush();
+                    System.out.printf("Rodada %d/%d — %s (%s %d): %.3f%%; %d bytes; %.3f ms.%n",
+                            run, repetitions, algorithm.commandName(), algorithm.settingName(),
+                            algorithm.defaultSetting(), reduction, compression.compressedBytes(),
+                            compression.elapsedNanos() / 1_000_000d);
+                }
+            }
+        } finally {
+            Files.deleteIfExists(compressed);
+            Files.deleteIfExists(restored);
+            Files.deleteIfExists(work);
+        }
+        System.out.printf("Benchmark dos algoritmos concluído: %s%n", report);
+    }
+
+    private static AlgorithmMeasurement measureAlgorithm(Path input, Path compressed, Path restored,
+                                                          CompressionAlgorithm algorithm, int bufferSize,
+                                                          String sourceHash, Runtime runtime) throws IOException {
+        long heapBefore = usedHeap(runtime);
+        var compression = algorithm.engine().compress(Files.newInputStream(input),
+                Files.newOutputStream(compressed), algorithm.defaultSetting(), bufferSize);
+        long heapAfterCompress = usedHeap(runtime);
+        var decompression = algorithm.engine().decompress(Files.newInputStream(compressed),
+                Files.newOutputStream(restored), bufferSize);
+        long heapAfter = usedHeap(runtime);
+        if (!sourceHash.equals(sha256(restored))) {
+            throw new IOException("SHA-256 diferente no algoritmo " + algorithm.commandName()
+                    + "; benchmark interrompido.");
+        }
+        return new AlgorithmMeasurement(compression, decompression, heapBefore,
+                Math.max(heapAfterCompress, heapAfter));
     }
 
     private static void benchmark(String[] args) throws IOException {
@@ -329,6 +451,10 @@ public final class Main {
             long heapBefore,
             long heapAfter) { }
 
+    private record AlgorithmMeasurement(CompressionEngine.CompressionResult compression,
+                                        CompressionEngine.DecompressionResult decompression,
+                                        long heapBefore, long heapAfter) { }
+
     private static long usedHeap(Runtime runtime) {
         return runtime.totalMemory() - runtime.freeMemory();
     }
@@ -356,8 +482,11 @@ public final class Main {
     }
 
     private static void printUsage() {
-        System.out.println("Comandos: generate, compress, decompress, benchmark, benchmark-levels, train-dictionary, benchmark-dictionary");
+        System.out.println("Comandos: generate, compress, decompress, benchmark, benchmark-levels, benchmark-dictionary, benchmark-algorithms, train-dictionary");
         System.out.println("Ex.: generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset.json repetitive 1");
+        System.out.println("Ex.: benchmark-algorithms dataset.json benchmark-algoritmos.csv 128 1");
+        System.out.println("Ex.: compress xz 6 128 dataset.json dataset.json.xz");
+        System.out.println("Ex.: decompress xz 128 dataset.json.xz restored.json");
         System.out.println("Ex.: train-dictionary amostras.json dictionary.zdict");
         System.out.println("Ex.: benchmark-dictionary dataset.json dictionary.zdict benchmark-dictionary.csv");
     }
