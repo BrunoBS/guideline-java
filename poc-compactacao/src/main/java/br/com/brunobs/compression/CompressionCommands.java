@@ -81,11 +81,17 @@ final class CompressionCommands {
 
     private static void printResourceUsage(String phase,
                                            ResourceMonitor.Measurement<?> measurement) {
-        System.out.printf("  Recursos na %s: CPU do processo %s; heap JVM amostrado "
-                        + "%.2f MiB antes, pico %.2f MiB, %.2f MiB depois.%n",
+        System.out.printf("  Recursos na %s: CPU do processo %s%n"
+                        + "    Heap JVM (antes/pico/depois): %s%n"
+                        + "    RSS do processo (antes/pico/depois): %s%n"
+                        + "    Residente privado (antes/pico/depois): %s%n",
                 phase, cpuDescription(measurement),
-                mib(measurement.heapBeforeBytes()), mib(measurement.heapPeakBytes()),
-                mib(measurement.heapAfterBytes()));
+                memoryDescription(measurement.heapBeforeBytes(), measurement.heapPeakBytes(),
+                        measurement.heapAfterBytes()),
+                memoryDescription(measurement.rssBeforeBytes(), measurement.rssPeakBytes(),
+                        measurement.rssAfterBytes()),
+                memoryDescription(measurement.privateResidentBeforeBytes(),
+                        measurement.privateResidentPeakBytes(), measurement.privateResidentAfterBytes()));
     }
 
     private static String cpuDescription(ResourceMonitor.Measurement<?> measurement) {
@@ -94,6 +100,12 @@ final class CompressionCommands {
                 "%.3f ms (%.1f%% de 1 core)",
                 measurement.processCpuNanos() / 1_000_000d,
                 measurement.processCpuPercentOfOneCore());
+    }
+
+    private static String memoryDescription(long before, long peak, long after) {
+        if (before < 0 || peak < 0 || after < 0) return "indisponível";
+        return String.format(java.util.Locale.getDefault(), "%.2f / %.2f / %.2f MiB",
+                mib(before), mib(peak), mib(after));
     }
 
     private static double mib(long bytes) {
