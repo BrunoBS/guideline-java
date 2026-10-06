@@ -19,7 +19,7 @@ final class ApplicationOptions {
     record RoundTrip(CompressionAlgorithm algorithm, int setting, int bufferSize,
                      Path input, Path compressed, Path restored, Path analysisCsv) { }
 
-    record Compare(Path input, Path analysisCsv, int bufferSize) { }
+    record Compare(Path input, Path outputDirectory, Path analysisCsv, int bufferSize) { }
 
     static Generate generate(String[] args) {
         requireLength(args, 5, 6,
@@ -69,9 +69,11 @@ final class ApplicationOptions {
     }
 
     static Compare compare(String[] args) {
-        requireLength(args, 3, 4, "compare <entrada.json> <relatorio.csv> [buffer-KiB]");
-        String bufferKiB = args.length == 4 ? args[3] : "128";
-        return new Compare(Path.of(args[1]), Path.of(args[2]), bufferSize(bufferKiB));
+        requireLength(args, 2, 3, "compare <entrada.json> [buffer-KiB]");
+        int bufferSize = bufferSize(args.length == 3 ? args[2] : "128");
+        Path outputDirectory = Path.of("comparacao-algoritmos");
+        return new Compare(Path.of(args[1]), outputDirectory,
+                outputDirectory.resolve("comparacao.csv"), bufferSize);
     }
 
     private static Compress compress(CompressionAlgorithm algorithm, String setting, String bufferKiB,
