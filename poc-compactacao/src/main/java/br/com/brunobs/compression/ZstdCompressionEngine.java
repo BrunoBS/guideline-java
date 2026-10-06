@@ -18,18 +18,12 @@ public final class ZstdCompressionEngine implements CompressionEngine {
     @Override
     public CompressionResult compress(InputStream source, OutputStream destination, int level, int bufferSize)
             throws IOException {
-        return compress(source, destination, level, bufferSize, null);
-    }
-
-    public CompressionResult compress(InputStream source, OutputStream destination, int level, int bufferSize,
-                                       byte[] dictionary) throws IOException {
         validate(source, destination, bufferSize);
         CountingInputStream countedSource = new CountingInputStream(new BufferedInputStream(source, bufferSize));
         CountingOutputStream countedDestination = new CountingOutputStream(
                 new BufferedOutputStream(destination, bufferSize));
         long started = System.nanoTime();
         try (countedSource; ZstdOutputStream compressed = new ZstdOutputStream(countedDestination, level)) {
-            if (dictionary != null && dictionary.length > 0) compressed.setDict(dictionary);
             countedSource.transferTo(compressed);
         }
         return new CompressionResult(countedSource.count, countedDestination.count, System.nanoTime() - started);
@@ -38,11 +32,6 @@ public final class ZstdCompressionEngine implements CompressionEngine {
     @Override
     public DecompressionResult decompress(InputStream source, OutputStream destination, int bufferSize)
             throws IOException {
-        return decompress(source, destination, bufferSize, null);
-    }
-
-    public DecompressionResult decompress(InputStream source, OutputStream destination, int bufferSize,
-                                         byte[] dictionary) throws IOException {
         validate(source, destination, bufferSize);
         CountingInputStream countedSource = new CountingInputStream(new BufferedInputStream(source, bufferSize));
         CountingOutputStream countedDestination = new CountingOutputStream(
@@ -50,7 +39,6 @@ public final class ZstdCompressionEngine implements CompressionEngine {
         long started = System.nanoTime();
         try (ZstdInputStream decompressed = new ZstdInputStream(countedSource);
              OutputStream output = countedDestination) {
-            if (dictionary != null && dictionary.length > 0) decompressed.setDict(dictionary);
             byte[] buffer = new byte[COPY_BUFFER_SIZE];
             int read;
             while ((read = decompressed.read(buffer)) != -1) {
@@ -71,13 +59,20 @@ public final class ZstdCompressionEngine implements CompressionEngine {
 
     private static final class CountingInputStream extends FilterInputStream {
         private long count;
-        private CountingInputStream(InputStream input) { super(input); }
-        @Override public int read() throws IOException {
+
+        private CountingInputStream(InputStream input) {
+            super(input);
+        }
+
+        @Override
+        public int read() throws IOException {
             int value = super.read();
             if (value != -1) count++;
             return value;
         }
-        @Override public int read(byte[] bytes, int offset, int length) throws IOException {
+
+        @Override
+        public int read(byte[] bytes, int offset, int length) throws IOException {
             int read = super.read(bytes, offset, length);
             if (read > 0) count += read;
             return read;
@@ -86,12 +81,19 @@ public final class ZstdCompressionEngine implements CompressionEngine {
 
     private static final class CountingOutputStream extends FilterOutputStream {
         private long count;
-        private CountingOutputStream(OutputStream output) { super(output); }
-        @Override public void write(int value) throws IOException {
+
+        private CountingOutputStream(OutputStream output) {
+            super(output);
+        }
+
+        @Override
+        public void write(int value) throws IOException {
             out.write(value);
             count++;
         }
-        @Override public void write(byte[] bytes, int offset, int length) throws IOException {
+
+        @Override
+        public void write(byte[] bytes, int offset, int length) throws IOException {
             out.write(bytes, offset, length);
             count += length;
         }
