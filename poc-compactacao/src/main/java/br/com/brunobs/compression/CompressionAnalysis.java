@@ -9,6 +9,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.List;
 import java.nio.file.StandardOpenOption;
 
 /** Executes one streaming compress/decompress round-trip and optionally appends its metrics to CSV. */
@@ -20,8 +21,14 @@ final class CompressionAnalysis {
             + "sha256_match,heap_used_before_bytes,heap_used_after_bytes,"
             + "compress_process_cpu_ms,compress_cpu_percent_one_core,"
             + "compress_heap_before_bytes,compress_heap_peak_bytes,compress_heap_after_bytes,"
+            + "compress_rss_before_bytes,compress_rss_peak_bytes,compress_rss_after_bytes,"
+            + "compress_private_resident_before_bytes,compress_private_resident_peak_bytes,"
+            + "compress_private_resident_after_bytes,"
             + "decompress_process_cpu_ms,decompress_cpu_percent_one_core,"
-            + "decompress_heap_before_bytes,decompress_heap_peak_bytes,decompress_heap_after_bytes";
+            + "decompress_heap_before_bytes,decompress_heap_peak_bytes,decompress_heap_after_bytes,"
+            + "decompress_rss_before_bytes,decompress_rss_peak_bytes,decompress_rss_after_bytes,"
+            + "decompress_private_resident_before_bytes,decompress_private_resident_peak_bytes,"
+            + "decompress_private_resident_after_bytes";
 
     private CompressionAnalysis() { }
 
@@ -76,25 +83,46 @@ final class CompressionAnalysis {
             var compressionResources = result.compressionResources();
             var decompressionResources = result.decompressionResources();
             double reduction = percentageReduced(compression.originalBytes(), compression.compressedBytes());
-            csv.write(String.format(java.util.Locale.ROOT,
-                    "%s,%s,%s,%d,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%s,%d,%d,"
-                            + "%s,%s,%d,%d,%d,%s,%s,%d,%d,%d",
-                    Instant.now(), options.algorithm().commandName(), options.algorithm().settingName(),
-                    options.setting(), options.bufferSize() / 1024,
-                    compression.originalBytes(), compression.compressedBytes(), reduction,
-                    milliseconds(compression.elapsedNanos()),
-                    mibPerSecond(compression.originalBytes(), compression.elapsedNanos()),
-                    milliseconds(decompression.elapsedNanos()),
-                    mibPerSecond(decompression.decompressedBytes(), decompression.elapsedNanos()),
-                    result.sha256Match(), result.heapBefore(), result.heapAfter(),
+
+            List<String> fields = List.of(
+                    Instant.now().toString(),
+                    options.algorithm().commandName(),
+                    options.algorithm().settingName(),
+                    Integer.toString(options.setting()),
+                    Integer.toString(options.bufferSize() / 1024),
+                    Long.toString(compression.originalBytes()),
+                    Long.toString(compression.compressedBytes()),
+                    format(reduction, 3),
+                    format(milliseconds(compression.elapsedNanos()), 3),
+                    format(mibPerSecond(compression.originalBytes(), compression.elapsedNanos()), 3),
+                    format(milliseconds(decompression.elapsedNanos()), 3),
+                    format(mibPerSecond(decompression.decompressedBytes(), decompression.elapsedNanos()), 3),
+                    Boolean.toString(result.sha256Match()),
+                    Long.toString(result.heapBefore()),
+                    Long.toString(result.heapAfter()),
                     optionalMilliseconds(compressionResources.processCpuNanos()),
                     optionalPercent(compressionResources.processCpuPercentOfOneCore()),
-                    compressionResources.heapBeforeBytes(), compressionResources.heapPeakBytes(),
-                    compressionResources.heapAfterBytes(),
+                    Long.toString(compressionResources.heapBeforeBytes()),
+                    Long.toString(compressionResources.heapPeakBytes()),
+                    Long.toString(compressionResources.heapAfterBytes()),
+                    optionalBytes(compressionResources.rssBeforeBytes()),
+                    optionalBytes(compressionResources.rssPeakBytes()),
+                    optionalBytes(compressionResources.rssAfterBytes()),
+                    optionalBytes(compressionResources.privateResidentBeforeBytes()),
+                    optionalBytes(compressionResources.privateResidentPeakBytes()),
+                    optionalBytes(compressionResources.privateResidentAfterBytes()),
                     optionalMilliseconds(decompressionResources.processCpuNanos()),
                     optionalPercent(decompressionResources.processCpuPercentOfOneCore()),
-                    decompressionResources.heapBeforeBytes(), decompressionResources.heapPeakBytes(),
-                    decompressionResources.heapAfterBytes()));
+                    Long.toString(decompressionResources.heapBeforeBytes()),
+                    Long.toString(decompressionResources.heapPeakBytes()),
+                    Long.toString(decompressionResources.heapAfterBytes()),
+                    optionalBytes(decompressionResources.rssBeforeBytes()),
+                    optionalBytes(decompressionResources.rssPeakBytes()),
+                    optionalBytes(decompressionResources.rssAfterBytes()),
+                    optionalBytes(decompressionResources.privateResidentBeforeBytes()),
+                    optionalBytes(decompressionResources.privateResidentPeakBytes()),
+                    optionalBytes(decompressionResources.privateResidentAfterBytes()));
+            csv.write(String.join(",", fields));
             csv.newLine();
         }
     }
@@ -108,12 +136,20 @@ final class CompressionAnalysis {
         return nanos / 1_000_000d;
     }
 
+    private static String format(double value, int decimals) {
+        return String.format(java.util.Locale.ROOT, "%." + decimals + "f", value);
+    }
+
     private static String optionalMilliseconds(long nanos) {
-        return nanos < 0 ? "" : String.format(java.util.Locale.ROOT, "%.3f", milliseconds(nanos));
+        return nanos < 0 ? "" : format(milliseconds(nanos), 3);
     }
 
     private static String optionalPercent(double percent) {
-        return percent < 0 ? "" : String.format(java.util.Locale.ROOT, "%.2f", percent);
+        return percent < 0 ? "" : format(percent, 2);
+    }
+
+    private static String optionalBytes(long bytes) {
+        return bytes < 0 ? "" : Long.toString(bytes);
     }
 
     private static double mibPerSecond(long bytes, long nanos) {
