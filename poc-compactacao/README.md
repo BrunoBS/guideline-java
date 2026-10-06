@@ -10,7 +10,7 @@ Rode a partir do diretório `poc-compactacao`:
 mvn -q clean package
 
 # 1. Gera um JSON de 200 MiB
-mvn -q exec:java -Dexec.args="generate '{\\"application\\":\\"app-a\\",\\"key\\":\\"feature.enabled\\",\\"value\\":\\"true\\"}' dataset-realista.json realistic 200"
+mvn -q exec:java -Dexec.args="generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset-realista.json realistic 200"
 
 # 2. Comprime, descomprime, confere SHA-256 e acrescenta uma linha ao CSV
 mvn -q exec:java -Dexec.args='roundtrip zstd 1 128 dataset-realista.json dataset.json.zst restaurado.json --analysis analise.csv'
