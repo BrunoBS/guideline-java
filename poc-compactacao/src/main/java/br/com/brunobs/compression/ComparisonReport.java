@@ -97,10 +97,11 @@ final class ComparisonReport {
         appendMemoryTable(markdown, rows);
 
         markdown.append("## Métricas por algoritmo\n\n")
+                .append("Nas colunas de memória, cada medida aparece em MiB na ordem antes/pico/depois.\n\n")
                 .append("| Algoritmo | Configuração | Compactado (bytes) | Redução | Compressão (s) | Descompressão (s) ")
                 .append("| CPU compressão (ms / % de 1 core) | CPU descompressão (ms / % de 1 core) ")
-                .append("| Pico heap compressão (MiB) | Pico heap descompressão (MiB) | SHA-256 |\n")
-                .append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n");
+                .append("| Memória compressão (MiB) | Memória descompressão (MiB) | SHA-256 |\n")
+                .append("|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|\n");
         for (Row row : rows) {
             markdown.append("| ").append(row.algorithm()).append(" | ")
                     .append(row.settingName()).append(' ').append(row.setting()).append(" | ")
@@ -110,9 +111,17 @@ final class ComparisonReport {
                     .append(formatPt(row.decompressSeconds(), 3)).append(" | ")
                     .append(cpuCell(row.compressCpuMs(), row.compressCpuPercent())).append(" | ")
                     .append(cpuCell(row.decompressCpuMs(), row.decompressCpuPercent())).append(" | ")
-                    .append(formatOptional(row.compressHeapPeakBytes() / BYTES_PER_MIB, 2)).append(" | ")
-                    .append(formatOptional(row.decompressHeapPeakBytes() / BYTES_PER_MIB, 2)).append(" | ")
-                    .append(row.sha256Match() ? "Confere" : "Diverge").append(" |\n");
+                    .append(memoryStageCell(row.compressHeapBeforeBytes(), row.compressHeapPeakBytes(),
+                            row.compressHeapAfterBytes(), row.compressRssBeforeBytes(), row.compressRssPeakBytes(),
+                            row.compressRssAfterBytes(), row.compressPrivateResidentBeforeBytes(),
+                            row.compressPrivateResidentPeakBytes(), row.compressPrivateResidentAfterBytes()))
+                    .append(" | ")
+                    .append(memoryStageCell(row.decompressHeapBeforeBytes(), row.decompressHeapPeakBytes(),
+                            row.decompressHeapAfterBytes(), row.decompressRssBeforeBytes(),
+                            row.decompressRssPeakBytes(), row.decompressRssAfterBytes(),
+                            row.decompressPrivateResidentBeforeBytes(), row.decompressPrivateResidentPeakBytes(),
+                            row.decompressPrivateResidentAfterBytes()))
+                    .append(" | ").append(row.sha256Match() ? "Confere" : "Diverge").append(" |\n");
         }
 
         markdown.append("\n## Como interpretar as métricas\n\n")
@@ -195,6 +204,18 @@ final class ComparisonReport {
                 .append("~~~\n\n");
     }
 
+    private static String memoryStageCell(long heapBefore, long heapPeak, long heapAfter,
+                                          long rssBefore, long rssPeak, long rssAfter,
+                                          long privateBefore, long privatePeak, long privateAfter) {
+        return "Heap: " + memoryTriple(heapBefore, heapPeak, heapAfter)
+                + "; RSS: " + memoryTriple(rssBefore, rssPeak, rssAfter)
+                + "; privada: " + memoryTriple(privateBefore, privatePeak, privateAfter);
+    }
+
+    private static String memoryTriple(long before, long peak, long after) {
+        return memoryMib(before) + "/" + memoryMib(peak) + "/" + memoryMib(after);
+    }
+
     private static void appendMemoryTable(StringBuilder markdown, List<Row> rows) {
         markdown.append("## Memória de pico por etapa\n\n")
                 .append("| Algoritmo | Heap compressão (MiB) | Heap descompressão (MiB) ")
@@ -239,14 +260,26 @@ final class ComparisonReport {
                     decimal(values, columns, "decompress_ms") / 1000d,
                     optionalDecimal(values, columns, "compress_process_cpu_ms"),
                     optionalDecimal(values, columns, "compress_cpu_percent_one_core"),
+                    optionalLong(values, columns, "compress_heap_before_bytes"),
                     optionalLong(values, columns, "compress_heap_peak_bytes"),
+                    optionalLong(values, columns, "compress_heap_after_bytes"),
+                    optionalLong(values, columns, "compress_rss_before_bytes"),
                     optionalLong(values, columns, "compress_rss_peak_bytes"),
+                    optionalLong(values, columns, "compress_rss_after_bytes"),
+                    optionalLong(values, columns, "compress_private_resident_before_bytes"),
                     optionalLong(values, columns, "compress_private_resident_peak_bytes"),
+                    optionalLong(values, columns, "compress_private_resident_after_bytes"),
                     optionalDecimal(values, columns, "decompress_process_cpu_ms"),
                     optionalDecimal(values, columns, "decompress_cpu_percent_one_core"),
+                    optionalLong(values, columns, "decompress_heap_before_bytes"),
                     optionalLong(values, columns, "decompress_heap_peak_bytes"),
+                    optionalLong(values, columns, "decompress_heap_after_bytes"),
+                    optionalLong(values, columns, "decompress_rss_before_bytes"),
                     optionalLong(values, columns, "decompress_rss_peak_bytes"),
+                    optionalLong(values, columns, "decompress_rss_after_bytes"),
+                    optionalLong(values, columns, "decompress_private_resident_before_bytes"),
                     optionalLong(values, columns, "decompress_private_resident_peak_bytes"),
+                    optionalLong(values, columns, "decompress_private_resident_after_bytes"),
                     Boolean.parseBoolean(cell(values, columns, "sha256_match")));
         } catch (RuntimeException invalidRow) {
             throw new IOException("Linha " + lineNumber + " inválida no CSV da comparação.", invalidRow);
@@ -325,9 +358,14 @@ final class ComparisonReport {
     private record Row(String measuredAt, String algorithm, String settingName, int setting,
                        int bufferKiB, long originalBytes, long compressedBytes, double reductionPercent,
                        double compressSeconds, double decompressSeconds,
-                       Double compressCpuMs, Double compressCpuPercent, long compressHeapPeakBytes,
-                       long compressRssPeakBytes, long compressPrivateResidentPeakBytes,
-                       Double decompressCpuMs, Double decompressCpuPercent, long decompressHeapPeakBytes,
-                       long decompressRssPeakBytes, long decompressPrivateResidentPeakBytes,
-                       boolean sha256Match) { }
+                       Double compressCpuMs, Double compressCpuPercent,
+                       long compressHeapBeforeBytes, long compressHeapPeakBytes, long compressHeapAfterBytes,
+                       long compressRssBeforeBytes, long compressRssPeakBytes, long compressRssAfterBytes,
+                       long compressPrivateResidentBeforeBytes, long compressPrivateResidentPeakBytes,
+                       long compressPrivateResidentAfterBytes,
+                       Double decompressCpuMs, Double decompressCpuPercent,
+                       long decompressHeapBeforeBytes, long decompressHeapPeakBytes, long decompressHeapAfterBytes,
+                       long decompressRssBeforeBytes, long decompressRssPeakBytes, long decompressRssAfterBytes,
+                       long decompressPrivateResidentBeforeBytes, long decompressPrivateResidentPeakBytes,
+                       long decompressPrivateResidentAfterBytes, boolean sha256Match) { }
 }
