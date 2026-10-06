@@ -51,26 +51,30 @@ final class CompressionCommands {
     }
 
     static void compare(ApplicationOptions.Compare options) throws IOException {
-        Path temporaryDirectory = Files.createTempDirectory("compression-compare-");
-        try {
-            for (CompressionAlgorithm algorithm : CompressionAlgorithm.values()) {
-                Path compressed = temporaryDirectory.resolve("dataset-" + algorithm.commandName() + ".compressed");
-                Path restored = temporaryDirectory.resolve("dataset-" + algorithm.commandName() + ".restored.json");
-                var run = new ApplicationOptions.RoundTrip(
-                        algorithm, algorithm.defaultSetting(), options.bufferSize(),
-                        options.input(), compressed, restored, options.analysisCsv());
-                roundTrip(run);
-            }
-        } finally {
-            for (CompressionAlgorithm algorithm : CompressionAlgorithm.values()) {
-                Files.deleteIfExists(temporaryDirectory.resolve(
-                        "dataset-" + algorithm.commandName() + ".compressed"));
-                Files.deleteIfExists(temporaryDirectory.resolve(
-                        "dataset-" + algorithm.commandName() + ".restored.json"));
-            }
-            Files.deleteIfExists(temporaryDirectory);
+        Files.createDirectories(options.outputDirectory());
+        Files.deleteIfExists(options.analysisCsv());
+
+        String inputName = options.input().getFileName().toString();
+        for (CompressionAlgorithm algorithm : CompressionAlgorithm.values()) {
+            String compressedName = inputName + "." + extension(algorithm);
+            String restoredName = inputName + "." + algorithm.commandName() + ".restored.json";
+            Path compressed = options.outputDirectory().resolve(compressedName);
+            Path restored = options.outputDirectory().resolve(restoredName);
+            var run = new ApplicationOptions.RoundTrip(
+                    algorithm, algorithm.defaultSetting(), options.bufferSize(),
+                    options.input(), compressed, restored, options.analysisCsv());
+            roundTrip(run);
         }
-        System.out.printf("Comparação dos quatro algoritmos concluída: %s%n", options.analysisCsv());
+        System.out.printf("Comparação concluída. Arquivos e CSV em: %s%n", options.outputDirectory());
+    }
+
+    private static String extension(CompressionAlgorithm algorithm) {
+        return switch (algorithm) {
+            case ZSTD -> "zst";
+            case GZIP -> "gz";
+            case BROTLI -> "br";
+            case XZ -> "xz";
+        };
     }
 
     private static double percentageReduced(long originalBytes, long compressedBytes) {
