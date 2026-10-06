@@ -23,7 +23,7 @@ final class ApplicationOptions {
 
     static Generate generate(String[] args) {
         requireLength(args, 5, 6,
-                "generate <modelo-ConfigurationData> <dataset.json> <repetitive|realistic> <tamanho-MiB> [seed]");
+                "generate <modelo-JSON> <dataset.json> <repetitive|realistic> <tamanho-MiB> [seed]");
         var profile = JsonDatasetGenerator.Profile.valueOf(args[3].toUpperCase(Locale.ROOT));
         Long seed = args.length == 6 ? Long.parseLong(args[5]) : null;
         return new Generate(args[1], Path.of(args[2]), profile, Long.parseLong(args[4]), seed);
