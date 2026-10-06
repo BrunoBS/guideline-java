@@ -2,7 +2,7 @@
 
 ## Escopo da execução
 
-A comparação usou o mesmo arquivo JSON de **209.719.653 bytes (209,72 MB)**, buffer de **128 KiB** e configurações padrão do comando `compare`: Zstd nível 1, GZIP nível 6, Brotli qualidade 5 e XZ preset 6. Todos os roundtrips passaram na validação SHA-256.
+A comparação exibida aqui usou o mesmo arquivo JSON de **209.719.653 bytes (209,72 MB)**, buffer de **128 KiB** e configurações padrão do comando `compare`: Zstd nível 1, GZIP nível 6, Brotli qualidade 5 e XZ preset 6. Todos os roundtrips passaram na validação SHA-256. A partir da próxima execução, o comando `compare` recria automaticamente este Markdown com os dados atuais do CSV, inclusive CPU e heap medidos por etapa.
 
 Os gráficos abaixo usam os resultados registrados em `comparacao-algoritmos/comparacao.csv`. Tamanhos estão em MB decimais; tempos estão em segundos.
 
@@ -54,7 +54,7 @@ xychart-beta
     bar [53.17, 53.97, 55.70, 173.30]
 ```
 
-**CPU não foi medida nesta execução.** O CSV não contém uma métrica de CPU, então não há dados para traçar um gráfico confiável desse recurso. Para comparar CPU, será necessário instrumentar o benchmark para coletar tempo de CPU por algoritmo e executar a comparação novamente.
+**Esta execução histórica não mediu CPU nem pico de heap por etapa.** Para atualizar este relatório com as novas métricas, execute novamente `mvn -q exec:java -Dexec.args='compare dataset-realista.json 128'` dentro de `poc-compactacao`. O comando recria o CSV e este Markdown com os novos dados.
 
 ### Amostras de heap em bytes
 
