@@ -1,10 +1,10 @@
 package br.com.brunobs.compression;
 
 public enum CompressionAlgorithm {
-    XZ("xz", "preset", 6, new XzCompressionEngine()),
     ZSTD("zstd", "level", 1, new ZstdCompressionEngine()),
     GZIP("gzip", "level", 6, new GzipCompressionEngine()),
-    BROTLI("brotli", "quality", 5, new BrotliCompressionEngine());
+    BROTLI("brotli", "quality", 5, new BrotliCompressionEngine()),
+    XZ("xz", "preset", 6, new XzCompressionEngine());
 
     private final String commandName;
     private final String settingName;
