@@ -14,7 +14,7 @@ mvn -q exec:java -Dexec.args="generate '{\"id\":42,\"metadata\":{\"enabled\":tru
 
 # Comprime e descomprime o mesmo arquivo com Zstd, GZIP, Brotli e XZ.
 # Acrescenta quatro linhas ao CSV; o buffer padrão é 128 KiB.
-mvn -q exec:java -Dexec.args='compare dataset-realista.json 128'
+mvn -q compile exec:java -Dexec.args='compare dataset-realista.json 128'
 ```
 
 O comando `compare` usa os parâmetros padrão de cada algoritmo e o mesmo arquivo de entrada. Para cada formato, ele comprime, descomprime e valida o SHA-256. O cabeçalho do relatório inclui a data e a hora local em que a geração terminou. Os quatro arquivos compactados, os quatro arquivos restaurados e `comparacao.csv` ficam na pasta `comparacao-algoritmos/`, criada na raiz do projeto.
