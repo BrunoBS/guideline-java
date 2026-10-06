@@ -56,7 +56,7 @@ xychart-beta
     bar [53.17, 53.97, 55.70, 173.30]
 ```
 
-**Esta execução histórica não mediu CPU nem picos de memória por etapa.** Os valores de heap antes/depois abaixo são apenas as amostras disponíveis nessa execução; não são picos nem representam todo o consumo de memória do processo. Para atualizar este relatório com as novas métricas, execute novamente `mvn -q exec:java -Dexec.args='compare dataset-realista.json 128'` dentro de `poc-compactacao`. O comando recria o CSV e este Markdown com os novos dados.
+**Esta execução histórica não mediu CPU nem picos de memória por etapa.** Os valores de heap antes/depois abaixo são apenas as amostras disponíveis nessa execução; não são picos nem representam todo o consumo de memória do processo. Para atualizar este relatório com as novas métricas, execute novamente `mvn -q compile exec:java -Dexec.args='compare dataset-realista.json 128'` dentro de `poc-compactacao`. O comando recria o CSV e este Markdown com os novos dados.
 
 ## Métricas por algoritmo — execução histórica
 
