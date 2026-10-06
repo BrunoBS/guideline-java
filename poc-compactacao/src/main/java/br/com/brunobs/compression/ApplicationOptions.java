@@ -5,15 +5,10 @@ import java.util.Locale;
 
 /** Converts CLI tokens into validated command options. */
 final class ApplicationOptions {
-    private static final long BYTES_PER_MIB = 1024L * 1024L;
-
     private ApplicationOptions() { }
 
     record Generate(String template, Path output, JsonDatasetGenerator.Profile profile,
                     long sizeMiB, Long seed) { }
-
-    record TrainDictionary(Path samples, Path dictionary, int sampleCapacityBytes,
-                           int dictionarySizeBytes) { }
 
     record Compress(CompressionAlgorithm algorithm, int setting, int bufferSize,
                     Path input, Path output) { }
@@ -21,25 +16,15 @@ final class ApplicationOptions {
     record Decompress(CompressionAlgorithm algorithm, int bufferSize,
                       Path input, Path output) { }
 
+    record RoundTrip(CompressionAlgorithm algorithm, int setting, int bufferSize,
+                     Path input, Path compressed, Path restored, Path analysisCsv) { }
+
     static Generate generate(String[] args) {
         requireLength(args, 5, 6,
                 "generate <modelo-ConfigurationData> <dataset.json> <repetitive|realistic> <tamanho-MiB> [seed]");
         var profile = JsonDatasetGenerator.Profile.valueOf(args[3].toUpperCase(Locale.ROOT));
         Long seed = args.length == 6 ? Long.parseLong(args[5]) : null;
         return new Generate(args[1], Path.of(args[2]), profile, Long.parseLong(args[4]), seed);
-    }
-
-    static TrainDictionary trainDictionary(String[] args) {
-        requireLength(args, 3, 5,
-                "train-dictionary <amostras.json> <dictionary.zdict> [capacidade-amostras-MiB] [dicionario-KiB]");
-        int sampleCapacityMiB = args.length >= 4 ? Integer.parseInt(args[3]) : 4;
-        int dictionaryKiB = args.length >= 5 ? Integer.parseInt(args[4]) : 32;
-        if (sampleCapacityMiB < 1) throw new IllegalArgumentException("A capacidade de amostras deve ser positiva.");
-        if (dictionaryKiB < 1) throw new IllegalArgumentException("O tamanho do dicionário deve ser positivo.");
-        int sampleCapacityBytes = Math.toIntExact(Math.multiplyExact((long) sampleCapacityMiB, BYTES_PER_MIB));
-        int dictionarySizeBytes = Math.multiplyExact(dictionaryKiB, 1024);
-        return new TrainDictionary(Path.of(args[1]), Path.of(args[2]),
-                sampleCapacityBytes, dictionarySizeBytes);
     }
 
     static Compress compress(String[] args) {
@@ -64,10 +49,26 @@ final class ApplicationOptions {
                 "Uso: decompress <algoritmo> <buffer-KiB> <entrada-comprimida> <saída-json>");
     }
 
+    static RoundTrip roundTrip(String[] args) {
+        if (args.length != 7 && args.length != 9) {
+            throw new IllegalArgumentException(
+                    "Uso: roundtrip <algoritmo> <nível/qualidade/preset> <buffer-KiB> "
+                            + "<entrada> <compactado> <restaurado> [--analysis <relatorio.csv>]");
+        }
+        Path analysisCsv = null;
+        if (args.length == 9) {
+            if (!"--analysis".equals(args[7])) {
+                throw new IllegalArgumentException("O argumento opcional esperado é --analysis <relatorio.csv>.");
+            }
+            analysisCsv = Path.of(args[8]);
+        }
+        return new RoundTrip(CompressionAlgorithm.fromCommand(args[1]), Integer.parseInt(args[2]),
+                bufferSize(args[3]), Path.of(args[4]), Path.of(args[5]), Path.of(args[6]), analysisCsv);
+    }
+
     private static Compress compress(CompressionAlgorithm algorithm, String setting, String bufferKiB,
                                     String input, String output) {
-        int bufferSize = bufferSize(bufferKiB);
-        return new Compress(algorithm, Integer.parseInt(setting), bufferSize,
+        return new Compress(algorithm, Integer.parseInt(setting), bufferSize(bufferKiB),
                 Path.of(input), Path.of(output));
     }
 
