@@ -16,16 +16,6 @@ final class CompressionCommands {
                 options.output(), bytes, options.sizeMiB());
     }
 
-    static void trainDictionary(ApplicationOptions.TrainDictionary options) throws IOException {
-        long started = System.nanoTime();
-        JsonDictionaryTrainer.TrainingResult result = JsonDictionaryTrainer.train(
-                options.samples(), options.dictionary(),
-                options.sampleCapacityBytes(), options.dictionarySizeBytes());
-        System.out.printf("Dicionário treinado: %s; amostras: %d; bytes de amostras: %d; bytes do dicionário: %d; tempo: %.3f ms%n",
-                options.dictionary(), result.sampleCount(), result.sampleBytes(), result.dictionaryBytes(),
-                (System.nanoTime() - started) / 1_000_000d);
-    }
-
     static void compress(ApplicationOptions.Compress options) throws IOException {
         var result = options.algorithm().engine().compress(
                 Files.newInputStream(options.input()), Files.newOutputStream(options.output()),
@@ -42,5 +32,25 @@ final class CompressionCommands {
         System.out.printf("%s: comprimido %d bytes; restaurado %d bytes; tempo %.3f ms%n",
                 options.algorithm().commandName(), result.compressedBytes(), result.decompressedBytes(),
                 result.elapsedNanos() / 1_000_000d);
+    }
+
+    static void roundTrip(ApplicationOptions.RoundTrip options) throws IOException {
+        var result = CompressionAnalysis.run(options);
+        var compression = result.compression();
+        var decompression = result.decompression();
+        System.out.printf("%s: original %d bytes; compactado %d bytes; redução %.3f%%; "
+                        + "compressão %.3f ms; descompressão %.3f ms; SHA-256 %s%n",
+                options.algorithm().commandName(), compression.originalBytes(), compression.compressedBytes(),
+                percentageReduced(compression.originalBytes(), compression.compressedBytes()),
+                compression.elapsedNanos() / 1_000_000d, decompression.elapsedNanos() / 1_000_000d,
+                result.sha256Match() ? "confere" : "diverge");
+        if (options.analysisCsv() != null) {
+            System.out.printf("Análise adicionada a: %s%n", options.analysisCsv());
+        }
+    }
+
+    private static double percentageReduced(long originalBytes, long compressedBytes) {
+        if (originalBytes == 0) return 0;
+        return 100d * (originalBytes - compressedBytes) / originalBytes;
     }
 }
