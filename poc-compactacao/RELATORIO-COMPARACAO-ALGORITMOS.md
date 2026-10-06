@@ -1,5 +1,7 @@
 # Comparação dos algoritmos de compressão
 
+**Última medição refletida neste relatório:** 05/10/2026 às 22:16:56 -03:00 (horário de São Paulo). O próximo `compare` substituirá este conteúdo com a data e a hora locais da nova execução, além dos gráficos de CPU e heap por etapa.
+
 ## Escopo da execução
 
 A comparação exibida aqui usou o mesmo arquivo JSON de **209.719.653 bytes (209,72 MB)**, buffer de **128 KiB** e configurações padrão do comando `compare`: Zstd nível 1, GZIP nível 6, Brotli qualidade 5 e XZ preset 6. Todos os roundtrips passaram na validação SHA-256. A partir da próxima execução, o comando `compare` recria automaticamente este Markdown com os dados atuais do CSV, inclusive CPU e heap medidos por etapa.
