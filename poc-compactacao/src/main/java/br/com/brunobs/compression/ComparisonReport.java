@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -138,6 +139,7 @@ final class ComparisonReport {
                 .append("essas métricas; nesse caso os campos ficam vazios no CSV e o gráfico correspondente é omitido.\n")
                 .append("- Os tempos incluem leitura e escrita dos arquivos e variam conforme máquina, JVM, armazenamento ")
                 .append("e carga do sistema. Todos os algoritmos processam o mesmo arquivo e buffer nesta execução.\n");
+        appendRecommendation(markdown, rows);
         return markdown.toString();
     }
 
@@ -236,6 +238,112 @@ final class ComparisonReport {
 
     private static String memoryMib(long bytes) {
         return bytes <= 0 ? "Não disponível" : formatPt(bytes / BYTES_PER_MIB, 2);
+    }
+
+    private static void appendRecommendation(StringBuilder markdown, List<Row> rows) {
+        List<Criterion> criteria = new ArrayList<>();
+        criteria.add(new Criterion("Tamanho compactado", row -> row.compressedBytes()));
+        criteria.add(new Criterion("Tempo total", row -> row.compressSeconds() + row.decompressSeconds()));
+
+        boolean allCpuAvailable = rows.stream().allMatch(row ->
+                row.compressCpuMs() != null && row.decompressCpuMs() != null);
+        if (allCpuAvailable) {
+            criteria.add(new Criterion("CPU total", row -> row.compressCpuMs() + row.decompressCpuMs()));
+        }
+
+        MemoryCriterion memory = memoryCriterion(rows);
+        if (memory != null) criteria.add(new Criterion(memory.name(), memory.metric()));
+
+        Row smallest = bestRow(rows, row -> row.compressedBytes());
+        Row fastestCompression = bestRow(rows, Row::compressSeconds);
+        Row fastestDecompression = bestRow(rows, Row::decompressSeconds);
+        Row recommendation = rows.stream()
+                .min(Comparator.comparingDouble((Row row) -> averageRank(rows, row, criteria))
+                        .thenComparingDouble(row -> row.compressSeconds() + row.decompressSeconds())
+                        .thenComparingLong(Row::compressedBytes))
+                .orElseThrow();
+
+        markdown.append("## Análise e recomendação\n\n")
+                .append("**Menor arquivo:** ").append(smallest.algorithm()).append(" (")
+                .append(formatBytes(smallest.compressedBytes())).append(" bytes, ")
+                .append(formatPt(smallest.reductionPercent(), 3)).append("% de redução).\n\n")
+                .append("**Compressão mais rápida:** ").append(fastestCompression.algorithm()).append(" (")
+                .append(formatPt(fastestCompression.compressSeconds(), 3)).append(" s).\n\n")
+                .append("**Descompressão mais rápida:** ").append(fastestDecompression.algorithm()).append(" (")
+                .append(formatPt(fastestDecompression.decompressSeconds(), 3)).append(" s).\n\n");
+        if (allCpuAvailable) {
+            Row leastCpu = bestRow(rows, row -> row.compressCpuMs() + row.decompressCpuMs());
+            markdown.append("**Menor CPU total:** ").append(leastCpu.algorithm()).append(" (")
+                    .append(formatPt(leastCpu.compressCpuMs() + leastCpu.decompressCpuMs(), 3)).append(" ms).\n\n");
+        } else {
+            markdown.append("**CPU total:** não disponível para todos os algoritmos; esse critério não entra na sugestão.\n\n");
+        }
+        if (memory != null) {
+            Row leastMemory = bestRow(rows, memory.metric());
+            markdown.append("**Menor pico de ").append(memory.name()).append(":** ")
+                    .append(leastMemory.algorithm()).append(" (")
+                    .append(formatPt(memory.metric().value(leastMemory) / BYTES_PER_MIB, 2)).append(" MiB).\n\n");
+        } else {
+            markdown.append("**Pico de memória:** não disponível para todos os algoritmos; esse critério não entra na sugestão.\n\n");
+        }
+
+        markdown.append("### Pontuação balanceada\n\n")
+                .append("Cada critério disponível recebe o mesmo peso. A posição 1 é a melhor; a sugestão é o algoritmo ")
+                .append("com a menor média de posições. Para memória, usei ")
+                .append(memory == null ? "nenhuma métrica comum disponível" : memory.name())
+                .append("; CPU só entra quando há dados para todos os algoritmos.\n\n")
+                .append("| Algoritmo");
+        for (Criterion criterion : criteria) markdown.append(" | ").append(criterion.name());
+        markdown.append(" | Média de posições |\n|---");
+        for (int i = 0; i < criteria.size() + 1; i++) markdown.append("|---:");
+        markdown.append("|\n");
+        for (Row row : rows) {
+            markdown.append("| ").append(row.algorithm());
+            for (Criterion criterion : criteria) {
+                markdown.append(" | ").append(formatPt(rank(rows, row, criterion.metric()), 1));
+            }
+            markdown.append(" | ").append(formatPt(averageRank(rows, row, criteria), 2)).append(" |\n");
+        }
+        markdown.append("\n**Sugestão para esta execução: ").append(recommendation.algorithm()).append(".** ")
+                .append("Ela reflete o equilíbrio entre os critérios disponíveis, não uma escolha universal. ")
+                .append("Se a prioridade for exclusivamente reduzir o arquivo, acelerar a compressão ou economizar ")
+                .append("memória, escolha pelo indicador correspondente acima. Resultados podem mudar com a máquina, ")
+                .append("o conteúdo e o buffer.\n");
+    }
+
+    private static MemoryCriterion memoryCriterion(List<Row> rows) {
+        if (rows.stream().allMatch(row -> row.compressPrivateResidentPeakBytes() > 0
+                && row.decompressPrivateResidentPeakBytes() > 0)) {
+            return new MemoryCriterion("memória residente privada", row -> Math.max(
+                    row.compressPrivateResidentPeakBytes(), row.decompressPrivateResidentPeakBytes()));
+        }
+        if (rows.stream().allMatch(row -> row.compressRssPeakBytes() > 0
+                && row.decompressRssPeakBytes() > 0)) {
+            return new MemoryCriterion("RSS", row -> Math.max(
+                    row.compressRssPeakBytes(), row.decompressRssPeakBytes()));
+        }
+        if (rows.stream().allMatch(row -> row.compressHeapPeakBytes() > 0
+                && row.decompressHeapPeakBytes() > 0)) {
+            return new MemoryCriterion("heap", row -> Math.max(
+                    row.compressHeapPeakBytes(), row.decompressHeapPeakBytes()));
+        }
+        return null;
+    }
+
+    private static Row bestRow(List<Row> rows, Metric metric) {
+        return rows.stream().min(Comparator.comparingDouble(metric::value)).orElseThrow();
+    }
+
+    private static double averageRank(List<Row> rows, Row target, List<Criterion> criteria) {
+        return criteria.stream().mapToDouble(criterion -> rank(rows, target, criterion.metric()))
+                .average().orElse(Double.NaN);
+    }
+
+    private static double rank(List<Row> rows, Row target, Metric metric) {
+        double targetValue = metric.value(target);
+        long less = rows.stream().filter(row -> metric.value(row) < targetValue).count();
+        long equal = rows.stream().filter(row -> metric.value(row) == targetValue).count();
+        return 1 + less + (equal - 1) / 2d;
     }
 
     private static Map<String, Integer> columns(String[] header) {
@@ -354,6 +462,10 @@ final class ComparisonReport {
     private interface Metric {
         double value(Row row);
     }
+
+    private record Criterion(String name, Metric metric) { }
+
+    private record MemoryCriterion(String name, Metric metric) { }
 
     private record Row(String measuredAt, String algorithm, String settingName, int setting,
                        int bufferKiB, long originalBytes, long compressedBytes, double reductionPercent,
