@@ -2,6 +2,7 @@ package br.com.brunobs.compression;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 
 final class CompressionCommands {
     private CompressionCommands() { }
@@ -47,6 +48,29 @@ final class CompressionCommands {
         if (options.analysisCsv() != null) {
             System.out.printf("Análise adicionada a: %s%n", options.analysisCsv());
         }
+    }
+
+    static void compare(ApplicationOptions.Compare options) throws IOException {
+        Path temporaryDirectory = Files.createTempDirectory("compression-compare-");
+        try {
+            for (CompressionAlgorithm algorithm : CompressionAlgorithm.values()) {
+                Path compressed = temporaryDirectory.resolve("dataset-" + algorithm.commandName() + ".compressed");
+                Path restored = temporaryDirectory.resolve("dataset-" + algorithm.commandName() + ".restored.json");
+                var run = new ApplicationOptions.RoundTrip(
+                        algorithm, algorithm.defaultSetting(), options.bufferSize(),
+                        options.input(), compressed, restored, options.analysisCsv());
+                roundTrip(run);
+            }
+        } finally {
+            for (CompressionAlgorithm algorithm : CompressionAlgorithm.values()) {
+                Files.deleteIfExists(temporaryDirectory.resolve(
+                        "dataset-" + algorithm.commandName() + ".compressed"));
+                Files.deleteIfExists(temporaryDirectory.resolve(
+                        "dataset-" + algorithm.commandName() + ".restored.json"));
+            }
+            Files.deleteIfExists(temporaryDirectory);
+        }
+        System.out.printf("Comparação dos quatro algoritmos concluída: %s%n", options.analysisCsv());
     }
 
     private static double percentageReduced(long originalBytes, long compressedBytes) {
