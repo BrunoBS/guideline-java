@@ -1,15 +1,21 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.application;
+
+import br.com.brunobs.compression.benchmark.ComparisonReport;
+import br.com.brunobs.compression.benchmark.CompressionAnalysis;
+import br.com.brunobs.compression.benchmark.ResourceMonitor;
+import br.com.brunobs.compression.dataset.JsonDatasetGenerator;
+import br.com.brunobs.compression.engine.CompressionAlgorithm;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-final class CompressionCommands {
+public final class CompressionCommands {
     private static final double BYTES_PER_MIB = 1024d * 1024d;
 
     private CompressionCommands() { }
 
-    static void generate(ApplicationOptions.Generate options) throws IOException {
+    public static void generate(ApplicationOptions.Generate options) throws IOException {
         long bytes = options.seed() == null
                 ? JsonDatasetGenerator.generate(options.template(), options.sizeMiB(),
                         options.output(), options.profile())
@@ -19,7 +25,7 @@ final class CompressionCommands {
                 options.output(), bytes, options.sizeMiB());
     }
 
-    static void compress(ApplicationOptions.Compress options) throws IOException {
+    public static void compress(ApplicationOptions.Compress options) throws IOException {
         var measured = ResourceMonitor.measure(() -> options.algorithm().engine().compress(
                 Files.newInputStream(options.input()), Files.newOutputStream(options.output()),
                 options.setting(), options.bufferSize()));
@@ -30,7 +36,7 @@ final class CompressionCommands {
         printResourceUsage("compressão", measured);
     }
 
-    static void decompress(ApplicationOptions.Decompress options) throws IOException {
+    public static void decompress(ApplicationOptions.Decompress options) throws IOException {
         var measured = ResourceMonitor.measure(() -> options.algorithm().engine().decompress(
                 Files.newInputStream(options.input()), Files.newOutputStream(options.output()),
                 options.bufferSize()));
@@ -41,8 +47,9 @@ final class CompressionCommands {
         printResourceUsage("descompressão", measured);
     }
 
-    static void roundTrip(ApplicationOptions.RoundTrip options) throws IOException {
-        var result = CompressionAnalysis.run(options);
+    public static void roundTrip(ApplicationOptions.RoundTrip options) throws IOException {
+        var result = CompressionAnalysis.run(options.algorithm(), options.setting(), options.bufferSize(),
+                options.input(), options.compressed(), options.restored(), options.analysisCsv());
         var compression = result.compression();
         var decompression = result.decompression();
         System.out.printf("%s: original %d bytes; compactado %d bytes; redução %.3f%%; "
@@ -58,7 +65,7 @@ final class CompressionCommands {
         }
     }
 
-    static void compare(ApplicationOptions.Compare options) throws IOException {
+    public static void compare(ApplicationOptions.Compare options) throws IOException {
         Files.createDirectories(options.outputDirectory());
         Files.deleteIfExists(options.analysisCsv());
 

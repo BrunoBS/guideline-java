@@ -1,4 +1,7 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.cli;
+
+import br.com.brunobs.compression.application.ApplicationOptions;
+import br.com.brunobs.compression.application.CompressionCommands;
 
 public final class Main {
     private Main() { }

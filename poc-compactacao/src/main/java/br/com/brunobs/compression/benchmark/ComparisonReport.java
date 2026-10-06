@@ -1,4 +1,4 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.benchmark;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -15,13 +15,13 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /** Rebuilds the Markdown comparison report from the CSV produced by compare. */
-final class ComparisonReport {
+public final class ComparisonReport {
     private static final double BYTES_PER_MIB = 1024d * 1024d;
     private static final double BYTES_PER_MB = 1_000_000d;
 
     private ComparisonReport() { }
 
-    static void generate(Path csvPath, Path reportPath) throws IOException {
+    public static void generate(Path csvPath, Path reportPath) throws IOException {
         List<String> lines = Files.readAllLines(csvPath, StandardCharsets.UTF_8);
         if (lines.size() < 2) {
             throw new IOException("O CSV da comparação não contém resultados: " + csvPath);

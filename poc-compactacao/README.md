@@ -59,3 +59,14 @@ O CSV registra data/hora, algoritmo e configuração, tamanhos, redução, tempo
 - Heap JVM, RSS do processo e memória residente privada, cada um com valor antes, pico amostrado e depois da etapa. O amostrador lê as métricas a cada 20 ms; picos mais curtos podem passar despercebidos. O RSS inclui páginas compartilhadas; a memória residente privada exclui essas páginas e se aproxima do valor atribuído ao processo pelo sistema operacional. RSS e memória privada dependem do suporte da plataforma; quando indisponíveis, os campos correspondentes ficam vazios e o relatório omite o gráfico.
 
 A medição inclui leitura e escrita dos arquivos. Para `roundtrip --analysis`, use um CSV novo ou remova o anterior se ele tiver sido gerado pela versão antiga, pois o cabeçalho agora inclui as métricas por etapa. Os resultados dependem da máquina, JVM, armazenamento e conteúdo. Cada chamada executa uma rodada por algoritmo, sem treino de dicionário ou matriz de níveis.
+
+
+## Organização do código
+
+- `cli`: entrada do programa e interpretação dos argumentos.
+- `application`: execução dos comandos e orquestração do roundtrip/comparação.
+- `engine`: contrato comum, seleção do algoritmo e implementações Zstd, GZIP, Brotli e XZ.
+- `benchmark`: captura de recursos, gravação das métricas e geração do relatório.
+- `dataset`: geração de datasets JSON a partir de modelos.
+
+A classe principal agora é `br.com.brunobs.compression.cli.Main`, configurada no Maven.

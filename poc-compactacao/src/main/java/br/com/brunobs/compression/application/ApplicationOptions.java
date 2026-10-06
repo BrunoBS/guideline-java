@@ -1,27 +1,30 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.application;
+
+import br.com.brunobs.compression.dataset.JsonDatasetGenerator;
+import br.com.brunobs.compression.engine.CompressionAlgorithm;
 
 import java.nio.file.Path;
 import java.util.Locale;
 
 /** Converts CLI tokens into validated command options. */
-final class ApplicationOptions {
+public final class ApplicationOptions {
     private ApplicationOptions() { }
 
-    record Generate(String template, Path output, JsonDatasetGenerator.Profile profile,
+    public record Generate(String template, Path output, JsonDatasetGenerator.Profile profile,
                     long sizeMiB, Long seed) { }
 
-    record Compress(CompressionAlgorithm algorithm, int setting, int bufferSize,
+    public record Compress(CompressionAlgorithm algorithm, int setting, int bufferSize,
                     Path input, Path output) { }
 
-    record Decompress(CompressionAlgorithm algorithm, int bufferSize,
+    public record Decompress(CompressionAlgorithm algorithm, int bufferSize,
                       Path input, Path output) { }
 
-    record RoundTrip(CompressionAlgorithm algorithm, int setting, int bufferSize,
+    public record RoundTrip(CompressionAlgorithm algorithm, int setting, int bufferSize,
                      Path input, Path compressed, Path restored, Path analysisCsv) { }
 
-    record Compare(Path input, Path outputDirectory, Path analysisCsv, int bufferSize) { }
+    public record Compare(Path input, Path outputDirectory, Path analysisCsv, int bufferSize) { }
 
-    static Generate generate(String[] args) {
+    public static Generate generate(String[] args) {
         requireLength(args, 5, 6,
                 "generate <modelo-JSON> <dataset.json> <repetitive|realistic> <tamanho-MiB> [seed]");
         var profile = JsonDatasetGenerator.Profile.valueOf(args[3].toUpperCase(Locale.ROOT));
@@ -29,7 +32,7 @@ final class ApplicationOptions {
         return new Generate(args[1], Path.of(args[2]), profile, Long.parseLong(args[4]), seed);
     }
 
-    static Compress compress(String[] args) {
+    public static Compress compress(String[] args) {
         if (args.length == 5) {
             return compress(CompressionAlgorithm.ZSTD, args[1], args[2], args[3], args[4]);
         }
@@ -40,7 +43,7 @@ final class ApplicationOptions {
                 "Uso: compress <algoritmo> <nível/qualidade/preset> <buffer-KiB> <entrada> <saída>");
     }
 
-    static Decompress decompress(String[] args) {
+    public static Decompress decompress(String[] args) {
         if (args.length == 4) {
             return decompress(CompressionAlgorithm.ZSTD, args[1], args[2], args[3]);
         }
@@ -51,7 +54,7 @@ final class ApplicationOptions {
                 "Uso: decompress <algoritmo> <buffer-KiB> <entrada-comprimida> <saída-json>");
     }
 
-    static RoundTrip roundTrip(String[] args) {
+    public static RoundTrip roundTrip(String[] args) {
         if (args.length != 7 && args.length != 9) {
             throw new IllegalArgumentException(
                     "Uso: roundtrip <algoritmo> <nível/qualidade/preset> <buffer-KiB> "
@@ -68,7 +71,7 @@ final class ApplicationOptions {
                 bufferSize(args[3]), Path.of(args[4]), Path.of(args[5]), Path.of(args[6]), analysisCsv);
     }
 
-    static Compare compare(String[] args) {
+    public static Compare compare(String[] args) {
         requireLength(args, 2, 3, "compare <entrada.json> [buffer-KiB]");
         int bufferSize = bufferSize(args.length == 3 ? args[2] : "128");
         Path outputDirectory = Path.of("comparacao-algoritmos");

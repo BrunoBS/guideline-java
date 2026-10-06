@@ -1,4 +1,4 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.dataset;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;

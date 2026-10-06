@@ -1,4 +1,4 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.benchmark;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -14,7 +14,7 @@ import oshi.software.os.OperatingSystem;
  * Captures process CPU time and sampled JVM/process memory around one operation.
  * Memory peaks are sampled and can miss short-lived peaks.
  */
-final class ResourceMonitor {
+public final class ResourceMonitor {
     private static final long MEMORY_SAMPLE_INTERVAL_NANOS = 20_000_000L;
     private static final Runtime RUNTIME = Runtime.getRuntime();
     private static final com.sun.management.OperatingSystemMXBean CPU_BEAN =
@@ -25,7 +25,7 @@ final class ResourceMonitor {
 
     private ResourceMonitor() { }
 
-    static <T> Measurement<T> measure(Operation<T> operation) throws IOException {
+    public static <T> Measurement<T> measure(Operation<T> operation) throws IOException {
         MemorySampler sampler = new MemorySampler();
         sampler.start();
 
@@ -77,16 +77,16 @@ final class ResourceMonitor {
     }
 
     @FunctionalInterface
-    interface Operation<T> {
+    public interface Operation<T> {
         T run() throws IOException;
     }
 
-    record Measurement<T>(T value, long elapsedNanos, long processCpuNanos,
+    public record Measurement<T>(T value, long elapsedNanos, long processCpuNanos,
                           long heapBeforeBytes, long heapPeakBytes, long heapAfterBytes,
                           long rssBeforeBytes, long rssPeakBytes, long rssAfterBytes,
                           long privateResidentBeforeBytes, long privateResidentPeakBytes,
                           long privateResidentAfterBytes) {
-        double processCpuPercentOfOneCore() {
+        public double processCpuPercentOfOneCore() {
             if (processCpuNanos < 0 || elapsedNanos <= 0) return -1;
             return 100d * processCpuNanos / elapsedNanos;
         }

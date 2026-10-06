@@ -1,4 +1,4 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.engine;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;

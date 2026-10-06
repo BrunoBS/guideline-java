@@ -1,4 +1,7 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.benchmark;
+
+import br.com.brunobs.compression.engine.CompressionAlgorithm;
+import br.com.brunobs.compression.engine.CompressionEngine;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -13,7 +16,7 @@ import java.util.List;
 import java.nio.file.StandardOpenOption;
 
 /** Executes one streaming compress/decompress round-trip and optionally appends its metrics to CSV. */
-final class CompressionAnalysis {
+public final class CompressionAnalysis {
     private static final long BYTES_PER_MIB = 1024L * 1024L;
     private static final String CSV_HEADER =
             "measured_at,algorithm,setting_name,setting_value,buffer_kib,original_bytes,compressed_bytes,"
@@ -32,37 +35,39 @@ final class CompressionAnalysis {
 
     private CompressionAnalysis() { }
 
-    static Result run(ApplicationOptions.RoundTrip options) throws IOException {
+    public static Result run(CompressionAlgorithm algorithm, int setting, int bufferSize,
+                             Path input, Path compressedPath, Path restoredPath, Path analysisCsv)
+            throws IOException {
         long heapBefore = usedHeap();
 
         var compressionResources = ResourceMonitor.measure(() ->
-                options.algorithm().engine().compress(
-                        Files.newInputStream(options.input()), Files.newOutputStream(options.compressed()),
-                        options.setting(), options.bufferSize()));
+                algorithm.engine().compress(
+                        Files.newInputStream(input), Files.newOutputStream(compressedPath),
+                        setting, bufferSize));
         var compression = compressionResources.value();
 
         var decompressionResources = ResourceMonitor.measure(() ->
-                options.algorithm().engine().decompress(
-                        Files.newInputStream(options.compressed()), Files.newOutputStream(options.restored()),
-                        options.bufferSize()));
+                algorithm.engine().decompress(
+                        Files.newInputStream(compressedPath), Files.newOutputStream(restoredPath),
+                        bufferSize));
         var decompression = decompressionResources.value();
         long heapAfter = usedHeap();
 
-        boolean hashMatches = sha256(options.input()).equals(sha256(options.restored()));
+        boolean hashMatches = sha256(input).equals(sha256(restoredPath));
         if (!hashMatches) {
             throw new IOException("SHA-256 diferente após descompressão; roundtrip interrompido.");
         }
 
         Result result = new Result(compression, decompression, hashMatches,
                 heapBefore, heapAfter, compressionResources, decompressionResources);
-        if (options.analysisCsv() != null) {
-            appendCsv(options, result);
+        if (analysisCsv != null) {
+            appendCsv(algorithm, setting, bufferSize, analysisCsv, result);
         }
         return result;
     }
 
-    private static void appendCsv(ApplicationOptions.RoundTrip options, Result result) throws IOException {
-        Path csvPath = options.analysisCsv();
+    private static void appendCsv(CompressionAlgorithm algorithm, int setting, int bufferSize,
+                                  Path csvPath, Result result) throws IOException {
         boolean writeHeader = !Files.exists(csvPath) || Files.size(csvPath) == 0;
         if (!writeHeader) {
             try (var existing = Files.newBufferedReader(csvPath, StandardCharsets.UTF_8)) {
@@ -86,10 +91,10 @@ final class CompressionAnalysis {
 
             List<String> fields = List.of(
                     Instant.now().toString(),
-                    options.algorithm().commandName(),
-                    options.algorithm().settingName(),
-                    Integer.toString(options.setting()),
-                    Integer.toString(options.bufferSize() / 1024),
+                    algorithm.commandName(),
+                    algorithm.settingName(),
+                    Integer.toString(setting),
+                    Integer.toString(bufferSize / 1024),
                     Long.toString(compression.originalBytes()),
                     Long.toString(compression.compressedBytes()),
                     format(reduction, 3),
@@ -176,7 +181,7 @@ final class CompressionAnalysis {
         }
     }
 
-    record Result(CompressionEngine.CompressionResult compression,
+    public record Result(CompressionEngine.CompressionResult compression,
                   CompressionEngine.DecompressionResult decompression,
                   boolean sha256Match, long heapBefore, long heapAfter,
                   ResourceMonitor.Measurement<CompressionEngine.CompressionResult> compressionResources,

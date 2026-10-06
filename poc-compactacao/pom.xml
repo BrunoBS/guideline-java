@@ -62,7 +62,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
-                    <mainClass>br.com.brunobs.compression.Main</mainClass>
+                    <mainClass>br.com.brunobs.compression.cli.Main</mainClass>
                 </configuration>
             </plugin>
         </plugins>

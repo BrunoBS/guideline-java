@@ -1,4 +1,4 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.engine;
 
 import com.aayushatharva.brotli4j.Brotli4jLoader;
 import com.aayushatharva.brotli4j.decoder.BrotliInputStream;

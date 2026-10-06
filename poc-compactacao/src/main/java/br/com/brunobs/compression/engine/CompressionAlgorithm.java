@@ -1,4 +1,4 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.engine;
 
 public enum CompressionAlgorithm {
     ZSTD("zstd", "level", 1, new ZstdCompressionEngine()),

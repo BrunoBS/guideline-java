@@ -1,8 +1,7 @@
-package br.com.brunobs.compression;
+package br.com.brunobs.compression.engine;
 
-import org.tukaani.xz.LZMA2Options;
-import org.tukaani.xz.XZInputStream;
-import org.tukaani.xz.XZOutputStream;
+import com.github.luben.zstd.ZstdInputStream;
+import com.github.luben.zstd.ZstdOutputStream;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -13,25 +12,18 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
 
-/** XZ container with LZMA2 compression; preset maps to levels 0 through 9. */
-public final class XzCompressionEngine implements CompressionEngine {
+public final class ZstdCompressionEngine implements CompressionEngine {
     private static final int COPY_BUFFER_SIZE = 16 * 1024;
-    private static final int DECODER_MEMORY_LIMIT_KIB = 128 * 1024;
 
     @Override
     public CompressionResult compress(InputStream source, OutputStream destination, int level, int bufferSize)
             throws IOException {
         validate(source, destination, bufferSize);
-        if (level < LZMA2Options.PRESET_MIN || level > LZMA2Options.PRESET_MAX) {
-            throw new IllegalArgumentException("O preset XZ/LZMA2 deve estar entre 0 e 9.");
-        }
-
-        LZMA2Options options = new LZMA2Options(level);
         CountingInputStream countedSource = new CountingInputStream(new BufferedInputStream(source, bufferSize));
         CountingOutputStream countedDestination = new CountingOutputStream(
                 new BufferedOutputStream(destination, bufferSize));
         long started = System.nanoTime();
-        try (countedSource; XZOutputStream compressed = new XZOutputStream(countedDestination, options)) {
+        try (countedSource; ZstdOutputStream compressed = new ZstdOutputStream(countedDestination, level)) {
             countedSource.transferTo(compressed);
         }
         return new CompressionResult(countedSource.count, countedDestination.count, System.nanoTime() - started);
@@ -45,35 +37,42 @@ public final class XzCompressionEngine implements CompressionEngine {
         CountingOutputStream countedDestination = new CountingOutputStream(
                 new BufferedOutputStream(destination, bufferSize));
         long started = System.nanoTime();
-        try (XZInputStream decompressed = new XZInputStream(countedSource, DECODER_MEMORY_LIMIT_KIB);
+        try (ZstdInputStream decompressed = new ZstdInputStream(countedSource);
              OutputStream output = countedDestination) {
-            copy(decompressed, output);
+            byte[] buffer = new byte[COPY_BUFFER_SIZE];
+            int read;
+            while ((read = decompressed.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
         }
         return new DecompressionResult(countedSource.count, countedDestination.count,
                 System.nanoTime() - started);
     }
 
-    private static void copy(InputStream input, OutputStream output) throws IOException {
-        byte[] buffer = new byte[COPY_BUFFER_SIZE];
-        int read;
-        while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
-    }
-
     private static void validate(InputStream source, OutputStream destination, int bufferSize) {
         Objects.requireNonNull(source, "source");
         Objects.requireNonNull(destination, "destination");
-        if (bufferSize < 1) throw new IllegalArgumentException("bufferSize deve ser maior que zero.");
+        if (bufferSize < 1) {
+            throw new IllegalArgumentException("bufferSize deve ser maior que zero.");
+        }
     }
 
     private static final class CountingInputStream extends FilterInputStream {
         private long count;
-        private CountingInputStream(InputStream input) { super(input); }
-        @Override public int read() throws IOException {
+
+        private CountingInputStream(InputStream input) {
+            super(input);
+        }
+
+        @Override
+        public int read() throws IOException {
             int value = super.read();
             if (value != -1) count++;
             return value;
         }
-        @Override public int read(byte[] bytes, int offset, int length) throws IOException {
+
+        @Override
+        public int read(byte[] bytes, int offset, int length) throws IOException {
             int read = super.read(bytes, offset, length);
             if (read > 0) count += read;
             return read;
@@ -82,12 +81,19 @@ public final class XzCompressionEngine implements CompressionEngine {
 
     private static final class CountingOutputStream extends FilterOutputStream {
         private long count;
-        private CountingOutputStream(OutputStream output) { super(output); }
-        @Override public void write(int value) throws IOException {
+
+        private CountingOutputStream(OutputStream output) {
+            super(output);
+        }
+
+        @Override
+        public void write(int value) throws IOException {
             out.write(value);
             count++;
         }
-        @Override public void write(byte[] bytes, int offset, int length) throws IOException {
+
+        @Override
+        public void write(byte[] bytes, int offset, int length) throws IOException {
             out.write(bytes, offset, length);
             count += length;
         }
