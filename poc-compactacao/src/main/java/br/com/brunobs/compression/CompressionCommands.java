@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 
 final class CompressionCommands {
-    private static final long BYTES_PER_MIB = 1024L * 1024L;
-
     private CompressionCommands() { }
 
     static void generate(ApplicationOptions.Generate options) throws IOException {
