@@ -9,8 +9,8 @@ Rode os comandos a partir do diretório `poc-compactacao`:
 ```bash
 mvn -q clean package
 
-# Gera uma entrada JSON de 200 MiB
-mvn -q exec:java -Dexec.args="generate '{\"application\":\"app-a\",\"key\":\"feature.enabled\",\"value\":\"true\"}' dataset-realista.json realistic 200"
+# Gera um dataset JSON de 200 MiB com um modelo aninhado
+mvn -q exec:java -Dexec.args="generate '{\"id\":42,\"metadata\":{\"enabled\":true,\"region\":\"sa-east-1\"},\"labels\":[\"blue\",\"green\"]}' dataset-realista.json realistic 200"
 
 # Comprime e descomprime o mesmo arquivo com Zstd, GZIP, Brotli e XZ.
 # Acrescenta quatro linhas ao CSV; o buffer padrão é 128 KiB.
@@ -38,7 +38,7 @@ Sintaxe do comparador: `compare <entrada.json> [buffer-KiB]`. O buffer padrão �
 
 ## Geração do JSON
 
-O comando `generate` recebe `<modelo-JSON> <arquivo.json> <repetitive|realistic> <tamanho-MiB> [seed]`. O modelo deve ter `application`, `key` e `value`, todos strings. O perfil `repetitive` gera dados mais repetidos; `realistic` varia mais os registros. Informe uma seed para produzir outro conjunto reproduzível.
+O comando `generate` recebe `<modelo-JSON> <arquivo.json> <repetitive|realistic> <tamanho-MiB> [seed]`. O modelo pode ser qualquer valor JSON válido: objeto, array ou valor simples, com campos aninhados e tipos mistos. O gerador preserva a estrutura e os nomes dos campos e varia os valores de texto, números e booleanos. O perfil `repetitive` usa variações cíclicas para gerar mais repetição; `realistic` usa valores mais variados. Informe uma seed para reproduzir o mesmo conjunto.
 
 ## Algoritmos e configurações padrão
 
