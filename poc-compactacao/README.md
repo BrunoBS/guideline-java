@@ -56,6 +56,6 @@ Os valores dos parâmetros não são equivalentes entre algoritmos. Brotli4j usa
 O CSV registra data/hora, algoritmo e configuração, tamanhos, redução, tempos e throughput, validação SHA-256 e heap observado antes/depois do roundtrip. Também registra, separadamente para compressão e descompressão:
 
 - CPU total do processo em milissegundos e percentual médio de um núcleo. A CPU é medida pelo processo JVM durante cada etapa; pode incluir trabalho de GC e outras threads da JVM. O percentual pode passar de 100% quando várias threads usam CPU ao mesmo tempo. Se a plataforma não oferecer essa métrica, os campos ficam vazios.
-- Heap JVM antes, pico amostrado e depois da etapa. A amostragem ocorre a cada 5 ms e pode não detectar picos mais curtos. Ela não inclui memória nativa, como buffers alocados fora do heap, nem representa o RSS total do processo.
+- Heap JVM antes, pico amostrado e depois da etapa. A amostragem ocorre a cada 10 ms e pode não detectar picos mais curtos. Ela não inclui memória nativa, como buffers alocados fora do heap, nem representa o RSS total do processo.
 
-A medição inclui leitura e escrita dos arquivos. Os resultados dependem da máquina, JVM, armazenamento e conteúdo. Cada chamada executa uma rodada por algoritmo, sem treino de dicionário ou matriz de níveis.
+A medição inclui leitura e escrita dos arquivos. Para `roundtrip --analysis`, use um CSV novo ou remova o anterior se ele tiver sido gerado pela versão antiga, pois o cabeçalho agora inclui as métricas por etapa. Os resultados dependem da máquina, JVM, armazenamento e conteúdo. Cada chamada executa uma rodada por algoritmo, sem treino de dicionário ou matriz de níveis.
