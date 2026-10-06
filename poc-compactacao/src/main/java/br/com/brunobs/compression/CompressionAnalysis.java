@@ -57,6 +57,14 @@ final class CompressionAnalysis {
     private static void appendCsv(ApplicationOptions.RoundTrip options, Result result) throws IOException {
         Path csvPath = options.analysisCsv();
         boolean writeHeader = !Files.exists(csvPath) || Files.size(csvPath) == 0;
+        if (!writeHeader) {
+            try (var existing = Files.newBufferedReader(csvPath, StandardCharsets.UTF_8)) {
+                if (!CSV_HEADER.equals(existing.readLine())) {
+                    throw new IOException("O CSV existente usa outro formato. Informe um novo caminho "
+                            + "ou remova o arquivo antes de gravar novas métricas: " + csvPath);
+                }
+            }
+        }
         try (BufferedWriter csv = Files.newBufferedWriter(csvPath, StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
             if (writeHeader) {
