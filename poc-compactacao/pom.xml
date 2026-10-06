@@ -16,6 +16,7 @@
         <jackson-core.version>2.22.3</jackson-core.version>
         <brotli4j.version>1.23.0</brotli4j.version>
         <xz.version>1.12</xz.version>
+        <oshi.version>7.7.0</oshi.version>
     </properties>
 
     <dependencies>
@@ -33,6 +34,11 @@
             <groupId>org.tukaani</groupId>
             <artifactId>xz</artifactId>
             <version>${xz.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.oshi</groupId>
+            <artifactId>oshi-core</artifactId>
+            <version>${oshi.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
