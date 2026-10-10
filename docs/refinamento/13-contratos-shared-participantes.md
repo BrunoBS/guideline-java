@@ -7,7 +7,9 @@
 ## 1. Contexto e atores
 
 - **Proprietário do contrato (SHARED):** administra o contrato e decide sobre solicitações de participação.
-- **Participante / solicitante (aplicação de origem):** solicita acesso ao contrato e controla a própria participação.
+- **Aplicação publicadora (origem):** aplicação que fornece os dados ou configurações cobertos pelo compartilhamento.
+- **Aplicação participante (destino/consumidora):** aplicação que solicita acesso e controla o próprio vínculo de participação.
+- A identidade do proprietário do contrato (workspace ou aplicação) continua pendente de decisão técnica; os termos origem/destino descrevem o fluxo dos dados, não essa decisão.
 - **Contrato:** recurso de compartilhamento, com ciclo de vida próprio, independente do status dos participantes.
 - **Vínculo de participação:** associação entre uma aplicação solicitante e um contrato.
 
@@ -56,6 +58,19 @@ Exibir todos os vínculos existentes, inclusive `PENDING`, `APPROVED`, `REJECTED
 - A conversa considerou exclusão do contrato **inativo**. Regras para tornar o contrato inativo e outras pré-condições de exclusão devem ser confirmadas na especificação técnica.
 - A cascata se refere aos **vínculos operacionais**; não implica decisão sobre remoção de dados já publicados em destinos externos ou caches.
 
+## 5.1 Mapeamento de ambientes por participante
+
+A participação é aprovada no nível da aplicação. Como as aplicações podem ter ambientes diferentes, o vínculo aprovado também mantém mapeamentos explícitos entre ambientes da aplicação publicadora e ambientes da aplicação participante.
+
+- Cada mapeamento associa um ambiente de origem a um ambiente de destino existente.
+- A associação usa os identificadores dos ambientes, nunca apenas nomes ou aliases.
+- Os ambientes devem estar ativos e pertencer aos workspaces das aplicações correspondentes.
+- Se não houver mapeamento para um ambiente de origem, os dados desse ambiente não são publicados para aquele participante. Outros ambientes mapeados continuam funcionando.
+- Não criar ambiente automaticamente e não redirecionar conteúdo sem mapeamento para `DEFAULT`.
+- Um ambiente de origem pode apontar para no máximo um ambiente de destino por participante, e um destino não pode receber vários ambientes de origem. Essa regra evita mistura de configurações.
+- O ambiente global `DEFAULT` pode ser associado ao `DEFAULT` do destino quando ambos forem confirmados como a mesma capacidade global da plataforma; `DEFAULT` não é fallback para ambientes customizados.
+- Novos ambientes de origem criados depois da aprovação também exigem mapeamento antes de publicar dados.
+
 ## 6. Autorização e consistência
 
 - Somente o proprietário autorizado pode aprovar, rejeitar ou revogar.
@@ -92,6 +107,8 @@ Outros detalhes técnicos a especificar antes da implementação: permissões ex
 7. Proprietário pode filtrar participantes por nome, aplicação e status.
 8. Exclusão de contrato elegível remove os vínculos associados em cascata e registra auditoria.
 9. A implementação não define nem executa política de limpeza dos dados históricos/cache sem refinamento posterior.
+10. A aplicação participante pode mapear explicitamente os ambientes de origem para ambientes ativos já existentes no seu workspace.
+11. Dados de ambientes sem mapeamento não são publicados, não são redirecionados para `DEFAULT` e não impedem o funcionamento de outros mapeamentos.
 
 ---
 **Origem:** consolidação da discussão funcional de 10/10/2026. Este documento registra decisões e separa explicitamente os assuntos ainda pendentes.
