@@ -1,0 +1,87 @@
+# Especificação técnica preliminar — SHARED (complemento ao Refinamento 13)
+
+**Data:** 2026-10-10  
+**Status:** DRAFT — não autoriza implementação integral antes da verificação dos pontos abertos.  
+**Referência funcional:** [13 — Contratos SHARED e participantes](13-contratos-shared-participantes.md).
+
+## 1. Levantamento confirmado
+
+O repositório `BrunoBS/account-service` declara no README que hospeda historicamente o serviço `workspace-service`, com pacote `br.com.portalmanager.platform.workspace`. O POM da branch padrão confirma `platform-parent:1.0.0`, BOM de libraries, Spring Data JPA, Flyway/MySQL, `platform-audit` e `platform-testing`. O README descreve macrozonas `foundation`, `core`, `feature` e `entrypoint/web`, com validação em `usecase/validation`, Requests/Responses na Web e Input/Output nos Use Cases.
+
+**Limite do levantamento:** não foi possível enumerar a árvore completa nem inspecionar as implementações atuais de Application, Environment, Publisher, Facades e autorização. Não considerar nomes de classes, pacotes ou endpoints abaixo como existentes.
+
+## 2. Fronteiras propostas, sujeitas à inspeção
+
+- **Contrato SHARED:** domínio dono das regras de contrato, seu proprietário, ciclo de vida e exclusão.
+- **Participação:** domínio dos vínculos entre contrato e aplicação solicitante, transições de status e consultas.
+- **Web:** requests/responses e adaptação HTTP, sem regras de negócio.
+- **Integrações:** consulta às aplicações/ambientes por contratos públicos existentes; evitar leitura direta de repositórios de outros módulos.
+- **Facades:** seguir convenção efetiva da branch alvo; não criar novos pacotes antes de verificar a estrutura atual.
+
+A escolha entre `core/shared` e `feature/shared`, ou uma composição distinta, depende da posição real do recurso no serviço e de suas dependências. Não duplicar Application, Environment nem autorização.
+
+## 3. Modelo lógico mínimo (não é migration pronta)
+
+**SharedContract**: identificador técnico; identificador público UUID; referência ao proprietário; lifecycle; metadados/configuração a definir.
+
+**SharedParticipant**: identificador técnico; identificador público UUID; referência ao contrato; referência à aplicação solicitante; status `PENDING | APPROVED | REJECTED | REVOKED`; timestamps de criação/alteração. Unicidade de vínculo vigente por (contrato, aplicação solicitante), com definição de escopo de ambiente pendente.
+
+Rejeição e revogação preservam o registro. Exclusão voluntária remove o registro operacional, mantendo trilha de auditoria. Exclusão de contrato elegível remove vínculos associados em cascata. Definir estratégia de auditoria transacional e ordenação antes da migration.
+
+## 4. Operações funcionais a implementar
+
+- Criar, consultar, atualizar, inativar e excluir contrato conforme lifecycle existente e regras ainda a confirmar.
+- Solicitar participação: criar `PENDING` sem duplicidade.
+- Aprovar `PENDING → APPROVED`; rejeitar `PENDING → REJECTED`.
+- Revogar `APPROVED → REVOKED`.
+- Reencaminhar `REJECTED/REVOKED → PENDING` **no mesmo vínculo**.
+- Excluir vínculo por iniciativa do solicitante, inclusive quando aprovado; impedir novos envios.
+- Listar participantes para proprietário: `PENDING` e `APPROVED`, filtros nome/aplicação/status.
+- Listar vínculos para solicitante: todos os estados existentes, incluindo rejeitados e revogados.
+
+## 5. Regras de autorização e consistência
+
+Proprietário autorizado decide sobre aprovação, rejeição e revogação; solicitante autorizado cria, reencaminha e encerra a própria participação. Novos envios exigem contrato habilitado e participação `APPROVED`. Reenvio não aprova automaticamente. Usar a infraestrutura Golden de autorização e mensagens já presente, após inspecionar suas assinaturas reais.
+
+Usar validação centralizada e proteção contra transições concorrentes; definir versionamento otimista ou atualização condicional conforme o padrão do repositório. Restrições de banco complementam validações, não as substituem.
+
+## 6. Endpoints — contrato conceitual, não rotas finais
+
+| Operação | Consumidor | Resultado |
+| --- | --- | --- |
+| Solicitar participação | Solicitante | PENDING |
+| Aprovar / rejeitar | Proprietário | APPROVED / REJECTED |
+| Revogar | Proprietário | REVOKED |
+| Reencaminhar | Solicitante | PENDING |
+| Excluir participação | Solicitante | vínculo removido |
+| Listar participantes | Proprietário | pendentes e aprovados |
+| Listar meus compartilhamentos | Solicitante | todos os estados persistidos |
+| Excluir contrato elegível | Proprietário | contrato e vínculos removidos |
+
+Nomes, métodos, códigos HTTP, paginação, contratos DTO e escopo de autorização dependem da inspeção da Web atual.
+
+## 7. Estratégia de implementação e testes
+
+**Onda A — descoberta:** inspecionar classes e migrations de Application, Environment, Publisher, autorização, facades, mensagens, auditoria e endpoints; identificar branch alvo e convenções vigentes.
+
+**Onda B — contratos:** fechar identidade do proprietário, escopo por ambiente, payload do contrato, pré-condições de lifecycle e APIs; revisar esta especificação.
+
+**Onda C — persistência e domínio:** migration, constraints, validações e transições com testes unitários e integração MySQL.
+
+**Onda D — Web e autorização:** controllers/facades conforme padrão existente, filtros, paginação, mensagens e testes de permissão.
+
+**Onda E — integração:** bloquear publicação não autorizada, validar revogação/encerramento, auditoria e exclusão em cascata; executar build, testes e pipeline na branch aprovada.
+
+Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e solicitante; controle de concorrência; autorização cruzada; cascata; auditoria; bloqueio de novos envios.
+
+## 8. Decisões pendentes
+
+1. Identidade do proprietário e escopo de contrato: workspace, aplicação, ambiente ou combinação.
+2. Conteúdo completo e semântica do contrato SHARED.
+3. Integração com publicação e origem dos dados; qual componente impõe o bloqueio.
+4. Convenções reais de facades, endpoints, autorização e migrations na branch de implementação.
+5. Contrato inativo: transições permitidas e pré-condições de exclusão.
+6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
+7. Motivos de rejeição/revogação, obrigatoriedade e visibilidade.
+
+**Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
