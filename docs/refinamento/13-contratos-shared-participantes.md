@@ -78,7 +78,7 @@ A solicitação é feita no nível da aplicação participante/publicadora e nã
 
 Cada vínculo de participação possui um modo de publicação, definido pelo proprietário do contrato no momento da aprovação e aplicado à participação inteira. Não há configuração independente por ambiente.
 
-- Ao aprovar uma solicitação `PENDING`, o proprietário informa o modo de publicação e configura os vínculos de ambiente que deseja habilitar. A aprovação pode deixar ambientes sem mapeamento, conforme a regra da seção anterior.
+- Enquanto a solicitação está `PENDING`, o modo ainda não precisa estar definido. Ao aprová-la, o proprietário informa o modo de publicação e configura os vínculos de ambiente que deseja habilitar; esses dados passam a compor a participação aprovada. A aprovação pode deixar ambientes sem mapeamento, conforme a regra da seção anterior.
 - Para rejeitar uma solicitação, o proprietário não precisa informar o modo nem configurar os mapeamentos.
 - **Automática:** quando a aplicação participante/publicadora publicar uma configuração, a publicação também deverá ser propagada aos destinos associados à participação, respeitando os mapeamentos aprovados/configurados.
 - **Manual:** a publicação da origem não é propagada automaticamente. O destino pode consultar as configurações da origem somente para leitura e escolher explicitamente quais deseja publicar em sua própria conta. A aplicação de origem continua responsável pelos dados; o destino não edita a configuração de origem.
