@@ -36,8 +36,7 @@ Os estados acima são o contrato funcional novo. Os códigos do enum de comparti
 | APPROVED | Revogar | REVOKED | Proprietário |
 | REJECTED | Reencaminhar | PENDING | Solicitante |
 | REVOKED | Reencaminhar | PENDING | Solicitante |
-| REJECTED ou REVOKED | Excluir participação | Vínculo removido | Solicitante |
-| APPROVED | Desistir / encerrar participação | Vínculo removido | Solicitante |
+| PENDING, APPROVED, REJECTED ou REVOKED | Sair / excluir a própria participação | Vínculo removido | Solicitante |
 
 O reencaminhamento **reutiliza o mesmo vínculo**, reinicia a análise e exige nova aprovação; não restabelece autorização automaticamente. A remoção voluntária é física no armazenamento operacional, com registro de auditoria. Se o solicitante desejar voltar depois da exclusão, inicia nova solicitação.
 
@@ -45,20 +44,20 @@ O reencaminhamento **reutiliza o mesmo vínculo**, reinicia a análise e exige n
 
 ### 4.1 Proprietário — participantes do contrato
 
-Exibir vínculos operacionais `PENDING` e `APPROVED`. Solicitações `REJECTED` e participações `REVOKED` deixam a lista operacional do proprietário, **sem exclusão física automática**: precisam continuar disponíveis para o solicitante. Quando reencaminhadas, reaparecem na fila de aprovação como `PENDING`.
+Para contratos ativos, exibir vínculos operacionais `PENDING` e `APPROVED`. Solicitações `REJECTED` e participações `REVOKED` deixam a lista operacional do proprietário, **sem exclusão física automática**: precisam continuar disponíveis para o solicitante. Contratos inativos continuam visíveis ao proprietário na gestão de contratos para reativação ou exclusão, mas suas participações ficam suspensas. Quando reencaminhadas, reaparecem na fila de aprovação como `PENDING`.
 
 Filtros definidos: **nome**, **aplicação** e **status**. A lista deve indicar, no mínimo, participante, aplicação e status.
 
 ### 4.2 Solicitante — Meus compartilhamentos / Meus contratos
 
-Exibir todos os vínculos existentes, inclusive `PENDING`, `APPROVED`, `REJECTED` e `REVOKED`. Para `REJECTED` e `REVOKED`, oferecer **Excluir** ou **Reencaminhar**. Para `APPROVED`, permitir encerramento voluntário com exclusão do vínculo. Após exclusão física, o vínculo deixa a listagem operacional; o evento permanece na auditoria.
+Para contratos ativos, exibir todos os vínculos existentes, inclusive `PENDING`, `APPROVED`, `REJECTED` e `REVOKED`. Para `REJECTED` e `REVOKED`, oferecer **Excluir** ou **Reencaminhar**; para qualquer estado, permitir que o participante saia e exclua seu vínculo. Contrato inativo deixa de aparecer para participantes novos e existentes e suas participações ficam indisponíveis. Após exclusão física, o vínculo deixa a listagem operacional; o evento permanece na auditoria. O solicitante pode sair em qualquer estado da participação, inclusive enquanto a solicitação está pendente.
 
 ## 5. Contrato e exclusão em cascata
 
-- Contrato inativo não deve autorizar novos compartilhamentos, novas solicitações ou aprovações enquanto estiver inativo.
-- Na exclusão do contrato, remover em cascata os vínculos de participantes associados, com auditoria e consistência transacional.
-- A conversa considerou exclusão do contrato **inativo**. Regras para tornar o contrato inativo e outras pré-condições de exclusão devem ser confirmadas na especificação técnica.
-- A cascata se refere aos **vínculos operacionais**; não implica decisão sobre remoção de dados já publicados em destinos externos ou caches.
+- A inativação torna o contrato indisponível para todos: ele deixa de aparecer na descoberta de contratos e as participações vinculadas deixam de estar disponíveis para participantes novos e existentes. Enquanto inativo, não admite novas solicitações, aprovação, reenvio nem publicação.
+- A inativação não é exclusão: mantém o contrato e seus vínculos persistidos para gestão do proprietário, mas suspende sua disponibilidade e elegibilidade enquanto estiver inativo. Se voltar a `ACTIVE`, os vínculos mantêm seus estados; somente participações `APPROVED` voltam a ser elegíveis, sujeitas aos mapeamentos válidos.
+- O contrato deve estar inativo para ser excluído. Ao excluir, remover fisicamente o contrato e todos os vínculos de participação associados em cascata, incluindo seus mapeamentos, com auditoria e consistência transacional.
+- A cascata remove os **vínculos operacionais**; não define a remoção de dados já publicados em destinos externos ou caches.
 
 ## 5.1 Mapeamento de ambientes no vínculo de participação
 
@@ -104,7 +103,9 @@ Depois da aprovação, o proprietário autorizado do contrato pode alterar o mod
 
 **Desistência:** BACKEND está APPROVED → BACKEND encerra voluntariamente → vínculo removido fisicamente, com auditoria. Uma futura participação requer nova solicitação.
 
-**Exclusão do contrato:** proprietário exclui contrato elegível → vínculos associados removidos em cascata e eventos auditados.
+**Inativação do contrato:** proprietário inativa → contrato e participações ficam indisponíveis para participantes novos e existentes; registros ficam preservados para gestão do proprietário.
+
+**Exclusão do contrato:** proprietário exclui contrato inativo → contrato, participações e mapeamentos removidos em cascata; eventos auditados.
 
 ## 8. Pendências deliberadas
 
@@ -114,19 +115,19 @@ Outros detalhes técnicos a especificar antes da implementação: permissões ex
 
 ## 9. Critérios de aceite funcionais
 
-1. Nova solicitação cria vínculo `PENDING` e aparece para análise do proprietário.
+1. Nova solicitação cria vínculo `PENDING` e aparece para análise do proprietário, desde que o contrato esteja ativo.
 2. Para aprovar `PENDING`, o proprietário informa o modo da participação e configura os mapeamentos desejados; a aprovação altera para `APPROVED`. Pode deixar ambientes sem mapeamento. Para rejeitar, não é necessário preencher modo nem mapeamentos.
 3. Rejeição altera para `REJECTED`, oculta da lista operacional do proprietário e preserva visibilidade para o solicitante.
 4. Revogação de vínculo aprovado altera para `REVOKED`, impede novos envios e preserva visibilidade para o solicitante.
 5. Reencaminhar vínculo rejeitado/revogado retorna **o mesmo vínculo** a `PENDING`, sem reativação automática.
-6. Solicitante pode excluir vínculo rejeitado/revogado ou encerrar vínculo aprovado; remoção física auditada.
+6. Solicitante pode sair e excluir fisicamente o próprio vínculo em qualquer estado (`PENDING`, `APPROVED`, `REJECTED` ou `REVOKED`); a remoção é auditada.
 7. Proprietário pode filtrar participantes por nome, aplicação e status.
-8. Exclusão de contrato elegível remove os vínculos associados em cascata e registra auditoria.
+8. Inativar contrato torna-o indisponível para todos os participantes, novos e existentes, sem apagar os vínculos persistidos. Excluir contrato inativo remove contrato, participações e mapeamentos em cascata, com auditoria.
 9. A implementação não define nem executa política de limpeza dos dados históricos/cache sem refinamento posterior.
 10. A solicitação de participação não informa ambientes; na aprovação, o responsável autorizado da aplicação receptora consulta os ambientes da origem e define explicitamente os destinos.
 11. Um ambiente de origem pode ser associado a zero, um ou vários ambientes de destino, desde que cada associação respeite igualdade de base; ambientes sem mapeamento podem permanecer assim sem impedir a aprovação e não são elegíveis para publicação.
 12. Ajustes de mapeamento após a aprovação podem ser feitos pelo responsável autorizado da aplicação receptora sem nova aprovação, e cada alteração é auditada.
-13. Não há fallback para `DEFAULT` nem criação automática de ambientes; exclusividade de um destino entre origens distintas permanece pendente de decisão.
+13. Não há fallback para `DEFAULT` nem criação automática de ambientes; um mesmo destino não pode ser associado a origens diferentes dentro da mesma participação.
 
 ---
 **Origem:** consolidação da discussão funcional de 10/10/2026. Este documento registra decisões e separa explicitamente os assuntos ainda pendentes.
