@@ -85,3 +85,29 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 7. Motivos de rejeição/revogação, obrigatoriedade e visibilidade.
 
 **Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
+
+## 9. Matriz de refinamento para implementação futura (sem implementação nesta fase)
+
+| Cenário | Estado inicial | Comando | Estado final | Visibilidade proprietário | Visibilidade solicitante |
+| --- | --- | --- | --- | --- | --- |
+| Nova solicitação | Sem vínculo | Solicitar | PENDING | Sim | Sim |
+| Aprovação | PENDING | Aprovar | APPROVED | Sim | Sim |
+| Rejeição | PENDING | Rejeitar | REJECTED | Não na lista operacional | Sim, excluir/reencaminhar |
+| Revogação | APPROVED | Revogar | REVOKED | Não na lista operacional | Sim, excluir/reencaminhar |
+| Novo envio | REJECTED/REVOKED | Reencaminhar | PENDING, mesmo vínculo | Sim | Sim |
+| Desistência | APPROVED | Excluir | Sem vínculo | Não | Não, salvo auditoria |
+| Desistência após recusa | REJECTED/REVOKED | Excluir | Sem vínculo | Não | Não, salvo auditoria |
+
+### 9.1 Casos negativos a especificar e testar
+
+- Aprovar vínculo que não esteja PENDING deve falhar sem alterar estado.
+- Revogar vínculo que não esteja APPROVED deve falhar sem alterar estado.
+- Reencaminhar vínculo PENDING/APPROVED deve falhar sem alterar estado.
+- Reenvio concorrente não deve criar outro vínculo.
+- Proprietário não pode decidir por contrato de terceiro; solicitante não pode encerrar participação alheia.
+- Contrato inativo impede novas solicitações/aprovações e novos envios; política de reencaminhamento durante inatividade precisa de decisão explícita.
+- Exclusão em cascata deve registrar as remoções para auditoria, sem prometer exclusão de dados já publicados.
+
+### 9.2 Critério para encerrar o refinamento
+
+A especificação só passa de DRAFT a pronta para desenvolvimento após: (a) confirmação dos pacotes reais e facades da branch-alvo; (b) identificação da identidade e do escopo de ambiente do contrato; (c) fechamento do payload do contrato; (d) definição de rotas e DTOs consistentes com a Web existente; (e) escolha do mecanismo de bloqueio de publicação; (f) aprovação explícita das decisões ainda abertas. A limpeza de cache e dados históricos permanece em refinamento separado.
