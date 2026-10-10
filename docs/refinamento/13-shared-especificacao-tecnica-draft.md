@@ -40,7 +40,7 @@ O encerramento voluntário de participação `APPROVED` também remove o víncul
 
 **SharedParticipant**: identificador técnico; identificador público UUID; referência ao contrato; referência à aplicação participante/publicadora, que envia os dados; status `PENDING | APPROVED | REJECTED | REVOKED`; timestamps de criação/alteração. A participação é por aplicação: unicidade por (contrato, aplicação participante), sem incluir ambiente.
 
-**SharedParticipantEnvironmentMapping**: identificador técnico; referência ao vínculo de participação; identificador do ambiente de origem da aplicação participante/publicadora; identificador do ambiente de destino da aplicação receptora; timestamps de criação/alteração. Unicidade por (participação, ambiente de origem) e por (participação, ambiente de destino), mantendo relação um-para-um para evitar mistura de configurações. Os ambientes são recursos dos workspaces das aplicações; não compartilhar seus identificadores por nome ou alias.
+**SharedParticipantEnvironmentMapping**: identificador técnico; referência ao vínculo de participação; identificador do ambiente de origem da aplicação participante/publicadora; identificador do ambiente de destino da aplicação receptora; timestamps de criação/alteração. A associação é uma linha por par (participação, ambiente de origem, ambiente de destino), permitindo que uma origem tenha vários destinos. Não definir unicidade exclusiva do destino enquanto não houver decisão sobre destinos compartilhados entre origens distintas. Os ambientes são recursos das aplicações; usar identificadores, nunca apenas nomes ou aliases.
 
 Rejeição e revogação preservam o registro. Exclusão voluntária remove o registro operacional, mantendo trilha de auditoria. Exclusão de contrato elegível remove vínculos associados em cascata. Cada evento de transição auditado registra status anterior e novo, autor e data/hora; o motivo informado é armazenado na tabela de auditoria e consultado pelo histórico, sem compor o status nem o catálogo. Definir estratégia de auditoria transacional e ordenação antes da migration.
 
@@ -54,14 +54,15 @@ Rejeição e revogação preservam o registro. Exclusão voluntária remove o re
 - Excluir vínculo por iniciativa do solicitante, inclusive quando aprovado; impedir novos envios.
 - Listar participantes para proprietário: `PENDING` e `APPROVED`, filtros nome/aplicação/status.
 - Listar vínculos para aplicação participante: todos os estados existentes, incluindo rejeitados e revogados.
-- Configurar, consultar e remover mapeamentos de ambientes por vínculo aprovado, sempre da aplicação participante/publicadora para a aplicação receptora, entre ambientes existentes.
+- Durante a análise da solicitação, o proprietário autorizado da aplicação receptora consulta os ambientes da aplicação participante e configura zero, um ou vários destinos explícitos para cada origem antes de aprovar. A aprovação pode deixar origens sem mapeamento.
+- Após a aprovação, o proprietário autorizado da aplicação receptora pode criar, alterar ou remover mapeamentos sem nova aprovação; cada mudança deve ser auditada.
 - Disponibilizar uma consulta/use case do Shared que permita à futura API de publicação verificar a elegibilidade por contrato, aplicação participante e ambiente. A falta de mapeamento torna inelegível somente aquele ambiente/participante; outros mapeamentos permanecem válidos. O envio dos dados e a ação operacional da API diante de inelegibilidade ficam fora desta etapa.
 
 ## 5. Regras de autorização e consistência
 
-A conta e a aplicação receptora são proprietárias do contrato; usuário autorizado por esse lado decide sobre aprovação, rejeição e revogação. A aplicação participante/publicadora cria, reencaminha e encerra o próprio vínculo. A configuração do mapeamento é feita por usuário autorizado da aplicação participante/publicadora. A futura consulta de elegibilidade deve exigir contrato habilitado, participação `APPROVED` e mapeamento válido do ambiente. Reenvio não aprova automaticamente. Usar a infraestrutura Golden de autorização e mensagens já presente, após inspecionar suas assinaturas reais.
+A conta e a aplicação receptora são proprietárias do contrato; usuário autorizado por esse lado decide sobre aprovação, rejeição e revogação. A aplicação participante/publicadora solicita, reencaminha e encerra o próprio vínculo. A configuração inicial e os ajustes posteriores do mapeamento são feitos por usuário autorizado da aplicação receptora, que administra o contrato. O ajuste pós-aprovação não exige nova aprovação, mas deve ser auditado. A futura consulta de elegibilidade deve exigir contrato habilitado, participação `APPROVED` e pelo menos um mapeamento válido para o ambiente de origem consultado. Reenvio não aprova automaticamente. Usar a infraestrutura Golden de autorização e mensagens já presente, após inspecionar suas assinaturas reais.
 
-Usar validação centralizada e proteção contra transições concorrentes; definir versionamento otimista ou atualização condicional conforme o padrão do repositório. Para mapeamento, validar que a origem pertence à aplicação participante/publicadora e o destino à aplicação receptora, que ambos estão ativos e que as unicidades são respeitadas. Não criar ambientes automaticamente, não inferir associação por nome e não usar `DEFAULT` como fallback. O `DEFAULT` pode ser associado ao `DEFAULT` somente se ambos forem confirmados como a mesma capacidade global. Restrições de banco complementam validações, não as substituem.
+Usar validação centralizada e proteção contra transições concorrentes; definir versionamento otimista ou atualização condicional conforme o padrão do repositório. Na análise da solicitação, carregar os ambientes da aplicação participante/publicadora e permitir que o proprietário da aplicação receptora escolha zero, um ou vários destinos por origem. Validar que origem e destino pertencem às aplicações corretas, que estão ativos e que a base de cada par é igual (ambiente padrão usa a própria base; customizado usa sua referência de base). Ambiente sem mapeamento não impede a aprovação, mas não é elegível para publicação. Não criar ambientes automaticamente, não inferir associação por nome e não usar `DEFAULT` como fallback. Cada vínculo é explícito; ajustes após aprovação não requerem nova aprovação e geram auditoria. Restrições de banco complementam validações, não as substituem. A unicidade de destino entre origens distintas continua pendente.
 
 ## 6. Endpoints — contrato conceitual, não rotas finais
 
@@ -74,7 +75,8 @@ Usar validação centralizada e proteção contra transições concorrentes; def
 | Excluir participação | Solicitante | vínculo removido |
 | Listar participantes | Proprietário | pendentes e aprovados |
 | Listar meus compartilhamentos | Aplicação participante | todos os estados persistidos |
-| Configurar mapeamento de ambientes | Aplicação participante | associa origem a destino existente |
+| Definir mapeamento durante aprovação | Proprietário da aplicação receptora | cada origem pode ter zero, um ou vários destinos de mesma base |
+| Ajustar mapeamento aprovado | Proprietário da aplicação receptora | alteração sem nova aprovação, com auditoria |
 | Consultar elegibilidade Shared | API futura de publicação | decisão de elegibilidade por contrato, participante e ambiente |
 | Consultar/remover mapeamento | Aplicação participante | mantém ou remove associação explícita |
 | Excluir contrato elegível | Proprietário | contrato e vínculos removidos |
@@ -93,7 +95,7 @@ Nomes, métodos, códigos HTTP, paginação, contratos DTO e escopo de autoriza�
 
 **Onda E — validação do Shared:** validar consulta de elegibilidade para estados do contrato/participação e mapeamento de ambiente, além de auditoria e exclusão em cascata. A integração dessa consulta ao fluxo de publicação do Publisher e a ação da API diante de inelegibilidade ficam para etapa futura. Executar build, testes e pipeline na branch aprovada.
 
-Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e participante; controle de concorrência; autorização cruzada; cascata; auditoria; validação de pertencimento e lifecycle dos ambientes; cardinalidade um-para-um; consulta de elegibilidade negativa para ambiente sem mapeamento e inexistência de fallback implícito; mapeamentos válidos dos demais ambientes permanecem elegíveis.
+Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e participante; controle de concorrência; autorização cruzada; cascata; auditoria; validação de pertencimento e lifecycle dos ambientes; cardinalidade um-para-muitos por ambiente de origem; validação de igualdade de base em cada par; aprovação com ambientes de origem sem mapeamento; consulta de elegibilidade negativa para ambiente sem mapeamento e inexistência de fallback implícito; alterações posteriores sem nova aprovação e com auditoria; mapeamentos válidos dos demais ambientes permanecem elegíveis.
 
 ## 8. Decisões pendentes
 
@@ -129,7 +131,7 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 - Contrato inativo impede novas solicitações/aprovações e novos envios; política de reencaminhamento durante inatividade precisa de decisão explícita.
 - Ambiente sem mapeamento não pode ser considerado elegível nem receber associação implícita a `DEFAULT`; a reação da API futura é fora do escopo atual.
 - Ambiente de origem ou destino inativo/inexistente invalida o mapeamento e bloqueia somente a entrega correspondente.
-- Não permitir que ambientes de origem distintos compartilhem o mesmo ambiente de destino do participante sem futura regra explícita de merge.
+- A unicidade de um destino entre ambientes de origem distintos não está decidida; não impor essa restrição até o fechamento funcional.
 - Exclusão em cascata deve registrar as remoções para auditoria, sem prometer exclusão de dados já publicados.
 
 ### 9.2 Critério para encerrar o refinamento
