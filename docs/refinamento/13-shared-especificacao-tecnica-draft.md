@@ -78,7 +78,7 @@ Usar validação centralizada e proteção contra transições concorrentes; def
 | Definir mapeamento durante aprovação | Proprietário da aplicação receptora | cada origem pode ter zero, um ou vários destinos de mesma base |
 | Ajustar mapeamento aprovado | Proprietário da aplicação receptora | alteração sem nova aprovação, com auditoria |
 | Consultar elegibilidade Shared | API futura de publicação | decisão de elegibilidade por contrato, participante e ambiente |
-| Consultar/remover mapeamento | Aplicação participante | mantém ou remove associação explícita |
+| Consultar/remover mapeamento | Proprietário autorizado da aplicação receptora | consulta ou remove associação explícita, com auditoria |
 | Excluir contrato elegível | Proprietário | contrato e vínculos removidos |
 
 Nomes, métodos, códigos HTTP, paginação, contratos DTO e escopo de autorização dependem da inspeção da Web atual.
