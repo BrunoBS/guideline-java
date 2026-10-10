@@ -62,18 +62,16 @@ Exibir todos os vínculos existentes, inclusive `PENDING`, `APPROVED`, `REJECTED
 
 ## 5.1 Mapeamento de ambientes por participante
 
-A solicitação da aplicação publicadora é criada no nível da aplicação e já inclui os mapeamentos de ambiente propostos. O proprietário da aplicação receptora analisa esses mapeamentos junto com o pedido e aprova ou rejeita o vínculo com essa configuração. Enquanto o pedido estiver `PENDING`, não há publicação.
+A participação da aplicação publicadora é aprovada no nível da aplicação. Como a publicadora e a receptora podem ter ambientes diferentes, o vínculo aprovado também mantém mapeamentos explícitos dos ambientes de origem da publicadora para os ambientes de destino da receptora.
 
-- Cada mapeamento associa explicitamente um ambiente de origem da aplicação participante/publicadora a um ambiente de destino existente da aplicação receptora. O pedido pode trazer vários mapeamentos, mas cada origem pode apontar para no máximo um destino e cada destino pode receber no máximo uma origem dentro da mesma participação.
+- Cada mapeamento associa um ambiente de origem a um ambiente de destino existente.
 - A associação usa os identificadores dos ambientes, nunca apenas nomes ou aliases.
 - Os ambientes devem estar ativos e pertencer às aplicações correspondentes: origem na aplicação participante/publicadora e destino na aplicação receptora.
-- A base do ambiente de origem deve ser igual à base do destino. Para ambiente padrão, considera-se o próprio tipo como base; para ambiente customizado, considera-se a referência de base configurada. Assim, `HOMOLOG` pode mapear para ambiente customizado baseado em `HOMOLOG`, mas não para `PROD`.
-- A origem `DEFAULT` pode ser associada explicitamente a um destino literal `DEFAULT` ou a um ambiente customizado baseado em `DEFAULT`. Isso não cria fallback nem associação automática.
 - Se não houver mapeamento para um ambiente de origem da aplicação participante/publicadora, esse ambiente não é elegível para publicação no contrato. A reação operacional da API de publicação será definida em refinamento posterior; os outros mapeamentos não são invalidados.
 - Não criar ambiente automaticamente e não redirecionar conteúdo sem mapeamento para `DEFAULT`.
-- A cardinalidade é um-para-um dentro de cada participação; ela evita tanto fan-out de uma origem para vários destinos quanto mistura de várias origens no mesmo destino.
-- A mesma origem pode ter outro mapeamento em outra participação; as unicidades são sempre limitadas ao vínculo de participação.
-- Novos ambientes de origem criados depois da aprovação exigem mapeamento compatível e aprovação do proprietário receptor antes de publicar. Alterações propostas não substituem o mapeamento aprovado até serem aprovadas.
+- Um ambiente de origem pode apontar para no máximo um ambiente de destino por participante, e um destino não pode receber vários ambientes de origem. Essa regra evita mistura de configurações.
+- O ambiente global `DEFAULT` pode ser associado ao `DEFAULT` do destino quando ambos forem confirmados como a mesma capacidade global da plataforma; `DEFAULT` não é fallback para ambientes customizados.
+- Novos ambientes de origem criados depois da aprovação também exigem mapeamento antes de publicar dados.
 
 ## 6. Autorização e consistência
 
@@ -81,7 +79,7 @@ A solicitação da aplicação publicadora é criada no nível da aplicação e 
 - Somente o solicitante autorizado pode reencaminhar ou excluir sua própria participação.
 - O reenvio de `REJECTED` ou `REVOKED` não deve criar vínculo duplicado.
 - Transições inválidas e decisões concorrentes devem ser recusadas de modo determinístico.
-- Toda transição relevante e exclusão física deve ser auditada. O evento registra o status anterior e o novo, autor e data/hora; o motivo informado fica na tabela de auditoria, disponível na consulta do histórico conforme as permissões de auditoria. Aprovação considera os mapeamentos incluídos no pedido; alterações posteriores exigem nova aprovação, mantendo o mapeamento vigente até a aprovação da alteração.
+- Toda transição relevante e exclusão física deve ser auditada. O evento registra o status anterior e o novo, autor e data/hora; o motivo informado fica na tabela de auditoria, disponível na consulta do histórico conforme as permissões de auditoria.
 - A relação do Shared deve permitir que uma futura API consulte a elegibilidade para publicação: participação `APPROVED`, contrato habilitado e mapeamento válido do ambiente. Rejeição, revogação, encerramento ou inativação tornam a relação inelegível. A transmissão dos dados e a ação da API diante de uma relação inelegível ficam fora desta etapa.
 
 ## 7. Fluxos de exemplo
@@ -111,7 +109,7 @@ Outros detalhes técnicos a especificar antes da implementação: permissões ex
 7. Proprietário pode filtrar participantes por nome, aplicação e status.
 8. Exclusão de contrato elegível remove os vínculos associados em cascata e registra auditoria.
 9. A implementação não define nem executa política de limpeza dos dados históricos/cache sem refinamento posterior.
-10. A solicitação de participação inclui os mapeamentos explícitos de ambientes ativos da aplicação participante/publicadora para ambientes ativos da aplicação receptora, respeitando compatibilidade de base e cardinalidade um-para-um.
+10. A aplicação participante/publicadora pode mapear explicitamente seus ambientes de origem para ambientes ativos já existentes na aplicação receptora.
 11. Ambientes de origem da aplicação participante/publicadora sem mapeamento não são elegíveis para publicação no contrato e não recebem associação implícita com `DEFAULT`; a reação da API de publicação será definida em refinamento posterior. A elegibilidade de outros mapeamentos não é afetada.
 
 ---
