@@ -21,6 +21,16 @@ O repositório `BrunoBS/account-service` declara no README que hospeda historica
 
 A escolha entre `core/shared` e `feature/shared`, ou uma composição distinta, depende da posição real do recurso no serviço e de suas dependências. Não duplicar Application, Environment nem autorização.
 
+
+## 2.1 Política de publicação por participação
+
+O modo é um atributo do vínculo `SharedParticipant`, não de cada mapeamento de ambiente. Há dois comportamentos conceituais:
+
+- **Automática:** uma publicação feita pela aplicação de origem deverá ser propagada aos destinos associados, conforme os mapeamentos.
+- **Manual:** não há propagação automática; a aplicação receptora pode consultar configurações da origem em modo somente leitura e escolher quais publicar na própria conta.
+
+O Shared define e expõe essa política. A execução de publicação, a integração com o Publisher, a consulta/seleção manual e os endpoints correspondentes permanecem fora desta etapa.
+
 ## 3. Modelo lógico mínimo (não é migration pronta)
 
 **Catálogo de status existente:** reutilizar a infraestrutura `ShareStatusType` (`type_sharing_statuses` e `/api/v1/share-status-type`), ajustando o `ShareStatusTypeEnum` ao contrato novo. Os valores antigos (`WAITING_DESTINATION_APPROVAL`, `WAITING_SOURCE_APPROVAL`, `CANCELLED` e `NOT_REQUESTED`) pertencem ao contrato anterior e não fazem parte do novo modelo; não há requisito de compatibilidade com ele nesta feature.
@@ -38,7 +48,7 @@ O encerramento voluntário de participação `APPROVED` também remove o víncul
 
 **SharedContract**: identificador técnico; identificador público UUID; referência à conta receptora e à aplicação receptora; lifecycle; metadados/configuração a definir. A conta e aplicação proprietárias são o destino do compartilhamento.
 
-**SharedParticipant**: identificador técnico; identificador público UUID; referência ao contrato; referência à aplicação participante/publicadora, que envia os dados; status `PENDING | APPROVED | REJECTED | REVOKED`; timestamps de criação/alteração. A participação é por aplicação: unicidade por (contrato, aplicação participante), sem incluir ambiente.
+**SharedParticipant**: identificador técnico; identificador público UUID; referência ao contrato; referência à aplicação participante/publicadora, que envia os dados; status `PENDING | APPROVED | REJECTED | REVOKED`; modo de publicação da participação (`AUTOMÁTICA` ou `MANUAL`, representação física/enum a definir); timestamps de criação/alteração. A participação é por aplicação: unicidade por (contrato, aplicação participante), sem incluir ambiente. O modo aplica-se uniformemente a todos os mapeamentos dessa participação, sem configuração por ambiente.
 
 **SharedParticipantEnvironmentMapping**: identificador técnico; referência ao vínculo de participação; identificador do ambiente de origem da aplicação participante/publicadora; identificador do ambiente de destino da aplicação receptora; timestamps de criação/alteração. A associação é uma linha por par (participação, ambiente de origem, ambiente de destino), permitindo que uma origem tenha vários destinos. Impor unicidade por (participação, ambiente de destino), para que o mesmo destino não seja associado a origens diferentes dentro da mesma participação. Os ambientes são recursos das aplicações; usar identificadores, nunca apenas nomes ou aliases.
 
@@ -56,6 +66,7 @@ Rejeição e revogação preservam o registro. Exclusão voluntária remove o re
 - Listar vínculos para aplicação participante: todos os estados existentes, incluindo rejeitados e revogados.
 - Durante a análise da solicitação, o proprietário autorizado da aplicação receptora consulta os ambientes da aplicação participante e configura zero, um ou vários destinos explícitos para cada origem antes de aprovar. A aprovação pode deixar origens sem mapeamento.
 - Após a aprovação, o proprietário autorizado da aplicação receptora pode criar, alterar ou remover mapeamentos sem nova aprovação; cada mudança deve ser auditada.
+- Persistir e disponibilizar o modo de publicação definido para cada participação; o mesmo modo vale para todos os seus mapeamentos de ambiente.
 - Disponibilizar uma consulta/use case do Shared que permita à futura API de publicação verificar a elegibilidade por contrato, aplicação participante e ambiente. A falta de mapeamento torna inelegível somente aquele ambiente/participante; outros mapeamentos permanecem válidos. O envio dos dados e a ação operacional da API diante de inelegibilidade ficam fora desta etapa.
 
 ## 5. Regras de autorização e consistência
@@ -77,7 +88,7 @@ Usar validação centralizada e proteção contra transições concorrentes; def
 | Listar meus compartilhamentos | Aplicação participante | todos os estados persistidos |
 | Definir mapeamento durante aprovação | Proprietário da aplicação receptora | cada origem pode ter zero, um ou vários destinos de mesma base |
 | Ajustar mapeamento aprovado | Proprietário da aplicação receptora | alteração sem nova aprovação, com auditoria |
-| Consultar elegibilidade Shared | API futura de publicação | decisão de elegibilidade por contrato, participante e ambiente |
+| Consultar política/elegibilidade Shared | API futura de publicação | modo uniforme da participação e elegibilidade por contrato, participante e ambiente |
 | Consultar/remover mapeamento | Proprietário autorizado da aplicação receptora | consulta ou remove associação explícita, com auditoria |
 | Excluir contrato elegível | Proprietário | contrato e vínculos removidos |
 
@@ -95,7 +106,7 @@ Nomes, métodos, códigos HTTP, paginação, contratos DTO e escopo de autoriza�
 
 **Onda E — validação do Shared:** validar consulta de elegibilidade para estados do contrato/participação e mapeamento de ambiente, além de auditoria e exclusão em cascata. A integração dessa consulta ao fluxo de publicação do Publisher e a ação da API diante de inelegibilidade ficam para etapa futura. Executar build, testes e pipeline na branch aprovada.
 
-Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e participante; controle de concorrência; autorização cruzada; cascata; auditoria; validação de pertencimento e lifecycle dos ambientes; cardinalidade um-para-muitos por ambiente de origem; validação de igualdade de base em cada par; aprovação com ambientes de origem sem mapeamento; consulta de elegibilidade negativa para ambiente sem mapeamento e inexistência de fallback implícito; alterações posteriores sem nova aprovação e com auditoria; mapeamentos válidos dos demais ambientes permanecem elegíveis.
+Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e participante; controle de concorrência; autorização cruzada; cascata; auditoria; validação de pertencimento e lifecycle dos ambientes; modo AUTOMÁTICO/MANUAL uniforme por participação (sem variação por ambiente); cardinalidade um-para-muitos por ambiente de origem; validação de igualdade de base em cada par; aprovação com ambientes de origem sem mapeamento; consulta de elegibilidade negativa para ambiente sem mapeamento e inexistência de fallback implícito; alterações posteriores sem nova aprovação e com auditoria; mapeamentos válidos dos demais ambientes permanecem elegíveis.
 
 ## 8. Decisões pendentes
 
@@ -106,6 +117,7 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 5. Contrato inativo: transições permitidas e pré-condições de exclusão.
 6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
 7. Obrigatoriedade do preenchimento do motivo de rejeição/revogação; quando informado, o motivo fica no evento da tabela de auditoria e disponível no histórico conforme as permissões de auditoria.
+8. Permissões e regras para alterar o modo de publicação após aprovação, incluindo a forma técnica de representar os valores.
 
 **Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
 
