@@ -65,7 +65,7 @@ A participação é aprovada no nível da aplicação. Como as aplicações pode
 - Cada mapeamento associa um ambiente de origem a um ambiente de destino existente.
 - A associação usa os identificadores dos ambientes, nunca apenas nomes ou aliases.
 - Os ambientes devem estar ativos e pertencer aos workspaces das aplicações correspondentes.
-- Se não houver mapeamento para um ambiente de origem, os dados desse ambiente não são publicados para aquele participante. Outros ambientes mapeados continuam funcionando.
+- Se não houver mapeamento para um ambiente de origem, aquele ambiente não é elegível para futura publicação para o participante. A reação operacional da API de publicação será definida em refinamento posterior; os outros mapeamentos não são invalidados.
 - Não criar ambiente automaticamente e não redirecionar conteúdo sem mapeamento para `DEFAULT`.
 - Um ambiente de origem pode apontar para no máximo um ambiente de destino por participante, e um destino não pode receber vários ambientes de origem. Essa regra evita mistura de configurações.
 - O ambiente global `DEFAULT` pode ser associado ao `DEFAULT` do destino quando ambos forem confirmados como a mesma capacidade global da plataforma; `DEFAULT` não é fallback para ambientes customizados.
@@ -78,13 +78,13 @@ A participação é aprovada no nível da aplicação. Como as aplicações pode
 - O reenvio de `REJECTED` ou `REVOKED` não deve criar vínculo duplicado.
 - Transições inválidas e decisões concorrentes devem ser recusadas de modo determinístico.
 - Toda transição relevante e exclusão física deve ser auditada.
-- A autorização de novos envios deve considerar **participação APPROVED e contrato habilitado**. Rejeição, revogação, encerramento ou inativação impedem novos envios.
+- A relação do Shared deve permitir que uma futura API consulte a elegibilidade para publicação: participação `APPROVED`, contrato habilitado e mapeamento válido do ambiente. Rejeição, revogação, encerramento ou inativação tornam a relação inelegível. A transmissão dos dados e a ação da API diante de uma relação inelegível ficam fora desta etapa.
 
 ## 7. Fluxos de exemplo
 
 **Rejeição:** BACKEND solicita → PENDING → proprietário rejeita → REJECTED. O vínculo desaparece da lista operacional do proprietário, mas continua visível à BACKEND, que pode excluir ou reencaminhar → PENDING.
 
-**Revogação:** BACKEND está APPROVED → proprietário revoga → REVOKED. Novos envios cessam; BACKEND visualiza o motivo/status e pode excluir ou reencaminhar → PENDING.
+**Revogação:** BACKEND está APPROVED → proprietário revoga → REVOKED. BACKEND visualiza o status e pode excluir ou reencaminhar → PENDING. O vínculo deixa de ser elegível para futuras publicações; a aplicação dessa regra no envio será tratada em etapa posterior.
 
 **Desistência:** BACKEND está APPROVED → BACKEND encerra voluntariamente → vínculo removido fisicamente, com auditoria. Uma futura participação requer nova solicitação.
 
@@ -108,7 +108,7 @@ Outros detalhes técnicos a especificar antes da implementação: permissões ex
 8. Exclusão de contrato elegível remove os vínculos associados em cascata e registra auditoria.
 9. A implementação não define nem executa política de limpeza dos dados históricos/cache sem refinamento posterior.
 10. A aplicação participante pode mapear explicitamente os ambientes de origem para ambientes ativos já existentes no seu workspace.
-11. Dados de ambientes sem mapeamento não são publicados, não são redirecionados para `DEFAULT` e não impedem o funcionamento de outros mapeamentos.
+11. Ambientes sem mapeamento não são elegíveis para publicação e não recebem associação implícita com `DEFAULT`; a reação da API de publicação será definida em refinamento posterior. A elegibilidade de outros mapeamentos não é afetada.
 
 ---
 **Origem:** consolidação da discussão funcional de 10/10/2026. Este documento registra decisões e separa explicitamente os assuntos ainda pendentes.
