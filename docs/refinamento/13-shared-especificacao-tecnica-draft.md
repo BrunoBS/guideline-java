@@ -72,7 +72,7 @@ Rejeição e revogação preservam o registro. Exclusão voluntária remove o re
 
 ## 5. Regras de autorização e consistência
 
-A conta e a aplicação receptora são proprietárias do contrato; usuário autorizado por esse lado decide sobre aprovação, rejeição e revogação. A aplicação participante/publicadora solicita, reencaminha e encerra o próprio vínculo. A configuração inicial e os ajustes posteriores do mapeamento são feitos por usuário autorizado da aplicação receptora, que administra o contrato. O ajuste pós-aprovação não exige nova aprovação, mas deve ser auditado. A futura consulta de elegibilidade deve exigir contrato habilitado, participação `APPROVED` e pelo menos um mapeamento válido para o ambiente de origem consultado. Reenvio não aprova automaticamente. Usar a infraestrutura Golden de autorização e mensagens já presente, após inspecionar suas assinaturas reais.
+A conta e a aplicação receptora são proprietárias do contrato; usuário autorizado por esse lado decide sobre aprovação, rejeição e revogação. A aplicação participante/publicadora solicita, reencaminha e encerra o próprio vínculo. A configuração inicial e os ajustes posteriores do mapeamento são feitos por usuário autorizado da aplicação receptora, que administra o contrato. Os ajustes de mapeamento e de modo após a aprovação são feitos pelo proprietário autorizado da aplicação receptora, sem nova aprovação do participante, e devem ser auditados. A mudança de modo vale para publicações futuras e não dispara republicação retroativa. A futura consulta de elegibilidade deve exigir contrato habilitado, participação `APPROVED` e pelo menos um mapeamento válido para o ambiente de origem consultado. Reenvio não aprova automaticamente. Usar a infraestrutura Golden de autorização e mensagens já presente, após inspecionar suas assinaturas reais.
 
 Usar validação centralizada e proteção contra transições concorrentes; definir versionamento otimista ou atualização condicional conforme o padrão do repositório. Na análise da solicitação, carregar os ambientes da aplicação participante/publicadora. Para aprovar, exigir que o proprietário da aplicação receptora informe o modo de publicação e permitir que escolha zero, um ou vários destinos por origem. Para rejeitar, não exigir modo nem mapeamentos. Validar que origem e destino pertencem às aplicações corretas, que estão ativos e que a base de cada par é igual (ambiente padrão usa a própria base; customizado usa sua referência de base). Ambiente sem mapeamento não impede a aprovação, mas não é elegível para publicação. Não criar ambientes automaticamente, não inferir associação por nome e não usar `DEFAULT` como fallback. Cada vínculo é explícito; ajustes após aprovação não requerem nova aprovação e geram auditoria. Restrições de banco complementam validações, não as substituem. Validar também a unicidade do destino dentro da participação: um destino não pode estar associado a origens diferentes; cada origem pode ter vários destinos.
 
@@ -100,6 +100,7 @@ O contexto da aplicação na rota deve ser validado com a autorização do usuá
 | Revogar participação aprovada | `POST /contracts/{contractIdentifier}/participations/{participationIdentifier}/revocation` | sem payload; não exige motivo | `200`, `ParticipationResponse` |
 | Consultar mapeamentos | `GET /contracts/{contractIdentifier}/participations/{participationIdentifier}/environment-mappings` | — | `200`, lista de `EnvironmentMappingResponse` |
 | Ajustar mapeamentos aprovados | `PUT /contracts/{contractIdentifier}/participations/{participationIdentifier}/environment-mappings` | `UpdateEnvironmentMappingsRequest` | `200`, lista de `EnvironmentMappingResponse`; auditar a alteração, sem nova aprovação |
+| Alterar modo da participação aprovada | `PUT /contracts/{contractIdentifier}/participations/{participationIdentifier}/publication-mode` | `UpdatePublicationModeRequest` | `200`, `ParticipationResponse`; auditar a alteração, sem nova aprovação |
 
 A aprovação exige modo do catálogo. Os mapeamentos podem ser parciais: origem omitida fica sem destino e não é elegível para publicação. Cada origem mapeada pode ter vários destinos de mesma base; dentro da participação, um mesmo destino não pode ser reutilizado por origens diferentes. Rejeição e revogação não recebem motivo.
 
@@ -141,6 +142,16 @@ Os DTOs abaixo são do contrato HTTP dos controllers; não definem os Inputs/Out
 - `environmentMappings` pode estar vazio ou omitir ambientes de origem; cada item associa uma origem a um ou mais destinos.
 - A validação verifica pertencimento às aplicações corretas, ambientes ativos e igualdade de base. Não pode haver destino repetido para origens diferentes na mesma participação.
 - A operação aprova e grava o modo e os mapeamentos em conjunto. Rejeitar não requer esse DTO.
+
+**UpdatePublicationModeRequest**
+
+```json
+{
+  "publicationModeIdentifier": "uuid-do-modo-no-catalogo"
+}
+```
+
+O proprietário pode alterar o modo a qualquer momento depois da aprovação. A mudança é auditada, não requer nova aprovação e afeta publicações futuras; não republica dados/configurações anteriores.
 
 **UpdateEnvironmentMappingsRequest**
 
@@ -187,7 +198,7 @@ O catálogo de modo deve ser consultado pelo padrão de endpoint de catálogos j
 
 **Onda E — validação do Shared:** validar consulta de elegibilidade para estados do contrato/participação e mapeamento de ambiente, além de auditoria e exclusão em cascata. A integração dessa consulta ao fluxo de publicação do Publisher e a ação da API diante de inelegibilidade ficam para etapa futura. Executar build, testes e pipeline na branch aprovada.
 
-Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e participante; controle de concorrência; autorização cruzada; cascata; auditoria; validação de pertencimento e lifecycle dos ambientes; modo AUTOMÁTICO/MANUAL uniforme por participação (sem variação por ambiente); cardinalidade um-para-muitos por ambiente de origem; validação de igualdade de base em cada par; aprovação com modo obrigatório e ambientes de origem sem mapeamento; rejeição sem modo/mapeamentos; consulta de elegibilidade negativa para ambiente sem mapeamento e inexistência de fallback implícito; alterações posteriores sem nova aprovação e com auditoria; mapeamentos válidos dos demais ambientes permanecem elegíveis.
+Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e participante; controle de concorrência; autorização cruzada; cascata; auditoria; validação de pertencimento e lifecycle dos ambientes; modo AUTOMÁTICO/MANUAL uniforme por participação (sem variação por ambiente); cardinalidade um-para-muitos por ambiente de origem; validação de igualdade de base em cada par; aprovação com modo obrigatório e ambientes de origem sem mapeamento; rejeição sem modo/mapeamentos; consulta de elegibilidade negativa para ambiente sem mapeamento e inexistência de fallback implícito; alterações posteriores de mapeamento e modo sem nova aprovação, auditadas e sem republicação retroativa; mapeamentos válidos dos demais ambientes permanecem elegíveis.
 
 ## 8. Decisões pendentes
 
@@ -197,7 +208,7 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 4. Convenções reais de facades, endpoints, autorização e migrations na branch de implementação.
 5. Contrato inativo: transições permitidas e pré-condições de exclusão.
 6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
-7. Permissões e regras para alterar o modo de publicação após aprovação.
+
 
 **Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
 
