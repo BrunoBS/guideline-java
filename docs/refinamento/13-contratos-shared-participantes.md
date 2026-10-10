@@ -73,6 +73,18 @@ A solicitação é feita no nível da aplicação participante/publicadora e nã
 - O responsável autorizado da aplicação receptora pode ajustar os mapeamentos depois da aprovação sem nova aprovação. Cada inclusão, alteração ou remoção deve ser registrada na auditoria. Um ambiente sem mapeamento continua inelegível até que um vínculo explícito seja criado.
 - Dentro da mesma participação, um ambiente de destino não pode ser associado a ambientes de origem diferentes. Um ambiente de origem pode continuar associado a vários destinos, desde que cada par respeite a regra de mesma base.
 
+
+## 5.2 Modo de publicação da participação
+
+Cada vínculo de participação possui um modo de publicação, definido para a participação inteira e aplicado a todos os seus mapeamentos de ambiente. Não há configuração independente por ambiente.
+
+- **Automática:** quando a aplicação participante/publicadora publicar uma configuração, a publicação também deverá ser propagada aos destinos associados à participação, respeitando os mapeamentos aprovados/configurados.
+- **Manual:** a publicação da origem não é propagada automaticamente. O destino pode consultar as configurações da origem somente para leitura e escolher explicitamente quais deseja publicar em sua própria conta. A aplicação de origem continua responsável pelos dados; o destino não edita a configuração de origem.
+- O Shared registra e disponibiliza o modo como regra da participação. A execução da publicação, a propagação automática, a consulta/seleção manual e seus endpoints ficam para uma etapa posterior do Publisher.
+- O modo é único para toda a participação, ainda que existam vários vínculos de ambiente e vários destinos para uma origem.
+
+As permissões e o fluxo de alteração do modo depois da aprovação ainda precisam ser definidos.
+
 ## 6. Autorização e consistência
 
 - Somente o proprietário autorizado pode aprovar, rejeitar ou revogar.
