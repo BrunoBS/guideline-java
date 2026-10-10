@@ -57,14 +57,14 @@ Rejeição e revogação preservam o registro. O participante pode remover fisic
 ## 4. Operações funcionais a implementar
 
 - Criar, consultar, atualizar, inativar e excluir contrato conforme o lifecycle: inativar suspende a disponibilidade do contrato e de todas as participações, sem apagá-las; excluir exige contrato inativo e remove o contrato, as participações e seus mapeamentos em cascata.
-- Solicitar participação: criar `PENDING` sem duplicidade.
+- Solicitar participação: criar `PENDING` sem duplicidade somente se o contrato estiver `ACTIVE`; contrato inativo não aparece para a aplicação participante.
 - Aprovar `PENDING → APPROVED` informando o modo de publicação da participação e os mapeamentos de ambiente que o proprietário deseja configurar; origens podem permanecer sem mapeamento.
 - Rejeitar `PENDING → REJECTED` sem exigir modo de publicação nem mapeamentos.
 - Revogar `APPROVED → REVOKED`.
 - Reencaminhar `REJECTED/REVOKED → PENDING` **no mesmo vínculo**.
 - Permitir ao solicitante excluir fisicamente o próprio vínculo em qualquer estado, inclusive `PENDING`; registrar auditoria e impedir novos envios.
 - Listar participantes para proprietário: `PENDING` e `APPROVED`, filtros nome/aplicação/status.
-- Listar vínculos para aplicação participante: todos os estados existentes, incluindo rejeitados e revogados.
+- Listar vínculos para aplicação participante: todos os estados existentes, incluindo rejeitados e revogados, somente quando o contrato estiver `ACTIVE`; durante a inativação, nenhum vínculo fica disponível ao participante.
 - Durante a análise da solicitação, o proprietário autorizado da aplicação receptora consulta os ambientes da aplicação participante e configura zero, um ou vários destinos explícitos para cada origem antes de aprovar. A aprovação pode deixar origens sem mapeamento.
 - Após a aprovação, o proprietário autorizado da aplicação receptora pode criar, alterar ou remover mapeamentos sem nova aprovação; cada mudança deve ser auditada.
 - Persistir e disponibilizar o modo de publicação definido para cada participação; o mesmo modo vale para todos os seus mapeamentos de ambiente.
@@ -108,7 +108,7 @@ A aprovação exige modo do catálogo. Os mapeamentos podem ser parciais: origem
 
 | Operação | Método e rota conceitual | Input HTTP | Output HTTP |
 | --- | --- | --- | --- |
-| Listar contratos disponíveis | `GET /shared-contracts/available` | filtros/paginação conforme padrão Web do serviço | `200`, página de `SharedContractSummaryResponse` |
+| Listar contratos disponíveis | `GET /shared-contracts/available` | filtros/paginação conforme padrão Web do serviço; retornar somente contratos `ACTIVE` | `200`, página de `SharedContractSummaryResponse` |
 | Consultar contrato disponível | `GET /shared-contracts/{contractIdentifier}` | — | `200`, `SharedContractResponse` em modo de consulta |
 | Solicitar participação | `POST /shared-contracts/{contractIdentifier}/participations` | sem payload de ambiente ou modo | `201`, `ParticipationResponse` com `PENDING` |
 | Listar minhas participações | `GET /participations` | filtros/paginação conforme padrão Web do serviço | `200`, página de `ParticipationResponse` |
