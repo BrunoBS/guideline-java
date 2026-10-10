@@ -42,7 +42,7 @@ O encerramento voluntário de participação `APPROVED` também remove o víncul
 
 **SharedParticipantEnvironmentMapping**: identificador técnico; referência ao vínculo de participação; identificador do ambiente publicador/de origem; identificador do ambiente participante/de destino; timestamps de criação/alteração. Unicidade por (participação, ambiente de origem) e por (participação, ambiente de destino), mantendo relação um-para-um para evitar mistura de configurações. Os ambientes são recursos dos workspaces das aplicações; não compartilhar seus identificadores por nome ou alias.
 
-Rejeição e revogação preservam o registro. Exclusão voluntária remove o registro operacional, mantendo trilha de auditoria. Exclusão de contrato elegível remove vínculos associados em cascata. Definir estratégia de auditoria transacional e ordenação antes da migration.
+Rejeição e revogação preservam o registro. Exclusão voluntária remove o registro operacional, mantendo trilha de auditoria. Exclusão de contrato elegível remove vínculos associados em cascata. Cada evento de transição auditado registra status anterior e novo, autor e data/hora; o motivo informado é armazenado na tabela de auditoria e consultado pelo histórico, sem compor o status nem o catálogo. Definir estratégia de auditoria transacional e ordenação antes da migration.
 
 ## 4. Operações funcionais a implementar
 
@@ -103,7 +103,7 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 4. Convenções reais de facades, endpoints, autorização e migrations na branch de implementação.
 5. Contrato inativo: transições permitidas e pré-condições de exclusão.
 6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
-7. Motivos de rejeição/revogação, obrigatoriedade e visibilidade.
+7. Obrigatoriedade do preenchimento do motivo de rejeição/revogação; quando informado, o motivo fica no evento da tabela de auditoria e disponível no histórico conforme as permissões de auditoria.
 
 **Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
 
