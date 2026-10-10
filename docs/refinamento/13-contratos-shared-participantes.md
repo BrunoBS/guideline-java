@@ -76,8 +76,10 @@ A solicitação é feita no nível da aplicação participante/publicadora e nã
 
 ## 5.2 Modo de publicação da participação
 
-Cada vínculo de participação possui um modo de publicação, definido para a participação inteira e aplicado a todos os seus mapeamentos de ambiente. Não há configuração independente por ambiente.
+Cada vínculo de participação possui um modo de publicação, definido pelo proprietário do contrato no momento da aprovação e aplicado à participação inteira. Não há configuração independente por ambiente.
 
+- Ao aprovar uma solicitação `PENDING`, o proprietário informa o modo de publicação e configura os vínculos de ambiente que deseja habilitar. A aprovação pode deixar ambientes sem mapeamento, conforme a regra da seção anterior.
+- Para rejeitar uma solicitação, o proprietário não precisa informar o modo nem configurar os mapeamentos.
 - **Automática:** quando a aplicação participante/publicadora publicar uma configuração, a publicação também deverá ser propagada aos destinos associados à participação, respeitando os mapeamentos aprovados/configurados.
 - **Manual:** a publicação da origem não é propagada automaticamente. O destino pode consultar as configurações da origem somente para leitura e escolher explicitamente quais deseja publicar em sua própria conta. A aplicação de origem continua responsável pelos dados; o destino não edita a configuração de origem.
 - O Shared registra e disponibiliza o modo como regra da participação. A execução da publicação, a propagação automática, a consulta/seleção manual e seus endpoints ficam para uma etapa posterior do Publisher.
@@ -113,7 +115,7 @@ Outros detalhes técnicos a especificar antes da implementação: permissões ex
 ## 9. Critérios de aceite funcionais
 
 1. Nova solicitação cria vínculo `PENDING` e aparece para análise do proprietário.
-2. Aprovação altera para `APPROVED` e habilita novos envios somente se o contrato estiver apto.
+2. Para aprovar `PENDING`, o proprietário informa o modo da participação e configura os mapeamentos desejados; a aprovação altera para `APPROVED`. Pode deixar ambientes sem mapeamento. Para rejeitar, não é necessário preencher modo nem mapeamentos.
 3. Rejeição altera para `REJECTED`, oculta da lista operacional do proprietário e preserva visibilidade para o solicitante.
 4. Revogação de vínculo aprovado altera para `REVOKED`, impede novos envios e preserva visibilidade para o solicitante.
 5. Reencaminhar vínculo rejeitado/revogado retorna **o mesmo vínculo** a `PENDING`, sem reativação automática.
