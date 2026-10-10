@@ -60,18 +60,18 @@ Exibir todos os vínculos existentes, inclusive `PENDING`, `APPROVED`, `REJECTED
 - A conversa considerou exclusão do contrato **inativo**. Regras para tornar o contrato inativo e outras pré-condições de exclusão devem ser confirmadas na especificação técnica.
 - A cascata se refere aos **vínculos operacionais**; não implica decisão sobre remoção de dados já publicados em destinos externos ou caches.
 
-## 5.1 Mapeamento de ambientes por participante
+## 5.1 Mapeamento de ambientes no vínculo de participação
 
-A participação da aplicação publicadora é aprovada no nível da aplicação. Como a publicadora e a receptora podem ter ambientes diferentes, o vínculo aprovado também mantém mapeamentos explícitos dos ambientes de origem da publicadora para os ambientes de destino da receptora.
+A solicitação é feita no nível da aplicação participante/publicadora e não informa nem escolhe ambientes. Durante a análise da solicitação, o responsável autorizado pela aplicação receptora consulta os ambientes da aplicação de origem e define os vínculos de destino antes de aprovar a participação.
 
-- Cada mapeamento associa um ambiente de origem a um ambiente de destino existente.
-- A associação usa os identificadores dos ambientes, nunca apenas nomes ou aliases.
-- Os ambientes devem estar ativos e pertencer às aplicações correspondentes: origem na aplicação participante/publicadora e destino na aplicação receptora.
-- Se não houver mapeamento para um ambiente de origem da aplicação participante/publicadora, esse ambiente não é elegível para publicação no contrato. A reação operacional da API de publicação será definida em refinamento posterior; os outros mapeamentos não são invalidados.
-- Não criar ambiente automaticamente e não redirecionar conteúdo sem mapeamento para `DEFAULT`.
-- Um ambiente de origem pode apontar para no máximo um ambiente de destino por participante, e um destino não pode receber vários ambientes de origem. Essa regra evita mistura de configurações.
-- O ambiente global `DEFAULT` pode ser associado ao `DEFAULT` do destino quando ambos forem confirmados como a mesma capacidade global da plataforma; `DEFAULT` não é fallback para ambientes customizados.
-- Novos ambientes de origem criados depois da aprovação também exigem mapeamento antes de publicar dados.
+- A tela de aprovação apresenta os ambientes da aplicação de origem. O responsável da aplicação receptora escolhe, para cada ambiente de origem, zero, um ou mais ambientes de destino existentes.
+- A aprovação pode deixar ambientes de origem sem mapeamento. Um ambiente sem vínculo explícito não é elegível para publicação; isso não impede a aprovação nem invalida os demais mapeamentos.
+- Um ambiente de origem pode ser associado a vários ambientes de destino. Não há distribuição automática para todos os destinos compatíveis: cada associação precisa ser escolhida explicitamente.
+- Cada associação deve respeitar a base do ambiente: ambiente padrão usa sua própria base; ambiente customizado usa a referência de base configurada. Só se permite associar ambientes cuja base seja igual.
+- A compatibilidade é validada por identificadores e pela base, nunca apenas por nomes ou aliases. Os ambientes de destino devem existir e estar ativos conforme as regras de ambiente.
+- Não criar ambientes automaticamente e não usar `DEFAULT` como fallback. Qualquer vínculo com base `DEFAULT` também deve ser explícito e respeitar a igualdade de base.
+- O responsável autorizado da aplicação receptora pode ajustar os mapeamentos depois da aprovação sem nova aprovação. Cada inclusão, alteração ou remoção deve ser registrada na auditoria. Um ambiente sem mapeamento continua inelegível até que um vínculo explícito seja criado.
+- A regra sobre permitir que ambientes de origem diferentes apontem para o mesmo ambiente de destino ainda precisa ser definida; não impor exclusividade do destino até essa decisão.
 
 ## 6. Autorização e consistência
 
@@ -109,8 +109,10 @@ Outros detalhes técnicos a especificar antes da implementação: permissões ex
 7. Proprietário pode filtrar participantes por nome, aplicação e status.
 8. Exclusão de contrato elegível remove os vínculos associados em cascata e registra auditoria.
 9. A implementação não define nem executa política de limpeza dos dados históricos/cache sem refinamento posterior.
-10. A aplicação participante/publicadora pode mapear explicitamente seus ambientes de origem para ambientes ativos já existentes na aplicação receptora.
-11. Ambientes de origem da aplicação participante/publicadora sem mapeamento não são elegíveis para publicação no contrato e não recebem associação implícita com `DEFAULT`; a reação da API de publicação será definida em refinamento posterior. A elegibilidade de outros mapeamentos não é afetada.
+10. A solicitação de participação não informa ambientes; na aprovação, o responsável autorizado da aplicação receptora consulta os ambientes da origem e define explicitamente os destinos.
+11. Um ambiente de origem pode ser associado a zero, um ou vários ambientes de destino, desde que cada associação respeite igualdade de base; ambientes sem mapeamento podem permanecer assim sem impedir a aprovação e não são elegíveis para publicação.
+12. Ajustes de mapeamento após a aprovação podem ser feitos pelo responsável autorizado da aplicação receptora sem nova aprovação, e cada alteração é auditada.
+13. Não há fallback para `DEFAULT` nem criação automática de ambientes; exclusividade de um destino entre origens distintas permanece pendente de decisão.
 
 ---
 **Origem:** consolidação da discussão funcional de 10/10/2026. Este documento registra decisões e separa explicitamente os assuntos ainda pendentes.
