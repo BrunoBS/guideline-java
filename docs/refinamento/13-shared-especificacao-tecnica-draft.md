@@ -23,6 +23,8 @@ A escolha entre `core/shared` e `feature/shared`, ou uma composição distinta, 
 
 ## 3. Modelo lógico mínimo (não é migration pronta)
 
+**Catálogo de status já existente:** a `main` possui o catálogo `ShareStatusType`, persistido em `type_sharing_statuses` e exposto em `/api/v1/share-status-type`. O enum atual contém `WAITING_DESTINATION_APPROVAL`, `WAITING_SOURCE_APPROVAL`, `APPROVED`, `REJECTED`, `CANCELLED` e `NOT_REQUESTED`. Ainda não há entidade de participação Shared na `main` usando esse catálogo. `APPROVED` e `REJECTED` coincidem com o refinamento; `PENDING` e `REVOKED` não têm equivalentes exatos, pois os estados de espera atuais distinguem dois aprovadores e `CANCELLED` admite ação de ambos. O catálogo existente deve ser avaliado como base; não criar um segundo catálogo sem resolver a compatibilidade dos códigos já expostos.
+
 **SharedContract**: identificador técnico; identificador público UUID; referência ao proprietário; lifecycle; metadados/configuração a definir.
 
 **SharedParticipant**: identificador técnico; identificador público UUID; referência ao contrato; referência à aplicação participante/consumidora; status `PENDING | APPROVED | REJECTED | REVOKED`; timestamps de criação/alteração. A participação é por aplicação: unicidade por (contrato, aplicação participante), sem incluir ambiente.
@@ -91,7 +93,7 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 5. Contrato inativo: transições permitidas e pré-condições de exclusão.
 6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
 7. Motivos de rejeição/revogação, obrigatoriedade e visibilidade.
-8. Relação com o catálogo legado `ShareStatusType`: seus estados atuais diferem de `PENDING/REVOKED`; decidir migração/uso somente após localizar seus consumidores. Não reutilizar nem alterar o catálogo silenciosamente.
+8. Definir a evolução do catálogo `ShareStatusType`: avaliar reutilizá-lo e acrescentar `PENDING`/`REVOKED`, mantendo os códigos atuais até concluir análise de compatibilidade; não criar catálogo paralelo nem remover códigos já expostos sem essa análise.
 
 **Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
 
