@@ -8,7 +8,7 @@
 
 O repositório `BrunoBS/account-service` declara no README que hospeda historicamente o serviço `workspace-service`, com pacote `br.com.portalmanager.platform.workspace`. O POM da branch padrão confirma `platform-parent:1.0.0`, BOM de libraries, Spring Data JPA, Flyway/MySQL, `platform-audit` e `platform-testing`. O README descreve macrozonas `foundation`, `core`, `feature` e `entrypoint/web`, com validação em `usecase/validation`, Requests/Responses na Web e Input/Output nos Use Cases.
 
-**Limite do levantamento:** não foi possível enumerar a árvore completa nem inspecionar as implementações atuais de Application, Environment, Publisher, Facades e autorização. Não considerar nomes de classes, pacotes ou endpoints abaixo como existentes.
+**Verificação parcial na branch `main`:** a árvore e os domínios Application, Environment e Publisher, os controllers Web de Application e Publisher e o catálogo `ShareStatusType` foram inspecionados. `Publisher` é cadastro CRUD de provedores e não executa publicação. Os controllers atuais chamam Use Cases diretamente e usam Request/Response. A implementação completa de autorização e as facades da branch-alvo ainda não foram auditadas. Também falta confirmar a branch de implementação; há branches de feature/refactor abertas. Shared ainda não tem domínio, tabelas ou endpoints na `main`. Não considerar nomes de classes, pacotes ou endpoints abaixo como existentes.
 
 ## 2. Fronteiras propostas, sujeitas à inspeção
 
@@ -70,7 +70,7 @@ Nomes, métodos, códigos HTTP, paginação, contratos DTO e escopo de autoriza�
 
 **Onda A — descoberta:** inspecionar classes e migrations de Application, Environment, Publisher, autorização, facades, mensagens, auditoria e endpoints; identificar branch alvo e convenções vigentes.
 
-**Onda B — contratos:** fechar identidade do proprietário, escopo por ambiente, payload do contrato, pré-condições de lifecycle e APIs; revisar esta especificação.
+**Onda B — contratos:** fechar identidade do proprietário, payload do contrato, pré-condições de lifecycle e APIs; revisar esta especificação. O escopo por aplicação e o mapeamento por ambiente e participante já estão definidos funcionalmente.
 
 **Onda C — persistência e domínio:** migration, constraints, validações e transições com testes unitários e integração MySQL.
 
@@ -88,8 +88,9 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 4. Convenções reais de facades, endpoints, autorização e migrations na branch de implementação.
 5. Contrato inativo: transições permitidas e pré-condições de exclusão.
 6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
-8. Relação com o catálogo legado `ShareStatusType`: seus estados atuais diferem de `PENDING/REVOKED`; decidir migração/uso somente após localizar seus consumidores. Não reutilizar nem alterar o catálogo silenciosamente.
 7. Motivos de rejeição/revogação, obrigatoriedade e visibilidade.
+8. Relação com o catálogo legado `ShareStatusType`: seus estados atuais diferem de `PENDING/REVOKED`; decidir migração/uso somente após localizar seus consumidores. Não reutilizar nem alterar o catálogo silenciosamente.
+8. Relação com o catálogo legado `ShareStatusType`: seus estados atuais diferem de `PENDING/REVOKED`; decidir migração/uso somente após localizar seus consumidores. Não reutilizar nem alterar o catálogo silenciosamente.
 
 **Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
 
