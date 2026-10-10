@@ -76,25 +76,104 @@ A conta e a aplicação receptora são proprietárias do contrato; usuário auto
 
 Usar validação centralizada e proteção contra transições concorrentes; definir versionamento otimista ou atualização condicional conforme o padrão do repositório. Na análise da solicitação, carregar os ambientes da aplicação participante/publicadora. Para aprovar, exigir que o proprietário da aplicação receptora informe o modo de publicação e permitir que escolha zero, um ou vários destinos por origem. Para rejeitar, não exigir modo nem mapeamentos. Validar que origem e destino pertencem às aplicações corretas, que estão ativos e que a base de cada par é igual (ambiente padrão usa a própria base; customizado usa sua referência de base). Ambiente sem mapeamento não impede a aprovação, mas não é elegível para publicação. Não criar ambientes automaticamente, não inferir associação por nome e não usar `DEFAULT` como fallback. Cada vínculo é explícito; ajustes após aprovação não requerem nova aprovação e geram auditoria. Restrições de banco complementam validações, não as substituem. Validar também a unicidade do destino dentro da participação: um destino não pode estar associado a origens diferentes; cada origem pode ter vários destinos.
 
-## 6. Endpoints — contrato conceitual, não rotas finais
+## 6. Contratos HTTP para os controllers (proposta)
 
-| Operação | Consumidor | Resultado |
-| --- | --- | --- |
-| Solicitar participação | Solicitante | PENDING |
-| Aprovar | Proprietário | informa modo e mapeamentos desejados; `APPROVED` |
-| Rejeitar | Proprietário | `REJECTED`, sem exigir modo ou mapeamentos |
-| Revogar | Proprietário | REVOKED |
-| Reencaminhar | Solicitante | PENDING |
-| Excluir participação | Solicitante | vínculo removido |
-| Listar participantes | Proprietário | pendentes e aprovados |
-| Listar meus compartilhamentos | Aplicação participante | todos os estados persistidos |
-| Definir mapeamento durante aprovação | Proprietário da aplicação receptora | cada origem pode ter zero, um ou vários destinos de mesma base |
-| Ajustar mapeamento aprovado | Proprietário da aplicação receptora | alteração sem nova aprovação, com auditoria |
-| Consultar política/elegibilidade Shared | API futura de publicação | modo uniforme da participação e elegibilidade por contrato, participante e ambiente |
-| Consultar/remover mapeamento | Proprietário autorizado da aplicação receptora | consulta ou remove associação explícita, com auditoria |
-| Excluir contrato elegível | Proprietário | contrato e vínculos removidos |
+As rotas abaixo são uma proposta de refinamento para os controllers HTTP. A base contextual acordada é:
 
-Nomes, métodos, códigos HTTP, paginação, contratos DTO e escopo de autorização dependem da inspeção da Web atual.
+`/api/v1/workspaces/{workspaceIdentifier}/applications/{applicationIdentifier}`
+
+O contexto da aplicação na rota deve ser validado com a autorização do usuário. Nas operações do proprietário, `applicationIdentifier` identifica a aplicação Shared receptora. Nas operações de participante, identifica a aplicação publicadora solicitante.
+
+### 6.1 Operações do proprietário do contrato
+
+| Operação | Método e rota conceitual | Input HTTP | Output HTTP |
+| --- | --- | --- | --- |
+| Criar contrato | `POST /contracts` | `CreateSharedContractRequest` — payload de negócio ainda a definir | `201`, `SharedContractResponse` |
+| Listar contratos próprios | `GET /contracts` | filtros/paginação conforme padrão Web do serviço | `200`, página de `SharedContractSummaryResponse` |
+| Consultar contrato | `GET /contracts/{contractIdentifier}` | — | `200`, `SharedContractResponse` |
+| Editar contrato | `PUT /contracts/{contractIdentifier}` | `UpdateSharedContractRequest` — payload de negócio ainda a definir | `200`, `SharedContractResponse` |
+| Inativar contrato | `PATCH /contracts/{contractIdentifier}/inactivation` | sem payload de negócio | `200`, `SharedContractResponse` |
+| Excluir contrato inativo | `DELETE /contracts/{contractIdentifier}` | — | `204` |
+| Listar participações do contrato | `GET /contracts/{contractIdentifier}/participations` | filtros/paginação conforme padrão Web do serviço | `200`, página de `ParticipationResponse` |
+| Aprovar participação | `POST /contracts/{contractIdentifier}/participations/{participationIdentifier}/approval` | `ApproveParticipationRequest` | `200`, `ParticipationResponse` |
+| Rejeitar participação | `POST /contracts/{contractIdentifier}/participations/{participationIdentifier}/rejection` | sem payload; não exige modo, ambientes ou motivo | `200`, `ParticipationResponse` |
+| Revogar participação aprovada | `POST /contracts/{contractIdentifier}/participations/{participationIdentifier}/revocation` | sem payload; não exige motivo | `200`, `ParticipationResponse` |
+| Consultar mapeamentos | `GET /contracts/{contractIdentifier}/participations/{participationIdentifier}/environment-mappings` | — | `200`, lista de `EnvironmentMappingResponse` |
+| Ajustar mapeamentos aprovados | `PUT /contracts/{contractIdentifier}/participations/{participationIdentifier}/environment-mappings` | `UpdateEnvironmentMappingsRequest` | `200`, lista de `EnvironmentMappingResponse`; auditar a alteração, sem nova aprovação |
+
+A aprovação exige modo do catálogo. Os mapeamentos podem ser parciais: origem omitida fica sem destino e não é elegível para publicação. Cada origem mapeada pode ter vários destinos de mesma base; dentro da participação, um mesmo destino não pode ser reutilizado por origens diferentes. Rejeição e revogação não recebem motivo.
+
+### 6.2 Operações da aplicação participante
+
+| Operação | Método e rota conceitual | Input HTTP | Output HTTP |
+| --- | --- | --- | --- |
+| Listar contratos disponíveis | `GET /shared-contracts/available` | filtros/paginação conforme padrão Web do serviço | `200`, página de `SharedContractSummaryResponse` |
+| Consultar contrato disponível | `GET /shared-contracts/{contractIdentifier}` | — | `200`, `SharedContractResponse` em modo de consulta |
+| Solicitar participação | `POST /shared-contracts/{contractIdentifier}/participations` | sem payload de ambiente ou modo | `201`, `ParticipationResponse` com `PENDING` |
+| Listar minhas participações | `GET /participations` | filtros/paginação conforme padrão Web do serviço | `200`, página de `ParticipationResponse` |
+| Reencaminhar participação rejeitada/revogada | `POST /participations/{participationIdentifier}/resubmission` | sem payload | `200`, `ParticipationResponse` com `PENDING` |
+| Retirar a própria participação | `DELETE /participations/{participationIdentifier}` | — | `204`; remover vínculo operacional e manter auditoria |
+
+A identidade da aplicação participante vem do contexto workspace/application e da autorização, não de um identificador de origem enviado livremente no body. O participante não escolhe modo nem ambientes.
+
+### 6.3 Modelos HTTP iniciais
+
+Os DTOs abaixo são do contrato HTTP dos controllers; não definem os Inputs/Outputs internos dos Use Cases.
+
+**ApproveParticipationRequest**
+
+```json
+{
+  "publicationModeIdentifier": "uuid-do-modo-no-catalogo",
+  "environmentMappings": [
+    {
+      "sourceEnvironmentIdentifier": "uuid-do-ambiente-de-origem",
+      "destinationEnvironmentIdentifiers": [
+        "uuid-do-primeiro-destino",
+        "uuid-do-segundo-destino"
+      ]
+    }
+  ]
+}
+```
+
+- `publicationModeIdentifier` é obrigatório ao aprovar e referencia o catálogo de modo de publicação (`AUTOMATIC` ou `MANUAL`).
+- `environmentMappings` pode estar vazio ou omitir ambientes de origem; cada item associa uma origem a um ou mais destinos.
+- A validação verifica pertencimento às aplicações corretas, ambientes ativos e igualdade de base. Não pode haver destino repetido para origens diferentes na mesma participação.
+- A operação aprova e grava o modo e os mapeamentos em conjunto. Rejeitar não requer esse DTO.
+
+**UpdateEnvironmentMappingsRequest**
+
+```json
+{
+  "environmentMappings": [
+    {
+      "sourceEnvironmentIdentifier": "uuid-do-ambiente-de-origem",
+      "destinationEnvironmentIdentifiers": ["uuid-do-destino"]
+    }
+  ]
+}
+```
+
+Este `PUT` substitui o conjunto atual de mapeamentos da participação pelo conjunto enviado. Uma lista vazia remove todos os mapeamentos. A mudança é auditada e não exige nova aprovação.
+
+**ParticipationResponse** — campos iniciais confirmados
+
+```json
+{
+  "participationIdentifier": "uuid-da-participacao",
+  "contractIdentifier": "uuid-do-contrato",
+  "participantApplicationIdentifier": "uuid-da-aplicacao-publicadora",
+  "status": "PENDING",
+  "publicationModeIdentifier": null,
+  "environmentMappings": []
+}
+```
+
+O modo pode estar ausente enquanto ainda não houve aprovação; a resposta aprovada inclui o modo escolhido. Os campos completos do contrato e dos resumos dependem da definição do payload funcional do contrato, que continua pendente. Nomes finais dos DTOs, formato de paginação, códigos de erro e convenção exata de PATCH/PUT devem seguir a Web existente.
+
+O catálogo de modo deve ser consultado pelo padrão de endpoint de catálogos já usado no serviço; não se cria um endpoint de catálogo específico dentro de cada controller Shared.
+
 
 ## 7. Estratégia de implementação e testes
 
