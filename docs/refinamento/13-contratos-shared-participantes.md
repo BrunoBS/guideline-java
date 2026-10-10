@@ -85,7 +85,7 @@ Cada vínculo de participação possui um modo de publicação, definido pelo pr
 - O Shared registra e disponibiliza o modo como regra da participação. A execução da publicação, a propagação automática, a consulta/seleção manual e seus endpoints ficam para uma etapa posterior do Publisher.
 - O modo é único para toda a participação, ainda que existam vários vínculos de ambiente e vários destinos para uma origem.
 
-As permissões e o fluxo de alteração do modo depois da aprovação ainda precisam ser definidos.
+Depois da aprovação, o proprietário autorizado do contrato pode alterar o modo de publicação a qualquer momento, sem nova aprovação do participante. A alteração deve ser auditada e vale para as publicações futuras; não dispara republicação retroativa.
 
 ## 6. Autorização e consistência
 
