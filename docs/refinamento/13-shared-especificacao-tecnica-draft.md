@@ -44,7 +44,7 @@ Estados e transições do contrato novo:
 | `REJECTED` | `PENDING` ou exclusão física | Aplicação participante |
 | `REVOKED` | `PENDING` ou exclusão física | Aplicação participante |
 
-O encerramento voluntário de participação `APPROVED` também remove o vínculo operacional fisicamente, com auditoria. Ausência de vínculo não é status persistido; `NOT_REQUESTED` não integra o novo enum.
+O participante pode excluir o próprio vínculo em qualquer estado (`PENDING`, `APPROVED`, `REJECTED` ou `REVOKED`); a remoção operacional é física e auditada. Ausência de vínculo não é status persistido; `NOT_REQUESTED` não integra o novo enum.
 
 **SharedContract**: identificador técnico; identificador público UUID; referência à conta receptora e à aplicação receptora; lifecycle; metadados/configuração a definir. A conta e aplicação proprietárias são o destino do compartilhamento.
 
@@ -52,17 +52,17 @@ O encerramento voluntário de participação `APPROVED` também remove o víncul
 
 **SharedParticipantEnvironmentMapping**: identificador técnico; referência ao vínculo de participação; identificador do ambiente de origem da aplicação participante/publicadora; identificador do ambiente de destino da aplicação receptora; timestamps de criação/alteração. A associação é uma linha por par (participação, ambiente de origem, ambiente de destino), permitindo que uma origem tenha vários destinos. Impor unicidade por (participação, ambiente de destino), para que o mesmo destino não seja associado a origens diferentes dentro da mesma participação. Os ambientes são recursos das aplicações; usar identificadores, nunca apenas nomes ou aliases.
 
-Rejeição e revogação preservam o registro. Exclusão voluntária remove o registro operacional, mantendo trilha de auditoria. Exclusão de contrato elegível remove vínculos associados em cascata. Cada evento de transição auditado registra status anterior e novo, autor e data/hora. Não coletar nem armazenar motivo para rejeição ou revogação. Definir estratégia de auditoria transacional e ordenação antes da migration.
+Rejeição e revogação preservam o registro. O participante pode remover fisicamente o próprio vínculo em qualquer estado, mantendo trilha de auditoria. A inativação do contrato suspende a disponibilidade para todos os participantes sem excluir contrato, participações ou mapeamentos. O contrato deve estar inativo para ser excluído; a exclusão remove contrato, participações e mapeamentos em cascata. Cada evento de transição auditado registra status anterior e novo, autor e data/hora. Não coletar nem armazenar motivo para rejeição ou revogação. Definir estratégia de auditoria transacional e ordenação antes da migration.
 
 ## 4. Operações funcionais a implementar
 
-- Criar, consultar, atualizar, inativar e excluir contrato conforme lifecycle existente e regras ainda a confirmar.
+- Criar, consultar, atualizar, inativar e excluir contrato conforme o lifecycle: inativar suspende a disponibilidade do contrato e de todas as participações, sem apagá-las; excluir exige contrato inativo e remove o contrato, as participações e seus mapeamentos em cascata.
 - Solicitar participação: criar `PENDING` sem duplicidade.
 - Aprovar `PENDING → APPROVED` informando o modo de publicação da participação e os mapeamentos de ambiente que o proprietário deseja configurar; origens podem permanecer sem mapeamento.
 - Rejeitar `PENDING → REJECTED` sem exigir modo de publicação nem mapeamentos.
 - Revogar `APPROVED → REVOKED`.
 - Reencaminhar `REJECTED/REVOKED → PENDING` **no mesmo vínculo**.
-- Excluir vínculo por iniciativa do solicitante, inclusive quando aprovado; impedir novos envios.
+- Permitir ao solicitante excluir fisicamente o próprio vínculo em qualquer estado, inclusive `PENDING`; registrar auditoria e impedir novos envios.
 - Listar participantes para proprietário: `PENDING` e `APPROVED`, filtros nome/aplicação/status.
 - Listar vínculos para aplicação participante: todos os estados existentes, incluindo rejeitados e revogados.
 - Durante a análise da solicitação, o proprietário autorizado da aplicação receptora consulta os ambientes da aplicação participante e configura zero, um ou vários destinos explícitos para cada origem antes de aprovar. A aprovação pode deixar origens sem mapeamento.
@@ -72,7 +72,7 @@ Rejeição e revogação preservam o registro. Exclusão voluntária remove o re
 
 ## 5. Regras de autorização e consistência
 
-A conta e a aplicação receptora são proprietárias do contrato; usuário autorizado por esse lado decide sobre aprovação, rejeição e revogação. A aplicação participante/publicadora solicita, reencaminha e encerra o próprio vínculo. A configuração inicial e os ajustes posteriores do mapeamento são feitos por usuário autorizado da aplicação receptora, que administra o contrato. Os ajustes de mapeamento e de modo após a aprovação são feitos pelo proprietário autorizado da aplicação receptora, sem nova aprovação do participante, e devem ser auditados. A mudança de modo vale para publicações futuras e não dispara republicação retroativa. A futura consulta de elegibilidade deve exigir contrato habilitado, participação `APPROVED` e pelo menos um mapeamento válido para o ambiente de origem consultado. Reenvio não aprova automaticamente. Usar a infraestrutura Golden de autorização e mensagens já presente, após inspecionar suas assinaturas reais.
+A conta e a aplicação receptora são proprietárias do contrato; usuário autorizado por esse lado decide sobre aprovação, rejeição e revogação. A aplicação participante/publicadora solicita, reencaminha e pode excluir o próprio vínculo em qualquer estado. A configuração inicial e os ajustes posteriores do mapeamento são feitos por usuário autorizado da aplicação receptora, que administra o contrato. Os ajustes de mapeamento e de modo após a aprovação são feitos pelo proprietário autorizado da aplicação receptora, sem nova aprovação do participante, e devem ser auditados. A mudança de modo vale para publicações futuras e não dispara republicação retroativa. A futura consulta de elegibilidade deve exigir contrato habilitado, participação `APPROVED` e pelo menos um mapeamento válido para o ambiente de origem consultado. Reenvio não aprova automaticamente. Usar a infraestrutura Golden de autorização e mensagens já presente, após inspecionar suas assinaturas reais.
 
 Usar validação centralizada e proteção contra transições concorrentes; definir versionamento otimista ou atualização condicional conforme o padrão do repositório. Na análise da solicitação, carregar os ambientes da aplicação participante/publicadora. Para aprovar, exigir que o proprietário da aplicação receptora informe o modo de publicação e permitir que escolha zero, um ou vários destinos por origem. Para rejeitar, não exigir modo nem mapeamentos. Validar que origem e destino pertencem às aplicações corretas, que estão ativos e que a base de cada par é igual (ambiente padrão usa a própria base; customizado usa sua referência de base). Ambiente sem mapeamento não impede a aprovação, mas não é elegível para publicação. Não criar ambientes automaticamente, não inferir associação por nome e não usar `DEFAULT` como fallback. Cada vínculo é explícito; ajustes após aprovação não requerem nova aprovação e geram auditoria. Restrições de banco complementam validações, não as substituem. Validar também a unicidade do destino dentro da participação: um destino não pode estar associado a origens diferentes; cada origem pode ter vários destinos.
 
@@ -206,8 +206,7 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 2. Conteúdo completo e semântica do contrato SHARED, inclusive quais dados/configurações ele autoriza compartilhar.
 3. Conteúdo e contrato de consulta de elegibilidade que a futura API de publicação consumirá; o envio e a ação da API diante de inelegibilidade ficam fora desta etapa.
 4. Convenções reais de facades, endpoints, autorização e migrations na branch de implementação.
-5. Contrato inativo: transições permitidas e pré-condições de exclusão.
-6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
+5. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
 
 
 **Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
@@ -221,17 +220,21 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 | Rejeição | PENDING | Rejeitar | REJECTED | Não na lista operacional | Sim, excluir/reencaminhar |
 | Revogação | APPROVED | Revogar | REVOKED | Não na lista operacional | Sim, excluir/reencaminhar |
 | Novo envio | REJECTED/REVOKED | Reencaminhar | PENDING, mesmo vínculo | Sim | Sim |
-| Desistência | APPROVED | Excluir | Sem vínculo | Não | Não, salvo auditoria |
-| Desistência após recusa | REJECTED/REVOKED | Excluir | Sem vínculo | Não | Não, salvo auditoria |
+| Saída voluntária (pendente) | PENDING | Excluir | Sem vínculo | Não | Não, salvo auditoria |
+| Saída voluntária (aprovada) | APPROVED | Excluir | Sem vínculo | Não | Não, salvo auditoria |
+| Saída voluntária (rejeitada/revogada) | REJECTED/REVOKED | Excluir | Sem vínculo | Não | Não, salvo auditoria |
+| Contrato inativado | ACTIVE | Inativar | INACTIVE; vínculos preservados e suspensos | Gestão do proprietário | Não disponível |
+| Exclusão do contrato | INACTIVE | Excluir | Sem contrato ou vínculos | Não | Não, salvo auditoria |
 
 ### 9.1 Casos negativos a especificar e testar
 
+- Inativar contrato deve suspender imediatamente a disponibilidade de todas as suas participações sem apagá-las. Excluir contrato inativo deve remover todas as participações e seus mapeamentos em cascata, com auditoria.
 - Aprovar vínculo que não esteja PENDING deve falhar sem alterar estado.
 - Revogar vínculo que não esteja APPROVED deve falhar sem alterar estado.
 - Reencaminhar vínculo PENDING/APPROVED deve falhar sem alterar estado.
 - Reenvio concorrente não deve criar outro vínculo.
 - Proprietário não pode decidir por contrato de terceiro; solicitante não pode encerrar participação alheia.
-- Contrato inativo impede novas solicitações/aprovações e novos envios; política de reencaminhamento durante inatividade precisa de decisão explícita.
+- Contrato inativo deixa de ser descoberto e fica indisponível para participantes novos e existentes; bloqueia solicitações, aprovações, reenvios e elegibilidade/publicação. O proprietário ainda pode consultar e gerir o contrato para reativá-lo ou excluí-lo. Ao reativar, somente participações `APPROVED` voltam a ser elegíveis, sujeitas a mapeamentos válidos.
 - Ambiente sem mapeamento não pode ser considerado elegível nem receber associação implícita a `DEFAULT`; a reação da API futura é fora do escopo atual.
 - Ambiente de origem ou destino inativo/inexistente invalida o mapeamento e bloqueia somente a entrega correspondente.
 - Rejeitar a associação do mesmo destino a ambientes de origem diferentes dentro da mesma participação; permitir vários destinos para uma mesma origem.
