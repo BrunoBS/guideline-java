@@ -24,6 +24,8 @@
 
 `INACTIVE` pertence ao ciclo de vida do **contrato**, não substitui `REJECTED` ou `REVOKED` do participante.
 
+Os estados acima são o contrato funcional novo. Os códigos do enum de compartilhamento anterior não limitam esta máquina de estados e devem ser ajustados para refletir este fluxo.
+
 ## 3. Transições e ações
 
 | Origem | Ação | Destino | Responsável |
