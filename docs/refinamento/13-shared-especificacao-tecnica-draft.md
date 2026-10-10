@@ -90,7 +90,6 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
 7. Motivos de rejeição/revogação, obrigatoriedade e visibilidade.
 8. Relação com o catálogo legado `ShareStatusType`: seus estados atuais diferem de `PENDING/REVOKED`; decidir migração/uso somente após localizar seus consumidores. Não reutilizar nem alterar o catálogo silenciosamente.
-8. Relação com o catálogo legado `ShareStatusType`: seus estados atuais diferem de `PENDING/REVOKED`; decidir migração/uso somente após localizar seus consumidores. Não reutilizar nem alterar o catálogo silenciosamente.
 
 **Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
 
