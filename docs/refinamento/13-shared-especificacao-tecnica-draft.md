@@ -8,12 +8,13 @@
 
 O repositório `BrunoBS/account-service` declara no README que hospeda historicamente o serviço `workspace-service`, com pacote `br.com.portalmanager.platform.workspace`. O POM da branch padrão confirma `platform-parent:1.0.0`, BOM de libraries, Spring Data JPA, Flyway/MySQL, `platform-audit` e `platform-testing`. O README descreve macrozonas `foundation`, `core`, `feature` e `entrypoint/web`, com validação em `usecase/validation`, Requests/Responses na Web e Input/Output nos Use Cases.
 
-**Verificação parcial na branch `main`:** a árvore e os domínios Application, Environment e Publisher, os controllers Web de Application e Publisher e o catálogo `ShareStatusType` foram inspecionados. `Publisher` é cadastro CRUD de provedores e não executa publicação. Os controllers atuais chamam Use Cases diretamente e usam Request/Response. A implementação completa de autorização e as facades da branch-alvo ainda não foram auditadas. Também falta confirmar a branch de implementação; há branches de feature/refactor abertas. Shared ainda não tem domínio, tabelas ou endpoints na `main`. Não considerar nomes de classes, pacotes ou endpoints abaixo como existentes.
+**Verificação parcial na branch `main`:** a árvore e os domínios Application, Environment e Publisher, os controllers Web de Application e Publisher e o catálogo `ShareStatusType` foram inspecionados. `Publisher` é um domínio independente, configurado para publicar; a integração do fluxo de publicação com as regras do Shared fica para etapa posterior. Os controllers atuais chamam Use Cases diretamente e usam Request/Response. A implementação completa de autorização e as facades da branch-alvo ainda não foram auditadas. Também falta confirmar a branch de implementação; há branches de feature/refactor abertas. Shared ainda não tem domínio, tabelas ou endpoints na `main`. Não considerar nomes de classes, pacotes ou endpoints abaixo como existentes.
 
 ## 2. Fronteiras propostas, sujeitas à inspeção
 
 - **Contrato SHARED:** domínio dono das regras de contrato, seu proprietário, ciclo de vida e exclusão.
-- **Participação:** domínio dos vínculos entre contrato e aplicação solicitante, transições de status e consultas.
+- **Participação:** domínio dos vínculos entre contrato e aplicação participante, transições de status, mapeamentos de ambiente e consultas.
+- **Publisher:** domínio separado que, em etapa posterior, consulta a elegibilidade definida pelo Shared no momento da publicação. O envio de dados e a decisão operacional da API diante de ausência de compartilhamento não pertencem a esta etapa.
 - **Web:** requests/responses e adaptação HTTP, sem regras de negócio.
 - **Integrações:** consulta às aplicações/ambientes por contratos públicos existentes; evitar leitura direta de repositórios de outros módulos.
 - **Facades:** seguir convenção efetiva da branch alvo; não criar novos pacotes antes de verificar a estrutura atual.
@@ -41,11 +42,11 @@ Rejeição e revogação preservam o registro. Exclusão voluntária remove o re
 - Listar participantes para proprietário: `PENDING` e `APPROVED`, filtros nome/aplicação/status.
 - Listar vínculos para aplicação participante: todos os estados existentes, incluindo rejeitados e revogados.
 - Configurar, consultar e remover mapeamentos de ambientes por vínculo aprovado, sempre entre ambientes existentes das aplicações publicadora e participante.
-- Publicar dados de um ambiente apenas quando houver vínculo `APPROVED`, contrato habilitado e mapeamento ativo correspondente. A falta de mapeamento bloqueia somente aquele ambiente/participante; outros mapeamentos continuam operacionais.
+- Disponibilizar uma consulta/use case do Shared que permita à futura API de publicação verificar a elegibilidade por contrato, aplicação participante e ambiente. A falta de mapeamento torna inelegível somente aquele ambiente/participante; outros mapeamentos permanecem válidos. O envio dos dados e a ação operacional da API diante de inelegibilidade ficam fora desta etapa.
 
 ## 5. Regras de autorização e consistência
 
-Proprietário autorizado decide sobre aprovação, rejeição e revogação; aplicação participante autorizada cria, reencaminha e encerra o próprio vínculo. A configuração do destino do mapeamento deve ser feita por usuário autorizado na aplicação participante. Novos envios exigem contrato habilitado e participação `APPROVED`. Reenvio não aprova automaticamente. Usar a infraestrutura Golden de autorização e mensagens já presente, após inspecionar suas assinaturas reais.
+Proprietário autorizado decide sobre aprovação, rejeição e revogação; aplicação participante autorizada cria, reencaminha e encerra o próprio vínculo. A configuração do destino do mapeamento deve ser feita por usuário autorizado na aplicação participante. A futura consulta de elegibilidade deve exigir contrato habilitado, participação `APPROVED` e mapeamento válido do ambiente. Reenvio não aprova automaticamente. Usar a infraestrutura Golden de autorização e mensagens já presente, após inspecionar suas assinaturas reais.
 
 Usar validação centralizada e proteção contra transições concorrentes; definir versionamento otimista ou atualização condicional conforme o padrão do repositório. Para mapeamento, validar que a origem pertence ao workspace da aplicação publicadora e o destino ao workspace da participante, que ambos estão ativos e que as unicidades são respeitadas. Não criar ambientes automaticamente, não inferir associação por nome e não usar `DEFAULT` como fallback. O `DEFAULT` pode ser associado ao `DEFAULT` somente se ambos forem confirmados como a mesma capacidade global. Restrições de banco complementam validações, não as substituem.
 
@@ -61,6 +62,7 @@ Usar validação centralizada e proteção contra transições concorrentes; def
 | Listar participantes | Proprietário | pendentes e aprovados |
 | Listar meus compartilhamentos | Aplicação participante | todos os estados persistidos |
 | Configurar mapeamento de ambientes | Aplicação participante | associa origem a destino existente |
+| Consultar elegibilidade Shared | API futura de publicação | decisão de elegibilidade por contrato, participante e ambiente |
 | Consultar/remover mapeamento | Aplicação participante | mantém ou remove associação explícita |
 | Excluir contrato elegível | Proprietário | contrato e vínculos removidos |
 
@@ -76,15 +78,15 @@ Nomes, métodos, códigos HTTP, paginação, contratos DTO e escopo de autoriza�
 
 **Onda D — Web e autorização:** controllers/facades conforme padrão existente, filtros, paginação, mensagens e testes de permissão.
 
-**Onda E — integração:** bloquear publicação não autorizada, validar revogação/encerramento, auditoria e exclusão em cascata; executar build, testes e pipeline na branch aprovada.
+**Onda E — validação do Shared:** validar consulta de elegibilidade para estados do contrato/participação e mapeamento de ambiente, além de auditoria e exclusão em cascata. A integração dessa consulta ao fluxo de publicação do Publisher e a ação da API diante de inelegibilidade ficam para etapa futura. Executar build, testes e pipeline na branch aprovada.
 
-Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e participante; controle de concorrência; autorização cruzada; cascata; auditoria; bloqueio de novos envios; validação de pertencimento e lifecycle dos ambientes; cardinalidade um-para-um; ambiente sem mapeamento não publicado nem redirecionado; mapeamentos válidos dos demais ambientes permanecem ativos.
+Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e participante; controle de concorrência; autorização cruzada; cascata; auditoria; validação de pertencimento e lifecycle dos ambientes; cardinalidade um-para-um; consulta de elegibilidade negativa para ambiente sem mapeamento e inexistência de fallback implícito; mapeamentos válidos dos demais ambientes permanecem elegíveis.
 
 ## 8. Decisões pendentes
 
 1. Identidade do proprietário do contrato (workspace ou aplicação) e vínculo entre contrato e aplicação publicadora. O escopo funcional por aplicação foi definido; ambiente é tratado pelo mapeamento específico de cada participante.
 2. Conteúdo completo e semântica do contrato SHARED, inclusive quais dados/configurações ele autoriza compartilhar.
-3. Integração com publicação e origem dos dados; identificar o componente real que impõe o bloqueio. O `Publisher` existente cadastra provedores e não deve ser presumido como executor de publicação.
+3. Conteúdo e contrato de consulta de elegibilidade que a futura API de publicação consumirá; o envio e a ação da API diante de inelegibilidade ficam fora desta etapa.
 4. Convenções reais de facades, endpoints, autorização e migrations na branch de implementação.
 5. Contrato inativo: transições permitidas e pré-condições de exclusão.
 6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
@@ -113,11 +115,11 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 - Reenvio concorrente não deve criar outro vínculo.
 - Proprietário não pode decidir por contrato de terceiro; solicitante não pode encerrar participação alheia.
 - Contrato inativo impede novas solicitações/aprovações e novos envios; política de reencaminhamento durante inatividade precisa de decisão explícita.
-- Ambiente sem mapeamento não pode publicar por fallback para `DEFAULT`.
+- Ambiente sem mapeamento não pode ser considerado elegível nem receber associação implícita a `DEFAULT`; a reação da API futura é fora do escopo atual.
 - Ambiente de origem ou destino inativo/inexistente invalida o mapeamento e bloqueia somente a entrega correspondente.
 - Não permitir que ambientes de origem distintos compartilhem o mesmo ambiente de destino do participante sem futura regra explícita de merge.
 - Exclusão em cascata deve registrar as remoções para auditoria, sem prometer exclusão de dados já publicados.
 
 ### 9.2 Critério para encerrar o refinamento
 
-A especificação só passa de DRAFT a pronta para desenvolvimento após: (a) confirmação dos pacotes reais e facades da branch-alvo; (b) definição da identidade do proprietário e associação do contrato à aplicação publicadora; (c) fechamento do payload do contrato; (d) definição de rotas e DTOs consistentes com a Web existente; (e) identificação do componente que bloqueia a publicação; (f) decisão sobre motivos de rejeição/revogação e demais decisões ainda abertas. O escopo por aplicação e o mapeamento explícito de ambientes por participante estão definidos neste complemento. A limpeza de cache e dados históricos permanece em refinamento separado.
+A especificação só passa de DRAFT a pronta para desenvolvimento após: (a) confirmação dos pacotes reais e facades da branch-alvo; (b) definição da identidade do proprietário e associação do contrato à aplicação publicadora; (c) fechamento do payload do contrato; (d) definição de rotas e DTOs consistentes com a Web existente; (e) definição da consulta de elegibilidade que o Shared expõe para consumo futuro; (f) decisão sobre motivos de rejeição/revogação e demais decisões ainda abertas. A integração dessa consulta ao Publisher, o envio de dados e a ação operacional da API ficam fora desta etapa. O escopo por aplicação e o mapeamento explícito de ambientes por participante estão definidos neste complemento. A limpeza de cache e dados históricos permanece em refinamento separado.
