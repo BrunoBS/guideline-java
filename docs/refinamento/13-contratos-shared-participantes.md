@@ -6,10 +6,10 @@
 
 ## 1. Contexto e atores
 
-- **Proprietário do contrato (SHARED):** administra o contrato e decide sobre solicitações de participação.
-- **Aplicação publicadora (origem):** aplicação que fornece os dados ou configurações cobertos pelo compartilhamento.
-- **Aplicação participante (destino/consumidora):** aplicação que solicita acesso e controla o próprio vínculo de participação.
-- A identidade do proprietário do contrato (workspace ou aplicação) continua pendente de decisão técnica; os termos origem/destino descrevem o fluxo dos dados, não essa decisão.
+- **Proprietário do contrato (SHARED):** a conta e a aplicação receptora, que administra o contrato e decide sobre solicitações de participação.
+- **Aplicação receptora (destino):** aplicação vinculada ao contrato, na conta que receberá os dados.
+- **Aplicação participante/publicadora (origem):** aplicação que envia os dados ou configurações e solicita participação no contrato.
+- O fluxo é da aplicação participante/publicadora para a aplicação receptora; a participação é aprovada por aplicação.
 - **Contrato:** recurso de compartilhamento, com ciclo de vida próprio, independente do status dos participantes.
 - **Vínculo de participação:** associação entre uma aplicação solicitante e um contrato.
 
@@ -62,12 +62,12 @@ Exibir todos os vínculos existentes, inclusive `PENDING`, `APPROVED`, `REJECTED
 
 ## 5.1 Mapeamento de ambientes por participante
 
-A participação é aprovada no nível da aplicação. Como as aplicações podem ter ambientes diferentes, o vínculo aprovado também mantém mapeamentos explícitos entre ambientes da aplicação publicadora e ambientes da aplicação participante.
+A participação da aplicação publicadora é aprovada no nível da aplicação. Como a publicadora e a receptora podem ter ambientes diferentes, o vínculo aprovado também mantém mapeamentos explícitos dos ambientes de origem da publicadora para os ambientes de destino da receptora.
 
 - Cada mapeamento associa um ambiente de origem a um ambiente de destino existente.
 - A associação usa os identificadores dos ambientes, nunca apenas nomes ou aliases.
-- Os ambientes devem estar ativos e pertencer aos workspaces das aplicações correspondentes.
-- Se não houver mapeamento para um ambiente de origem, aquele ambiente não é elegível para futura publicação para o participante. A reação operacional da API de publicação será definida em refinamento posterior; os outros mapeamentos não são invalidados.
+- Os ambientes devem estar ativos e pertencer às aplicações correspondentes: origem na aplicação participante/publicadora e destino na aplicação receptora.
+- Se não houver mapeamento para um ambiente de origem da aplicação participante/publicadora, esse ambiente não é elegível para publicação no contrato. A reação operacional da API de publicação será definida em refinamento posterior; os outros mapeamentos não são invalidados.
 - Não criar ambiente automaticamente e não redirecionar conteúdo sem mapeamento para `DEFAULT`.
 - Um ambiente de origem pode apontar para no máximo um ambiente de destino por participante, e um destino não pode receber vários ambientes de origem. Essa regra evita mistura de configurações.
 - O ambiente global `DEFAULT` pode ser associado ao `DEFAULT` do destino quando ambos forem confirmados como a mesma capacidade global da plataforma; `DEFAULT` não é fallback para ambientes customizados.
@@ -109,8 +109,8 @@ Outros detalhes técnicos a especificar antes da implementação: permissões ex
 7. Proprietário pode filtrar participantes por nome, aplicação e status.
 8. Exclusão de contrato elegível remove os vínculos associados em cascata e registra auditoria.
 9. A implementação não define nem executa política de limpeza dos dados históricos/cache sem refinamento posterior.
-10. A aplicação participante pode mapear explicitamente os ambientes de origem para ambientes ativos já existentes no seu workspace.
-11. Ambientes sem mapeamento não são elegíveis para publicação e não recebem associação implícita com `DEFAULT`; a reação da API de publicação será definida em refinamento posterior. A elegibilidade de outros mapeamentos não é afetada.
+10. A aplicação participante/publicadora pode mapear explicitamente seus ambientes de origem para ambientes ativos já existentes na aplicação receptora.
+11. Ambientes de origem da aplicação participante/publicadora sem mapeamento não são elegíveis para publicação no contrato e não recebem associação implícita com `DEFAULT`; a reação da API de publicação será definida em refinamento posterior. A elegibilidade de outros mapeamentos não é afetada.
 
 ---
 **Origem:** consolidação da discussão funcional de 10/10/2026. Este documento registra decisões e separa explicitamente os assuntos ainda pendentes.
