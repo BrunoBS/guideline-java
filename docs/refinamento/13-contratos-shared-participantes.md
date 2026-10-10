@@ -79,7 +79,7 @@ A participação é aprovada no nível da aplicação. Como as aplicações pode
 - Somente o solicitante autorizado pode reencaminhar ou excluir sua própria participação.
 - O reenvio de `REJECTED` ou `REVOKED` não deve criar vínculo duplicado.
 - Transições inválidas e decisões concorrentes devem ser recusadas de modo determinístico.
-- Toda transição relevante e exclusão física deve ser auditada.
+- Toda transição relevante e exclusão física deve ser auditada. O evento registra o status anterior e o novo, autor e data/hora; o motivo informado fica na tabela de auditoria, disponível na consulta do histórico conforme as permissões de auditoria.
 - A relação do Shared deve permitir que uma futura API consulte a elegibilidade para publicação: participação `APPROVED`, contrato habilitado e mapeamento válido do ambiente. Rejeição, revogação, encerramento ou inativação tornam a relação inelegível. A transmissão dos dados e a ação da API diante de uma relação inelegível ficam fora desta etapa.
 
 ## 7. Fluxos de exemplo
@@ -96,7 +96,7 @@ A participação é aprovada no nível da aplicação. Como as aplicações pode
 
 **Política de dados já publicados e cache:** ainda não foi decidido se, ao revogar participação, encerrar vínculo ou excluir contrato, os dados previamente publicados devem permanecer, ser invalidados automaticamente ou exigir remoção pelo responsável. Essa decisão fica para refinamento específico de ciclo de vida, publicação e cache. **Não presumir limpeza automática nem retenção indefinida.**
 
-Outros detalhes técnicos a especificar antes da implementação: permissões exatas, motivo de rejeição/revogação e sua apresentação, contrato de endpoints, idempotência, controle de concorrência, integridade da cascata e comportamento diante de falhas de propagação.
+Outros detalhes técnicos a especificar antes da implementação: permissões exatas, obrigatoriedade do preenchimento do motivo de rejeição/revogação, contrato de endpoints, idempotência, controle de concorrência, integridade da cascata e comportamento diante de falhas de propagação.
 
 ## 9. Critérios de aceite funcionais
 
