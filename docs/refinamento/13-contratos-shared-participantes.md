@@ -71,7 +71,7 @@ A solicitação é feita no nível da aplicação participante/publicadora e nã
 - A compatibilidade é validada por identificadores e pela base, nunca apenas por nomes ou aliases. Os ambientes de destino devem existir e estar ativos conforme as regras de ambiente.
 - Não criar ambientes automaticamente e não usar `DEFAULT` como fallback. Qualquer vínculo com base `DEFAULT` também deve ser explícito e respeitar a igualdade de base.
 - O responsável autorizado da aplicação receptora pode ajustar os mapeamentos depois da aprovação sem nova aprovação. Cada inclusão, alteração ou remoção deve ser registrada na auditoria. Um ambiente sem mapeamento continua inelegível até que um vínculo explícito seja criado.
-- A regra sobre permitir que ambientes de origem diferentes apontem para o mesmo ambiente de destino ainda precisa ser definida; não impor exclusividade do destino até essa decisão.
+- Dentro da mesma participação, um ambiente de destino não pode ser associado a ambientes de origem diferentes. Um ambiente de origem pode continuar associado a vários destinos, desde que cada par respeite a regra de mesma base.
 
 ## 6. Autorização e consistência
 
