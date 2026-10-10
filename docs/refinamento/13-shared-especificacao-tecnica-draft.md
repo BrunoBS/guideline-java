@@ -58,7 +58,8 @@ Rejeição e revogação preservam o registro. Exclusão voluntária remove o re
 
 - Criar, consultar, atualizar, inativar e excluir contrato conforme lifecycle existente e regras ainda a confirmar.
 - Solicitar participação: criar `PENDING` sem duplicidade.
-- Aprovar `PENDING → APPROVED`; rejeitar `PENDING → REJECTED`.
+- Aprovar `PENDING → APPROVED` informando o modo de publicação da participação e os mapeamentos de ambiente que o proprietário deseja configurar; origens podem permanecer sem mapeamento.
+- Rejeitar `PENDING → REJECTED` sem exigir modo de publicação nem mapeamentos.
 - Revogar `APPROVED → REVOKED`.
 - Reencaminhar `REJECTED/REVOKED → PENDING` **no mesmo vínculo**.
 - Excluir vínculo por iniciativa do solicitante, inclusive quando aprovado; impedir novos envios.
@@ -73,14 +74,15 @@ Rejeição e revogação preservam o registro. Exclusão voluntária remove o re
 
 A conta e a aplicação receptora são proprietárias do contrato; usuário autorizado por esse lado decide sobre aprovação, rejeição e revogação. A aplicação participante/publicadora solicita, reencaminha e encerra o próprio vínculo. A configuração inicial e os ajustes posteriores do mapeamento são feitos por usuário autorizado da aplicação receptora, que administra o contrato. O ajuste pós-aprovação não exige nova aprovação, mas deve ser auditado. A futura consulta de elegibilidade deve exigir contrato habilitado, participação `APPROVED` e pelo menos um mapeamento válido para o ambiente de origem consultado. Reenvio não aprova automaticamente. Usar a infraestrutura Golden de autorização e mensagens já presente, após inspecionar suas assinaturas reais.
 
-Usar validação centralizada e proteção contra transições concorrentes; definir versionamento otimista ou atualização condicional conforme o padrão do repositório. Na análise da solicitação, carregar os ambientes da aplicação participante/publicadora e permitir que o proprietário da aplicação receptora escolha zero, um ou vários destinos por origem. Validar que origem e destino pertencem às aplicações corretas, que estão ativos e que a base de cada par é igual (ambiente padrão usa a própria base; customizado usa sua referência de base). Ambiente sem mapeamento não impede a aprovação, mas não é elegível para publicação. Não criar ambientes automaticamente, não inferir associação por nome e não usar `DEFAULT` como fallback. Cada vínculo é explícito; ajustes após aprovação não requerem nova aprovação e geram auditoria. Restrições de banco complementam validações, não as substituem. Validar também a unicidade do destino dentro da participação: um destino não pode estar associado a origens diferentes; cada origem pode ter vários destinos.
+Usar validação centralizada e proteção contra transições concorrentes; definir versionamento otimista ou atualização condicional conforme o padrão do repositório. Na análise da solicitação, carregar os ambientes da aplicação participante/publicadora. Para aprovar, exigir que o proprietário da aplicação receptora informe o modo de publicação e permitir que escolha zero, um ou vários destinos por origem. Para rejeitar, não exigir modo nem mapeamentos. Validar que origem e destino pertencem às aplicações corretas, que estão ativos e que a base de cada par é igual (ambiente padrão usa a própria base; customizado usa sua referência de base). Ambiente sem mapeamento não impede a aprovação, mas não é elegível para publicação. Não criar ambientes automaticamente, não inferir associação por nome e não usar `DEFAULT` como fallback. Cada vínculo é explícito; ajustes após aprovação não requerem nova aprovação e geram auditoria. Restrições de banco complementam validações, não as substituem. Validar também a unicidade do destino dentro da participação: um destino não pode estar associado a origens diferentes; cada origem pode ter vários destinos.
 
 ## 6. Endpoints — contrato conceitual, não rotas finais
 
 | Operação | Consumidor | Resultado |
 | --- | --- | --- |
 | Solicitar participação | Solicitante | PENDING |
-| Aprovar / rejeitar | Proprietário | APPROVED / REJECTED |
+| Aprovar | Proprietário | informa modo e mapeamentos desejados; `APPROVED` |
+| Rejeitar | Proprietário | `REJECTED`, sem exigir modo ou mapeamentos |
 | Revogar | Proprietário | REVOKED |
 | Reencaminhar | Solicitante | PENDING |
 | Excluir participação | Solicitante | vínculo removido |
@@ -106,7 +108,7 @@ Nomes, métodos, códigos HTTP, paginação, contratos DTO e escopo de autoriza�
 
 **Onda E — validação do Shared:** validar consulta de elegibilidade para estados do contrato/participação e mapeamento de ambiente, além de auditoria e exclusão em cascata. A integração dessa consulta ao fluxo de publicação do Publisher e a ação da API diante de inelegibilidade ficam para etapa futura. Executar build, testes e pipeline na branch aprovada.
 
-Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e participante; controle de concorrência; autorização cruzada; cascata; auditoria; validação de pertencimento e lifecycle dos ambientes; modo AUTOMÁTICO/MANUAL uniforme por participação (sem variação por ambiente); cardinalidade um-para-muitos por ambiente de origem; validação de igualdade de base em cada par; aprovação com ambientes de origem sem mapeamento; consulta de elegibilidade negativa para ambiente sem mapeamento e inexistência de fallback implícito; alterações posteriores sem nova aprovação e com auditoria; mapeamentos válidos dos demais ambientes permanecem elegíveis.
+Critérios de teste mínimos: matriz completa de transições; duplicidade; reenvio preservando vínculo; visibilidade diferente para proprietário e participante; controle de concorrência; autorização cruzada; cascata; auditoria; validação de pertencimento e lifecycle dos ambientes; modo AUTOMÁTICO/MANUAL uniforme por participação (sem variação por ambiente); cardinalidade um-para-muitos por ambiente de origem; validação de igualdade de base em cada par; aprovação com modo obrigatório e ambientes de origem sem mapeamento; rejeição sem modo/mapeamentos; consulta de elegibilidade negativa para ambiente sem mapeamento e inexistência de fallback implícito; alterações posteriores sem nova aprovação e com auditoria; mapeamentos válidos dos demais ambientes permanecem elegíveis.
 
 ## 8. Decisões pendentes
 
