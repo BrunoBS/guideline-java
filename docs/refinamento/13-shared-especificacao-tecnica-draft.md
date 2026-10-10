@@ -52,7 +52,7 @@ O encerramento voluntário de participação `APPROVED` também remove o víncul
 
 **SharedParticipantEnvironmentMapping**: identificador técnico; referência ao vínculo de participação; identificador do ambiente de origem da aplicação participante/publicadora; identificador do ambiente de destino da aplicação receptora; timestamps de criação/alteração. A associação é uma linha por par (participação, ambiente de origem, ambiente de destino), permitindo que uma origem tenha vários destinos. Impor unicidade por (participação, ambiente de destino), para que o mesmo destino não seja associado a origens diferentes dentro da mesma participação. Os ambientes são recursos das aplicações; usar identificadores, nunca apenas nomes ou aliases.
 
-Rejeição e revogação preservam o registro. Exclusão voluntária remove o registro operacional, mantendo trilha de auditoria. Exclusão de contrato elegível remove vínculos associados em cascata. Cada evento de transição auditado registra status anterior e novo, autor e data/hora; o motivo informado é armazenado na tabela de auditoria e consultado pelo histórico, sem compor o status nem o catálogo. Definir estratégia de auditoria transacional e ordenação antes da migration.
+Rejeição e revogação preservam o registro. Exclusão voluntária remove o registro operacional, mantendo trilha de auditoria. Exclusão de contrato elegível remove vínculos associados em cascata. Cada evento de transição auditado registra status anterior e novo, autor e data/hora. Não coletar nem armazenar motivo para rejeição ou revogação. Definir estratégia de auditoria transacional e ordenação antes da migration.
 
 ## 4. Operações funcionais a implementar
 
@@ -118,8 +118,7 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 4. Convenções reais de facades, endpoints, autorização e migrations na branch de implementação.
 5. Contrato inativo: transições permitidas e pré-condições de exclusão.
 6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
-7. Obrigatoriedade do preenchimento do motivo de rejeição/revogação; quando informado, o motivo fica no evento da tabela de auditoria e disponível no histórico conforme as permissões de auditoria.
-8. Permissões e regras para alterar o modo de publicação após aprovação, incluindo a forma técnica de representar os valores.
+7. Permissões e regras para alterar o modo de publicação após aprovação.
 
 **Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
 
@@ -150,4 +149,4 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 
 ### 9.2 Critério para encerrar o refinamento
 
-A especificação só passa de DRAFT a pronta para desenvolvimento após: (a) confirmação dos pacotes reais e facades da branch-alvo; (b) confirmação dos identificadores e da validação de conta/aplicação receptora e aplicação participante/publicadora; (c) fechamento do payload do contrato; (d) definição de rotas e DTOs consistentes com a Web existente; (e) definição da consulta de elegibilidade que o Shared expõe para consumo futuro; (f) decisão sobre motivos de rejeição/revogação e demais decisões ainda abertas. A integração dessa consulta ao Publisher, o envio de dados e a ação operacional da API ficam fora desta etapa. O escopo por aplicação e o mapeamento explícito de ambientes por participante estão definidos neste complemento. A limpeza de cache e dados históricos permanece em refinamento separado.
+A especificação só passa de DRAFT a pronta para desenvolvimento após: (a) confirmação dos pacotes reais e facades da branch-alvo; (b) confirmação dos identificadores e da validação de conta/aplicação receptora e aplicação participante/publicadora; (c) fechamento do payload do contrato; (d) definição de rotas e DTOs consistentes com a Web existente; (e) definição da consulta de elegibilidade que o Shared expõe para consumo futuro; (f) fechamento das demais decisões ainda abertas. A integração dessa consulta ao Publisher, o envio de dados e a ação operacional da API ficam fora desta etapa. O escopo por aplicação e o mapeamento explícito de ambientes por participante estão definidos neste complemento. A limpeza de cache e dados históricos permanece em refinamento separado.
