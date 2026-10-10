@@ -23,7 +23,18 @@ A escolha entre `core/shared` e `feature/shared`, ou uma composição distinta, 
 
 ## 3. Modelo lógico mínimo (não é migration pronta)
 
-**Catálogo de status já existente:** a `main` possui o catálogo `ShareStatusType`, persistido em `type_sharing_statuses` e exposto em `/api/v1/share-status-type`. O enum atual contém `WAITING_DESTINATION_APPROVAL`, `WAITING_SOURCE_APPROVAL`, `APPROVED`, `REJECTED`, `CANCELLED` e `NOT_REQUESTED`. Ainda não há entidade de participação Shared na `main` usando esse catálogo. `APPROVED` e `REJECTED` coincidem com o refinamento; `PENDING` e `REVOKED` não têm equivalentes exatos, pois os estados de espera atuais distinguem dois aprovadores e `CANCELLED` admite ação de ambos. O catálogo existente deve ser avaliado como base; não criar um segundo catálogo sem resolver a compatibilidade dos códigos já expostos.
+**Catálogo de status existente:** reutilizar a infraestrutura `ShareStatusType` (`type_sharing_statuses` e `/api/v1/share-status-type`), ajustando o `ShareStatusTypeEnum` ao contrato novo. Os valores antigos (`WAITING_DESTINATION_APPROVAL`, `WAITING_SOURCE_APPROVAL`, `CANCELLED` e `NOT_REQUESTED`) pertencem ao contrato anterior e não fazem parte do novo modelo; não há requisito de compatibilidade com ele nesta feature.
+
+Estados e transições do contrato novo:
+
+| Estado | Próximos estados | Responsável |
+| --- | --- | --- |
+| `PENDING` | `APPROVED`, `REJECTED` | Proprietário autorizado |
+| `APPROVED` | `REVOKED` | Proprietário autorizado |
+| `REJECTED` | `PENDING` ou exclusão física | Aplicação participante |
+| `REVOKED` | `PENDING` ou exclusão física | Aplicação participante |
+
+O encerramento voluntário de participação `APPROVED` também remove o vínculo operacional fisicamente, com auditoria. Ausência de vínculo não é status persistido; `NOT_REQUESTED` não integra o novo enum.
 
 **SharedContract**: identificador técnico; identificador público UUID; referência ao proprietário; lifecycle; metadados/configuração a definir.
 
@@ -93,7 +104,6 @@ Critérios de teste mínimos: matriz completa de transições; duplicidade; reen
 5. Contrato inativo: transições permitidas e pré-condições de exclusão.
 6. Política de dados já publicados e invalidação de cache: **fora desta etapa**, conforme decisão funcional.
 7. Motivos de rejeição/revogação, obrigatoriedade e visibilidade.
-8. Definir a evolução do catálogo `ShareStatusType`: avaliar reutilizá-lo e acrescentar `PENDING`/`REVOKED`, mantendo os códigos atuais até concluir análise de compatibilidade; não criar catálogo paralelo nem remover códigos já expostos sem essa análise.
 
 **Não iniciar mudanças de código baseadas em suposições sobre esses pontos.**
 
