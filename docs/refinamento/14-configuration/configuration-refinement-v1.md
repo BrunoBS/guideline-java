@@ -22,15 +22,15 @@ Criar entidade/tabela de configuração com:
 - `identifier`: UUID público, se aplicável ao padrão Golden;
 - `feature_id`: FK obrigatória para o catálogo de features, inclusive `PLATFORM`;
 - `key`: nome da chave dentro da feature;
-- `value`: valor da configuração, aceitando JSON;
+- `type`: enum obrigatório `CONFIGURATION` ou `EXPRESSION`;\n- `value`: JSON da configuração; para `EXPRESSION`, objeto de regra padronizado;
 - `lifecycle`: ACTIVE/INACTIVE, seguindo catálogo e convenções existentes.
 - Campos de auditoria conforme padrão já adotado no workspace-service.
 
-Impor unicidade de `(feature_id, key)`. Validar chave não vazia, feature existente e valor JSON válido quando armazenado como JSON. Definir representação de strings e tipos primitivos de forma consistente na publicação e na leitura. Não persistir segredos sem uma política específica de segurança.
+Impor unicidade de `(feature_id, key)`. Validar chave não vazia, feature existente, tipo permitido e valor JSON válido. `CONFIGURATION` aceita qualquer JSON válido; `EXPRESSION` exige validação pelo JSON Schema padrão antes de persistir/publicar. Alterar `type` exige revalidação do valor. Definir representação de strings e tipos primitivos de forma consistente na publicação e na leitura. Não persistir segredos sem uma política específica de segurança.
 
 ## 4. Endpoints e casos de uso
-- `POST`: criar configuração; persistir e, após commit, publicar sua chave no Redis.
-- `PUT`: atualizar configuração; persistir e, após commit, publicar a versão atual.
+- `POST`: criar configuração informando `type` (`CONFIGURATION` ou `EXPRESSION`); validar o JSON Schema padrão quando for expressão; persistir e, após commit, publicar sua chave no Redis.
+- `PUT`: atualizar configuração e revalidar `type`/`value` (inclusive troca de tipo); persistir e, após commit, publicar a versão atual.
 - `GET` por identificador e `GET` paginado/filtros: consulta administrativa ao banco.
 - `PATCH` de lifecycle: ativar/inativar; refletir o estado publicado no Redis.
 - `PATCH` de publish: republicar todas as configurações ou apenas as de uma feature, lendo o banco; não modificar dados de negócio.
@@ -180,9 +180,9 @@ PlatformSettings settings = configurationProvider.get("platform.settings")
 
 ### Avaliação de condições — V1 (escopo aprovado)
 
-A Configuration V1 permite uma única condição por configuração, sem grupos, AND ou OR. O objeto JSON contém `operator` e `value` (escalar ou lista, conforme o operador). A biblioteca avalia a condição com `matches(candidate)` ou `matches(candidate, defaultValue)`, sem expor detalhes de Jackson ao consumidor.
+O cadastro V1 possui dois tipos: `CONFIGURATION` (JSON livre, consumido pelos métodos `as...`) e `EXPRESSION` (objeto de regra obrigatório, consumido por `matches`). Apenas `EXPRESSION` aceita `matches`; uso em `CONFIGURATION` gera erro padronizado ou fallback explícito. Uma expressão V1 contém uma única condição, sem grupos, AND ou OR. Seu objeto JSON contém obrigatoriamente `operator`, `valueType` e `value` (escalar ou lista, conforme o operador). A biblioteca avalia a condição com `matches(candidate)` ou `matches(candidate, defaultValue)`, sem expor detalhes de Jackson ao consumidor.
 
-**Tipos suportados na avaliação V1:** `String`, `Integer`, `Long` e `BigDecimal`; listas desses tipos para participação. Booleanos e objetos complexos permanecem disponíveis para leitura normal (`asBoolean`, `as(Class<T>)`), mas ficam fora do avaliador V1. Não armazenar discriminador de tipo no banco: o valor é JSON e a biblioteca resolve a tipagem.
+**Tipos suportados na avaliação V1:** `String`, `Integer`, `Long` e `BigDecimal`; listas desses tipos para participação. Booleanos e objetos complexos permanecem disponíveis para leitura normal (`asBoolean`, `as(Class<T>)`), mas ficam fora do avaliador V1. Persistir `type` no cadastro, mas não duplicar o tipo Java do JSON em colunas. `valueType` é obrigatório **dentro da expressão** e indica o tipo do valor ou dos elementos da lista: `STRING`, `INTEGER`, `LONG` ou `DECIMAL` (`BigDecimal` no Java). O operador determina escalar ou lista; não é necessário `isArray`.
 
 **Operadores suportados:**
 
@@ -204,6 +204,7 @@ Comparações numéricas devem ser feitas por valor (preferencialmente via `BigD
 ```json
 {
   "operator": "CONTAINS",
+  "valueType": "LONG",
   "value": [10, 20, 30]
 }
 ```
@@ -218,7 +219,7 @@ boolean pilotWithFallback = configurationProvider.get("platform.pilotAccounts")
 **Exemplo — ambiente por String** (`platform.allowedEnvironment`):
 
 ```json
-{ "operator": "EQUALS", "value": "PRD" }
+{ "operator": "EQUALS", "valueType": "STRING", "value": "PRD" }
 ```
 
 ```java
@@ -229,7 +230,7 @@ boolean allowed = configurationProvider.get("platform.allowedEnvironment")
 **Exemplo — limite inteiro ou Long** (`platform.minimumAccounts`):
 
 ```json
-{ "operator": "GREATER_THAN_OR_EQUALS", "value": 1000 }
+{ "operator": "GREATER_THAN_OR_EQUALS", "valueType": "LONG", "value": 1000 }
 ```
 
 ```java
@@ -240,7 +241,7 @@ boolean meetsLimit = configurationProvider.get("platform.minimumAccounts")
 **Exemplo — limite decimal** (`platform.minimumAmount`):
 
 ```json
-{ "operator": "GREATER_THAN_OR_EQUALS", "value": 19.90 }
+{ "operator": "GREATER_THAN_OR_EQUALS", "valueType": "DECIMAL", "value": 19.90 }
 ```
 
 ```java
@@ -249,6 +250,14 @@ boolean meetsAmount = configurationProvider.get("platform.minimumAmount")
 ```
 
 Acrescentar ao contrato `ConfigurationValue` os métodos `boolean matches(Object candidate)` e `boolean matches(Object candidate, boolean defaultValue)`. Sem default, chave ausente, Redis indisponível, operador desconhecido ou comparação inválida geram exceção padronizada. Com default, retornar o valor informado e registrar log estruturado em caso de falha; resultados legítimos `false` não são erros. Não carregar listas piloto junto aos settings gerais da feature: consultar a chave específica no Redis.
+
+#### JSON Schema único para EXPRESSIONS — V1
+
+O workspace-service resolve **um schema padrão de EXPRESSIONS** pelo mecanismo de Schema da plataforma e valida o objeto `value` no POST/PUT, antes de persistir e publicar no Redis. Não criar um schema por operador ou por valueType. O schema (Draft 2020-12) usa condições `if/then` ou `oneOf` para impor: campos obrigatórios; oito operadores permitidos; quatro tipos permitidos; escalares para igualdade e comparações; listas homogêneas para `CONTAINS`/`NOT_CONTAINS`; maior/menor apenas para tipos numéricos; proibição de propriedades extras e de valores nulos. Validar também limites de `INTEGER` (32 bits) e `LONG` (64 bits), com conversão numérica exata na biblioteca. `DECIMAL` usa números JSON e `BigDecimal`; `STRING` não sofre coerção implícita para número.
+
+Exemplo inválido, rejeitado no cadastro: `{"operator":"CONTAINS","valueType":"LONG","value":[10,"20"]}`. Exemplo inválido: `{"operator":"GREATER_THAN","valueType":"STRING","value":"ABC"}`. O schema é versionado pelo catálogo de Schema existente; evolução de operadores/tipos exige nova versão publicada, testes de compatibilidade e verificação de expressões já cadastradas. Configurações do tipo `CONFIGURATION` não são submetidas a esse schema de expressão.
+
+Na publicação Redis, preservar o discriminador `type` junto ao valor em envelope padronizado para o consumidor distinguir `CONFIGURATION` de `EXPRESSION`; o envelope é contrato interno, sem alterar a assinatura pública de `ConfigurationProvider`. A biblioteca não precisa executar o schema inteiro a cada leitura, mas deve tratar payload corrompido/incompatível com exceção ou fallback. Os oito operadores continuam na V1; composição AND/OR permanece V2.
 
 ### Composição de condições — V2 (fora do escopo de implementação V1)
 
