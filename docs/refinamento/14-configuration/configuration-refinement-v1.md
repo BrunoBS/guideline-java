@@ -180,11 +180,26 @@ PlatformSettings settings = configurationProvider.get("platform.settings")
 
 ### Avaliação de condições — V1 (escopo aprovado)
 
-A Configuration V1 também permite armazenar uma condição simples em JSON, sem criar um motor de regras. O objeto possui um único operador e um valor (escalar ou lista), e a `platform-libraries` avalia a condição contra o valor fornecido pelo consumidor.
+A Configuration V1 permite uma única condição por configuração, sem grupos, AND ou OR. O objeto JSON contém `operator` e `value` (escalar ou lista, conforme o operador). A biblioteca avalia a condição com `matches(candidate)` ou `matches(candidate, defaultValue)`, sem expor detalhes de Jackson ao consumidor.
 
-Operadores suportados: `EQUALS`, `NOT_EQUALS`, `CONTAINS` e `NOT_CONTAINS`. `EQUALS` e `NOT_EQUALS` comparam valores; `CONTAINS` e `NOT_CONTAINS` verificam a presença do valor informado em uma lista configurada. A implementação deve definir comparação tipada e consistente (por exemplo, IDs Long versus Integer), rejeitar formatos incompatíveis e não interpretar expressões arbitrárias.
+**Tipos suportados na avaliação V1:** `String`, `Integer`, `Long` e `BigDecimal`; listas desses tipos para participação. Booleanos e objetos complexos permanecem disponíveis para leitura normal (`asBoolean`, `as(Class<T>)`), mas ficam fora do avaliador V1. Não armazenar discriminador de tipo no banco: o valor é JSON e a biblioteca resolve a tipagem.
 
-Exemplo de configuração `platform.pilotAccounts`:
+**Operadores suportados:**
+
+| Operador | Significado | Valores admitidos |
+| --- | --- | --- |
+| `EQUALS` | Igual a | String ou número |
+| `NOT_EQUALS` | Diferente de | String ou número |
+| `CONTAINS` | Lista configurada contém o candidato | Lista de strings ou números |
+| `NOT_CONTAINS` | Lista configurada não contém o candidato | Lista de strings ou números |
+| `GREATER_THAN` | Candidato maior que valor configurado | Número |
+| `GREATER_THAN_OR_EQUALS` | Candidato maior ou igual ao configurado | Número |
+| `LESS_THAN` | Candidato menor que valor configurado | Número |
+| `LESS_THAN_OR_EQUALS` | Candidato menor ou igual ao configurado | Número |
+
+Comparações numéricas devem ser feitas por valor (preferencialmente via `BigDecimal`, sem perda de precisão), de modo que `10`, `10L` e `10.0` sejam equivalentes. Comparações de strings são exatas e sensíveis a maiúsculas/minúsculas na V1; não usar ordenação lexicográfica com operadores maior/menor. Não fazer coerção implícita de string numérica (por exemplo, `"10"`) para número. Rejeitar valores mistos/incompatíveis com exceção padronizada ou fallback explícito.
+
+**Exemplo — contas piloto** (`platform.pilotAccounts`):
 
 ```json
 {
@@ -193,19 +208,47 @@ Exemplo de configuração `platform.pilotAccounts`:
 }
 ```
 
-Consumo:
-
 ```java
-boolean pilot = configurationProvider
-    .get("platform.pilotAccounts")
+boolean pilot = configurationProvider.get("platform.pilotAccounts")
     .matches(10L);
-
-boolean pilotWithFallback = configurationProvider
-    .get("platform.pilotAccounts")
+boolean pilotWithFallback = configurationProvider.get("platform.pilotAccounts")
     .matches(10L, false);
 ```
 
-Acrescentar ao contrato `ConfigurationValue` os métodos `boolean matches(Object candidate)` e `boolean matches(Object candidate, boolean defaultValue)`. O default é aplicado quando a configuração estiver ausente ou houver falha técnica, de estrutura ou de avaliação; registrar log estruturado nesses casos. Sem default, lançar exceção padronizada. Não carregar essa lista junto aos dados gerais da feature: ela permanece como configuração própria, consultada sob demanda no Redis.
+**Exemplo — ambiente por String** (`platform.allowedEnvironment`):
+
+```json
+{ "operator": "EQUALS", "value": "PRD" }
+```
+
+```java
+boolean allowed = configurationProvider.get("platform.allowedEnvironment")
+    .matches("PRD", false);
+```
+
+**Exemplo — limite inteiro ou Long** (`platform.minimumAccounts`):
+
+```json
+{ "operator": "GREATER_THAN_OR_EQUALS", "value": 1000 }
+```
+
+```java
+boolean meetsLimit = configurationProvider.get("platform.minimumAccounts")
+    .matches(1200L, false);
+```
+
+**Exemplo — limite decimal** (`platform.minimumAmount`):
+
+```json
+{ "operator": "GREATER_THAN_OR_EQUALS", "value": 19.90 }
+```
+
+```java
+boolean meetsAmount = configurationProvider.get("platform.minimumAmount")
+    .matches(new BigDecimal("20.00"), false);
+```
+
+Acrescentar ao contrato `ConfigurationValue` os métodos `boolean matches(Object candidate)` e `boolean matches(Object candidate, boolean defaultValue)`. Sem default, chave ausente, Redis indisponível, operador desconhecido ou comparação inválida geram exceção padronizada. Com default, retornar o valor informado e registrar log estruturado em caso de falha; resultados legítimos `false` não são erros. Não carregar listas piloto junto aos settings gerais da feature: consultar a chave específica no Redis.
 
 ### Composição de condições — V2 (fora do escopo de implementação V1)
 
@@ -249,7 +292,7 @@ Restringir mutações e republicação a perfis administrativos; leituras admini
 - `get(key).asX()` e `get(key).path(...).asX()` convertem valores simples, atributos aninhados e objetos Java.\n- Com default, ausências e falhas técnicas/de conversão retornam fallback e geram logs apropriados; sem default, lançam exceções padronizadas.
 - Não há fallback automático para `PLATFORM`.
 - Erros de Redis e conversão seguem padrão de exceptions e mensagens.
-- Testar serialização JSON, tipos primitivos, `asLong`, `asList`, os quatro operadores de `matches`, fallback, concorrência, idempotência e múltiplas instâncias.
+- Testar serialização JSON, tipos primitivos, `asLong`, `asList`, os oito operadores de `matches` e os tipos String/Integer/Long/BigDecimal, fallback, concorrência, idempotência e múltiplas instâncias.
 - Testes unitários, integração e arquitetura conforme padrões Golden; sem alterar módulos fora do escopo.
 
 ## 9. Orientação ao Worker
@@ -279,7 +322,7 @@ Executar os checkpoints **sequencialmente**. Ao concluir cada um, apresentar ao 
 
 **Checkpoint 4 — Consumo pela `platform-libraries`.**
 - Implementar o módulo/componente `ConfigurationProvider` seguindo os padrões de autoconfiguração existentes.
-- Ler exclusivamente do Redis; suportar `ConfigurationValue`, `path`, `asLong`, `asList`, `matches` com os quatro operadores simples e sobrecargas com default. Não implementar composição AND/OR da V2. Com default, absorver ausência/falhas e registrar logs; sem default, lançar exceção padronizada. Nunca fazer fallback entre features.
+- Ler exclusivamente do Redis; suportar `ConfigurationValue`, `path`, `asLong`, `asList`, `matches` com os oito operadores simples e sobrecargas com default. Não implementar composição AND/OR da V2. Com default, absorver ausência/falhas e registrar logs; sem default, lançar exceção padronizada. Nunca fazer fallback entre features.
 - Validar tipos primitivos, objetos JSON, erros de conversão e indisponibilidade do Redis.
 - **Saída:** contrato documentado, exemplos de uso e testes.
 
