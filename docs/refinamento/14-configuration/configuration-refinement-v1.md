@@ -2,7 +2,7 @@
 
 **Projetos:** workspace-service e platform-libraries  
 **Status:** Proposta para implementação — Golden Reference  
-**Local:** docs/refinamento/configuration-refinement-v1.md
+**Local:** docs/refinamento/14-configuration/configuration-refinement-v1.md
 
 ## 1. Objetivo
 Centralizar parâmetros de configuração da plataforma e das features no workspace-service, persistidos em banco relacional e publicados em Redis compartilhado. Microsserviços consumidores leem somente o Redis por meio da platform-libraries.
@@ -56,25 +56,120 @@ Banco e Redis não participam da mesma transação ACID. Falha na publicação a
 ## 6. platform-libraries — módulo de consumo
 Criar módulo/componente compartilhado de configuração, com nome final alinhado à estrutura real do projeto (sugestão: `platform-configuration`), auto-configurável pelo Spring Boot quando habilitado e com conexão Redis provida pela infraestrutura padrão.
 
-Contrato sugerido:
+### Contrato V1 aprovado para implementação
+
+Armazenar valores como JSON válido (inclusive string, número, booleano, array e objeto), sem coluna de tipo. O `ConfigurationProvider` lê exclusivamente Redis e retorna um `ConfigurationValue` que encapsula a navegação e conversão, sem expor `JsonNode` ao consumidor.
+
 ```java
 public interface ConfigurationProvider {
-    <T> T get(String key, T defaultValue);
+    ConfigurationValue get(String key);
+}
+
+public interface ConfigurationValue {
+    ConfigurationValue path(String path);
+
+    String asString();
+    String asString(String defaultValue);
+    Integer asInteger();
+    Integer asInteger(Integer defaultValue);
+    Boolean asBoolean();
+    Boolean asBoolean(Boolean defaultValue);
+    Double asDouble();
+    Double asDouble(Double defaultValue);
+    BigDecimal asBigDecimal();
+    BigDecimal asBigDecimal(BigDecimal defaultValue);
+
+    <T> T as(Class<T> type);
+    <T> T as(Class<T> type, T defaultValue);
 }
 ```
 
-Exemplo:
-```java
-int quarantineDays = configurationProvider.get("platform.quarantineDays", 30);
+`path("retry.attempts")` navega propriedades aninhadas; `path("retry")` seleciona um objeto interno. Especificar e testar tratamento de nomes literais contendo ponto e acesso a arrays, sem ambiguidade. `as(Class<T>)` usa Jackson para converter JSON em objeto do consumidor. Para listas parametrizadas e mapas tipados, estudar `JavaType`/`TypeReference<T>` em evolução separada, pois `Class<T>` não preserva parâmetros genéricos.
+
+### Exemplos completos de consumo
+
+Considere os valores publicados:
+
+```text
+platform.quarantineDays = 30
+platform.applicationName = "Portal Manager"
+platform.amount = 19.90
+platform.enabled = true
+platform.settings = {
+  "enabled": true,
+  "timeout": 60,
+  "retry": { "attempts": 3, "interval": 1000 },
+  "database": { "poolSize": 20, "connectionTimeout": 5000 }
+}
 ```
 
-- Chave existente e válida: retornar valor convertido ao tipo esperado.
-- Chave inexistente: retornar o `defaultValue` informado pelo próprio consumidor, sem consultar `PLATFORM` nem qualquer outra feature.
-- Redis indisponível: lançar exceção controlada no padrão Golden; não confundir falha de infraestrutura com chave ausente.
-- Valor incompatível com o tipo solicitado: erro de conversão controlado; não mascarar como ausência.
-- Para objetos JSON e coleções, prever sobrecarga com tipo explícito (`Class<T>` ou `TypeReference<T>`) para evitar problemas de generics/type erasure.
-- Não acessar banco, workspace-service ou outro serviço HTTP; não implementar cache local na V1.
-- Não adicionar dependências novas sem aprovação, conforme governança Golden.
+**Valores simples:**
+
+```java
+Integer days = configurationProvider.get("platform.quarantineDays").asInteger();
+String name = configurationProvider.get("platform.applicationName").asString();
+BigDecimal amount = configurationProvider.get("platform.amount").asBigDecimal();
+Boolean enabled = configurationProvider.get("platform.enabled").asBoolean();
+```
+
+**Atributos de JSON, inclusive aninhados:**
+
+```java
+Boolean enabled = configurationProvider.get("platform.settings")
+    .path("enabled").asBoolean();
+Integer timeout = configurationProvider.get("platform.settings")
+    .path("timeout").asInteger();
+Integer attempts = configurationProvider.get("platform.settings")
+    .path("retry.attempts").asInteger();
+Integer poolSize = configurationProvider.get("platform.settings")
+    .path("database.poolSize").asInteger();
+```
+
+**Classes de negócio e conversão de subobjeto:**
+
+```java
+public record RetrySettings(Integer attempts, Integer interval) {}
+public record DatabaseSettings(Integer poolSize, Integer connectionTimeout) {}
+public record PlatformSettings(
+    Boolean enabled, Integer timeout,
+    RetrySettings retry, DatabaseSettings database
+) {}
+
+PlatformSettings settings = configurationProvider.get("platform.settings")
+    .as(PlatformSettings.class);
+RetrySettings retry = configurationProvider.get("platform.settings")
+    .path("retry").as(RetrySettings.class);
+```
+
+**Sobrecargas com default (valores simples e objetos):**
+
+```java
+Integer days = configurationProvider.get("platform.quarantineDays").asInteger(30);
+String name = configurationProvider.get("platform.applicationName").asString("Portal Manager");
+Boolean enabled = configurationProvider.get("platform.enabled").asBoolean(false);
+BigDecimal amount = configurationProvider.get("platform.amount").asBigDecimal(BigDecimal.ZERO);
+Integer attempts = configurationProvider.get("platform.settings")
+    .path("retry.attempts").asInteger(3);
+
+RetrySettings defaultRetry = new RetrySettings(3, 1000);
+RetrySettings retry = configurationProvider.get("platform.settings")
+    .path("retry").as(RetrySettings.class, defaultRetry);
+
+PlatformSettings defaultSettings = new PlatformSettings(
+    true, 30, defaultRetry, new DatabaseSettings(20, 5000));
+PlatformSettings settings = configurationProvider.get("platform.settings")
+    .as(PlatformSettings.class, defaultSettings);
+```
+
+### Política de fallback e erros — decisão V1
+
+- **Com default explícito:** se a chave/propriedade estiver ausente, Redis indisponível ou ocorrer erro de conversão, retornar o default informado pelo consumidor; absorver a exceção técnica **e registrar log estruturado** com chave, caminho, categoria do erro e correlation-id, sem registrar payload/segredos. Falha técnica não deve ser silenciosa. O consumidor assume explicitamente o risco de operar com esse fallback.
+- **Sem default:** chave/propriedade ausente gera exceção padronizada de configuração não encontrada; falha Redis gera exceção de infraestrutura; JSON incompatível gera exceção de conversão. Não retornar `null` silenciosamente para ausência.
+- **Valor presente e válido:** retornar o valor convertido; default não substitui valor válido.
+- Distinguir explicitamente JSON `null` de chave/propriedade ausente e definir comportamento consistente antes da implementação. Recomenda-se rejeitar default `null` para não criar ambiguidade entre sobrecargas.
+- Fallback não consulta outra feature, nem `PLATFORM`, nem banco ou HTTP; não implementar cache local na V1.
+- Usar padrão Golden para exceptions, mensagens e MDC. Logs de fallback por falha técnica devem permitir diagnóstico, sem expor dados sensíveis. Não adicionar dependências sem aprovação.
+
 
 ## 7. Segurança e observabilidade
 Restringir mutações e republicação a perfis administrativos; leituras administrativas seguem autorização e visibilidade existentes. Não registrar valores sensíveis nos logs. Incluir correlation-id, resultado da publicação, feature e chave sem expor payloads. Monitorar falhas de sincronização usando mecanismos já existentes; não introduzir framework de métricas não aprovado.
@@ -86,7 +181,7 @@ Restringir mutações e republicação a perfis administrativos; leituras admini
 - Configuração inativa não permanece disponível no Redis após reconciliação.
 - Publicação manual funciona para todas e para uma feature; job horário reconcilia inclusive remoções.
 - Falha do Redis não causa falsa afirmação de rollback no banco; republicação recupera.
-- `get(key, defaultValue)` devolve valor configurado ou default apenas quando a chave não existe.
+- `get(key).asX()` e `get(key).path(...).asX()` convertem valores simples, atributos aninhados e objetos Java.\n- Com default, ausências e falhas técnicas/de conversão retornam fallback e geram logs apropriados; sem default, lançam exceções padronizadas.
 - Não há fallback automático para `PLATFORM`.
 - Erros de Redis e conversão seguem padrão de exceptions e mensagens.
 - Testar serialização JSON, tipos primitivos, concorrência, idempotência e múltiplas instâncias.
@@ -119,7 +214,7 @@ Executar os checkpoints **sequencialmente**. Ao concluir cada um, apresentar ao 
 
 **Checkpoint 4 — Consumo pela `platform-libraries`.**
 - Implementar o módulo/componente `ConfigurationProvider` seguindo os padrões de autoconfiguração existentes.
-- Ler exclusivamente do Redis; suportar default informado pelo consumidor **apenas para chave ausente**, sem fallback para `PLATFORM`.
+- Ler exclusivamente do Redis; suportar `ConfigurationValue`, `path`, conversões e sobrecargas com default. Com default, absorver ausência/falhas e registrar logs; sem default, lançar exceção padronizada. Nunca fazer fallback entre features.
 - Validar tipos primitivos, objetos JSON, erros de conversão e indisponibilidade do Redis.
 - **Saída:** contrato documentado, exemplos de uso e testes.
 
