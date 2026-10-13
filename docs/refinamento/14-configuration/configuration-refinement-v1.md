@@ -81,6 +81,12 @@ public interface ConfigurationValue {
 
     <T> T as(Class<T> type);
     <T> T as(Class<T> type, T defaultValue);
+    Long asLong();
+    Long asLong(Long defaultValue);
+    <T> List<T> asList(Class<T> elementType);
+    <T> List<T> asList(Class<T> elementType, List<T> defaultValue);
+    boolean matches(Object candidate);
+    boolean matches(Object candidate, boolean defaultValue);
 }
 ```
 
@@ -171,6 +177,65 @@ PlatformSettings settings = configurationProvider.get("platform.settings")
 - Usar padrão Golden para exceptions, mensagens e MDC. Logs de fallback por falha técnica devem permitir diagnóstico, sem expor dados sensíveis. Não adicionar dependências sem aprovação.
 
 
+
+### Avaliação de condições — V1 (escopo aprovado)
+
+A Configuration V1 também permite armazenar uma condição simples em JSON, sem criar um motor de regras. O objeto possui um único operador e um valor (escalar ou lista), e a `platform-libraries` avalia a condição contra o valor fornecido pelo consumidor.
+
+Operadores suportados: `EQUALS`, `NOT_EQUALS`, `CONTAINS` e `NOT_CONTAINS`. `EQUALS` e `NOT_EQUALS` comparam valores; `CONTAINS` e `NOT_CONTAINS` verificam a presença do valor informado em uma lista configurada. A implementação deve definir comparação tipada e consistente (por exemplo, IDs Long versus Integer), rejeitar formatos incompatíveis e não interpretar expressões arbitrárias.
+
+Exemplo de configuração `platform.pilotAccounts`:
+
+```json
+{
+  "operator": "CONTAINS",
+  "value": [10, 20, 30]
+}
+```
+
+Consumo:
+
+```java
+boolean pilot = configurationProvider
+    .get("platform.pilotAccounts")
+    .matches(10L);
+
+boolean pilotWithFallback = configurationProvider
+    .get("platform.pilotAccounts")
+    .matches(10L, false);
+```
+
+Acrescentar ao contrato `ConfigurationValue` os métodos `boolean matches(Object candidate)` e `boolean matches(Object candidate, boolean defaultValue)`. O default é aplicado quando a configuração estiver ausente ou houver falha técnica, de estrutura ou de avaliação; registrar log estruturado nesses casos. Sem default, lançar exceção padronizada. Não carregar essa lista junto aos dados gerais da feature: ela permanece como configuração própria, consultada sob demanda no Redis.
+
+### Composição de condições — V2 (fora do escopo de implementação V1)
+
+Reservar para a V2 a combinação de condições com `AND` e `OR`, grupos aninhados e avaliação de múltiplos atributos. Exemplo ilustrativo:
+
+```json
+{
+  "operator": "OR",
+  "conditions": [
+    {
+      "operator": "AND",
+      "conditions": [
+        {"field": "accountId", "operator": "CONTAINS", "value": [10, 20, 30]},
+        {"field": "environment", "operator": "EQUALS", "value": "PRD"}
+      ]
+    },
+    {"field": "profile", "operator": "EQUALS", "value": "ADMIN"}
+  ]
+}
+```
+
+Exemplo de API **apenas proposta para V2**, não implementar na V1:
+
+```java
+boolean enabled = configurationProvider.get("platform.newFlow")
+    .matches(Map.of("accountId", 10L, "environment", "PRD", "profile", "USER"), false);
+```
+
+Na V2, detalhar separadamente semântica de operadores, limites de profundidade e quantidade de condições, tipagem, validação, segurança e desempenho. Não implementar parser recursivo, `AND`, `OR` ou grupos na V1.
+
 ## 7. Segurança e observabilidade
 Restringir mutações e republicação a perfis administrativos; leituras administrativas seguem autorização e visibilidade existentes. Não registrar valores sensíveis nos logs. Incluir correlation-id, resultado da publicação, feature e chave sem expor payloads. Monitorar falhas de sincronização usando mecanismos já existentes; não introduzir framework de métricas não aprovado.
 
@@ -184,7 +249,7 @@ Restringir mutações e republicação a perfis administrativos; leituras admini
 - `get(key).asX()` e `get(key).path(...).asX()` convertem valores simples, atributos aninhados e objetos Java.\n- Com default, ausências e falhas técnicas/de conversão retornam fallback e geram logs apropriados; sem default, lançam exceções padronizadas.
 - Não há fallback automático para `PLATFORM`.
 - Erros de Redis e conversão seguem padrão de exceptions e mensagens.
-- Testar serialização JSON, tipos primitivos, concorrência, idempotência e múltiplas instâncias.
+- Testar serialização JSON, tipos primitivos, `asLong`, `asList`, os quatro operadores de `matches`, fallback, concorrência, idempotência e múltiplas instâncias.
 - Testes unitários, integração e arquitetura conforme padrões Golden; sem alterar módulos fora do escopo.
 
 ## 9. Orientação ao Worker
@@ -214,7 +279,7 @@ Executar os checkpoints **sequencialmente**. Ao concluir cada um, apresentar ao 
 
 **Checkpoint 4 — Consumo pela `platform-libraries`.**
 - Implementar o módulo/componente `ConfigurationProvider` seguindo os padrões de autoconfiguração existentes.
-- Ler exclusivamente do Redis; suportar `ConfigurationValue`, `path`, conversões e sobrecargas com default. Com default, absorver ausência/falhas e registrar logs; sem default, lançar exceção padronizada. Nunca fazer fallback entre features.
+- Ler exclusivamente do Redis; suportar `ConfigurationValue`, `path`, `asLong`, `asList`, `matches` com os quatro operadores simples e sobrecargas com default. Não implementar composição AND/OR da V2. Com default, absorver ausência/falhas e registrar logs; sem default, lançar exceção padronizada. Nunca fazer fallback entre features.
 - Validar tipos primitivos, objetos JSON, erros de conversão e indisponibilidade do Redis.
 - **Saída:** contrato documentado, exemplos de uso e testes.
 
