@@ -94,3 +94,39 @@ Restringir mutações e republicação a perfis administrativos; leituras admini
 
 ## 9. Orientação ao Worker
 Antes de implementar, inspecionar os repositórios workspace-service, platform-libraries e as diretrizes de guideline-java. Reutilizar catálogos, lifecycle, autorização, mensagens, arquitetura de pacotes e infraestrutura Redis existentes. Documentar decisões técnicas não especificadas, sem inventar contratos incompatíveis. Entregar alterações por projeto, com testes e evidências, sem adicionar dependências não autorizadas.
+
+### 9.1. Checkpoints de execução (aprovação obrigatória)
+
+Executar os checkpoints **sequencialmente**. Ao concluir cada um, apresentar ao responsável: arquivos alterados, decisões adotadas, testes executados e seus resultados, riscos, pendências e evidências. **Não iniciar o checkpoint seguinte sem aprovação explícita.** Não realizar merge na `main` sem autorização.
+
+**Checkpoint 1 — Análise arquitetural (sem alterações de código).**
+- Ler este refinamento, as guidelines Golden e a estrutura atual de `workspace-service` e `platform-libraries`.
+- Conferir catálogos/feature `PLATFORM`, lifecycle, convenções de endpoints, migrations, Redis, injeção de dependências, exceptions, autorização e testes.
+- Apontar incompatibilidades, lacunas e decisões pendentes; propor plano incremental por repositório.
+- **Saída:** relatório de aderência e plano para aprovação, sem implementar.
+
+**Checkpoint 2 — Persistência e domínio (`workspace-service`).**
+- Implementar entidade/tabela Configuration, migration, constraints, relacionamento com catálogo de features e proteção da feature `PLATFORM`.
+- Implementar casos de uso de CRUD, lifecycle, validações, autorização e mensagens conforme Golden.
+- Testar regras de unicidade, lifecycle, tipos de valores, erros e persistência.
+- **Saída:** alterações e evidências dos testes de domínio e integração.
+
+**Checkpoint 3 — Publicação e reconciliação Redis (`workspace-service`).**
+- Publicar alterações após commit do banco; remover chaves inativas/excluídas.
+- Implementar publicação manual (todas ou por feature) e scheduler de reconciliação a cada hora.
+- Validar idempotência, falha de Redis, recuperação, concorrência, múltiplas instâncias e proteção contra publicação obsoleta.
+- **Saída:** evidências de consistência e recuperação, com limitações explicitadas.
+
+**Checkpoint 4 — Consumo pela `platform-libraries`.**
+- Implementar o módulo/componente `ConfigurationProvider` seguindo os padrões de autoconfiguração existentes.
+- Ler exclusivamente do Redis; suportar default informado pelo consumidor **apenas para chave ausente**, sem fallback para `PLATFORM`.
+- Validar tipos primitivos, objetos JSON, erros de conversão e indisponibilidade do Redis.
+- **Saída:** contrato documentado, exemplos de uso e testes.
+
+**Checkpoint 5 — Validação final Golden.**
+- Executar testes unitários, integração, arquitetura e build dos módulos impactados; apresentar resultados e cobertura disponível.
+- Revisar segurança, logs, simplicidade, padrões de pacotes, compatibilidade e documentação.
+- Confirmar ausência de novas dependências não autorizadas e de mudanças fora do escopo.
+- **Saída:** relatório final com evidências, riscos residuais e indicação de prontidão para revisão/PR.
+
+**Restrições para todos os checkpoints:** não adicionar dependências sem autorização, não alterar contratos existentes desnecessariamente, não avançar sem aprovação explícita e não efetuar merge na `main` sem autorização.
