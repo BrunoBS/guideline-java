@@ -22,11 +22,12 @@ Criar entidade/tabela de configuração com:
 - `identifier`: UUID público, se aplicável ao padrão Golden;
 - `feature_id`: FK obrigatória para o catálogo de features, inclusive `PLATFORM`;
 - `key`: nome da chave dentro da feature;
-- `type`: enum obrigatório `CONFIGURATION` ou `EXPRESSION`;\n- `value`: JSON da configuração; para `EXPRESSION`, objeto de regra padronizado;
+- `type`: enum obrigatório `CONFIGURATION` ou `EXPRESSION`;
+- `value`: JSON da configuração; para `EXPRESSION`, objeto de regra padronizado;
 - `lifecycle`: ACTIVE/INACTIVE, seguindo catálogo e convenções existentes.
 - Campos de auditoria conforme padrão já adotado no workspace-service.
 
-Impor unicidade de `(feature_id, key)`. Validar chave não vazia, feature existente, tipo permitido e valor JSON válido. `CONFIGURATION` aceita qualquer JSON válido; `EXPRESSION` exige validação pelo JSON Schema padrão antes de persistir/publicar. Alterar `type` exige revalidação do valor. Definir representação de strings e tipos primitivos de forma consistente na publicação e na leitura. Não persistir segredos sem uma política específica de segurança.
+Impor unicidade de `(feature_id, key)`. Validar chave não vazia, feature existente, tipo permitido e valor JSON válido. `CONFIGURATION` aceita qualquer JSON válido, sem schema individual; o cadastro assume o contrato e a biblioteca valida a conversão no consumo. `EXPRESSION` exige validação pelo JSON Schema padrão antes de persistir/publicar. Alterar `type` exige revalidação do valor. Definir representação de strings e tipos primitivos de forma consistente na publicação e na leitura. Não persistir segredos sem uma política específica de segurança.
 
 ## 4. Endpoints e casos de uso
 - `POST`: criar configuração informando `type` (`CONFIGURATION` ou `EXPRESSION`); validar o JSON Schema padrão quando for expressão; persistir e, após commit, publicar sua chave no Redis.
@@ -251,13 +252,239 @@ boolean meetsAmount = configurationProvider.get("platform.minimumAmount")
 
 Acrescentar ao contrato `ConfigurationValue` os métodos `boolean matches(Object candidate)` e `boolean matches(Object candidate, boolean defaultValue)`. Sem default, chave ausente, Redis indisponível, operador desconhecido ou comparação inválida geram exceção padronizada. Com default, retornar o valor informado e registrar log estruturado em caso de falha; resultados legítimos `false` não são erros. Não carregar listas piloto junto aos settings gerais da feature: consultar a chave específica no Redis.
 
-#### JSON Schema único para EXPRESSIONS — V1
+#### JSON Schema padrão de EXPRESSION — V1
 
-O workspace-service resolve **um schema padrão de EXPRESSIONS** pelo mecanismo de Schema da plataforma e valida o objeto `value` no POST/PUT, antes de persistir e publicar no Redis. Não criar um schema por operador ou por valueType. O schema (Draft 2020-12) usa condições `if/then` ou `oneOf` para impor: campos obrigatórios; oito operadores permitidos; quatro tipos permitidos; escalares para igualdade e comparações; listas homogêneas para `CONTAINS`/`NOT_CONTAINS`; maior/menor apenas para tipos numéricos; proibição de propriedades extras e de valores nulos. Validar também limites de `INTEGER` (32 bits) e `LONG` (64 bits), com conversão numérica exata na biblioteca. `DECIMAL` usa números JSON e `BigDecimal`; `STRING` não sofre coerção implícita para número.
+O cadastro possui dois tipos: `CONFIGURATION` (JSON livre, **sem schema associado**) e `EXPRESSION` (estrutura obrigatória, validada por **um único schema padrão**, reutilizado pelo módulo de Schema existente). Não criar um schema por configuração, operador ou tipo. POST/PUT validam antes da persistência/publicação; a biblioteca avalia a regra sem executar JSON Schema a cada leitura.
 
-Exemplo inválido, rejeitado no cadastro: `{"operator":"CONTAINS","valueType":"LONG","value":[10,"20"]}`. Exemplo inválido: `{"operator":"GREATER_THAN","valueType":"STRING","value":"ABC"}`. O schema é versionado pelo catálogo de Schema existente; evolução de operadores/tipos exige nova versão publicada, testes de compatibilidade e verificação de expressões já cadastradas. Configurações do tipo `CONFIGURATION` não são submetidas a esse schema de expressão.
+O schema abaixo é a definição de referência **completa para a V1** (Draft 2020-12). `valueType` descreve o elemento, enquanto o operador determina escalar ou lista. Listas são homogêneas, não vazias e sem duplicados; maior/menor só aceita tipos numéricos. `INTEGER` e `LONG` possuem limites; números são comparados por valor sem coerção implícita de strings. A implementação deve preservar precisão numérica ao ler JSON, especialmente limites de Long e BigDecimal.
 
-Na publicação Redis, preservar o discriminador `type` junto ao valor em envelope padronizado para o consumidor distinguir `CONFIGURATION` de `EXPRESSION`; o envelope é contrato interno, sem alterar a assinatura pública de `ConfigurationProvider`. A biblioteca não precisa executar o schema inteiro a cada leitura, mas deve tratar payload corrompido/incompatível com exceção ou fallback. Os oito operadores continuam na V1; composição AND/OR permanece V2.
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Configuration Expression V1",
+  "type": "object",
+  "required": [
+    "operator",
+    "valueType",
+    "value"
+  ],
+  "properties": {
+    "operator": {
+      "enum": [
+        "EQUALS",
+        "NOT_EQUALS",
+        "CONTAINS",
+        "NOT_CONTAINS",
+        "GREATER_THAN",
+        "GREATER_THAN_OR_EQUALS",
+        "LESS_THAN",
+        "LESS_THAN_OR_EQUALS"
+      ]
+    },
+    "valueType": {
+      "enum": [
+        "STRING",
+        "INTEGER",
+        "LONG",
+        "DECIMAL"
+      ]
+    },
+    "value": {}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operator": {
+            "enum": [
+              "CONTAINS",
+              "NOT_CONTAINS"
+            ]
+          }
+        },
+        "required": [
+          "operator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "value": {
+            "not": {
+              "type": "array"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operator": {
+            "enum": [
+              "GREATER_THAN",
+              "GREATER_THAN_OR_EQUALS",
+              "LESS_THAN",
+              "LESS_THAN_OR_EQUALS"
+            ]
+          }
+        },
+        "required": [
+          "operator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "valueType": {
+            "enum": [
+              "INTEGER",
+              "LONG",
+              "DECIMAL"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "valueType": {
+            "const": "STRING"
+          }
+        },
+        "required": [
+          "valueType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "valueType": {
+            "const": "INTEGER"
+          }
+        },
+        "required": [
+          "valueType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": -2147483648,
+                "maximum": 2147483647
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": -2147483648,
+                  "maximum": 2147483647
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "valueType": {
+            "const": "LONG"
+          }
+        },
+        "required": [
+          "valueType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": -9223372036854776000,
+                "maximum": 9223372036854776000
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": -9223372036854776000,
+                  "maximum": 9223372036854776000
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "valueType": {
+            "const": "DECIMAL"
+          }
+        },
+        "required": [
+          "valueType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
+```
+
+**Casos de teste obrigatórios:** aceitar `CONTAINS/LONG/[10,20]`, `EQUALS/STRING/"PRD"`, `GREATER_THAN_OR_EQUALS/DECIMAL/19.90`; rejeitar `CONTAINS/LONG/[10,"20"]`, `CONTAINS/LONG/10`, `GREATER_THAN/STRING/"ABC"`, campos extras, valores nulos e números fora do intervalo. O schema pode ser versionado pelo catálogo existente; mudanças futuras devem avaliar compatibilidade com expressões já cadastradas. Objetos complexos e booleanos continuam disponíveis no tipo `CONFIGURATION`, mas não como operandos de `EXPRESSION` na V1.
+
+No Redis, publicar um envelope com `type` e `value` para o consumidor distinguir os dois modelos, sem alterar a API pública do `ConfigurationProvider`. Em caso de payload inválido ou conversão incompatível, aplicar exceção padronizada ou fallback explícito com log. `AND` e `OR` permanecem exclusivos da V2.
 
 ### Composição de condições — V2 (fora do escopo de implementação V1)
 
