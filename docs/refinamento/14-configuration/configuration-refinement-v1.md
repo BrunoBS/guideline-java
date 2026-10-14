@@ -1,58 +1,51 @@
 # Refinamento V1 — Configuration
 
 **Projetos:** workspace-service e platform-libraries  
-**Status:** Proposta para implementação — Golden Reference  
+**Status:** Especificação para execução por Worker — Golden Reference  
 **Local:** docs/refinamento/14-configuration/configuration-refinement-v1.md
 
-## 1. Objetivo
-Centralizar parâmetros de configuração da plataforma e das features no workspace-service, persistidos em banco relacional e publicados em Redis compartilhado. Microsserviços consumidores leem somente o Redis por meio da platform-libraries.
+## 1. Objetivo e limites
+Centralizar configurações internas da plataforma no workspace-service (MySQL 8 como fonte de verdade), publicar explicitamente versões aprovadas no Redis e consumi-las exclusivamente pela platform-libraries. DEV, HOMO e PROD possuem instalações/bancos próprios: **não** criar dimensão de ambiente lógico. Não introduzir outbox, cache local, fallback de microsserviço, filas ou composição de expressões na V1.
 
-## 2. Escopo e decisões
-- Configurações globais pertencem à feature fixa `PLATFORM`, cadastrada por migration e protegida contra exclusão/inativação.
-- Configurações específicas pertencem a uma feature existente no catálogo; usar a referência dessa tabela, sem duplicar cadastros.
-- A chave lógica é totalmente qualificada: `platform.quarantineDays`, `workspace.quarantineDays`, `key-service.quarantineDays`. O código usado deve ser o código canônico da feature, com normalização definida pelo catálogo.
-- Não existe herança nem fallback entre features. `PLATFORM` não é fallback automático.
-- O consumidor informa explicitamente o nome completo da chave e, opcionalmente, um valor default local.
-- Banco de dados é a fonte de verdade; Redis é cache compartilhado.
-- V1 sem outbox transacional, cache local ou acesso ao banco pelos consumidores.
+## 2. Decisões obrigatórias
+- Cada Configuration pertence a um registro do catálogo **Microservice**, referenciado por `microservice_id`. O registro de código `PLATFORM` representa as configurações globais; verificar sua existência/proteção no catálogo existente, sem criar catálogo paralelo.
+- A chave lógica/contrato do consumidor é `<microservice.code>.<key>`, exemplo `account-service.request.timeout`; o consumidor informa **a chave completa**. Não prefixar automaticamente e não consultar `PLATFORM` como fallback.
+- `microservice_id` e `key` são imutáveis depois da criação; `key` é obrigatória, máximo 80 caracteres, única por microsserviço. Não incluir campo `name` ou cópia `microservice_code` na Configuration.
+- `Microservice.code` permanece administrável somente pela owner conforme as regras atuais. Mudá-lo é mudança de contrato que pode quebrar consumidores de Configuration e mensagens de erro; registrar risco e exigir análise de impacto operacional, **sem** implementar migração automática nesta V1.
+- Dois catálogos persistidos em `foundation.catalog`: ConfigurationType (`CONFIGURATION`, `EXPRESSION`) e ConfigurationStatus (`DRAFT`, `PUBLISHED`). Seguir modelo de catálogo Golden existente, inclusive migrations/seeds.
+- Operator (`EQUALS`, `NOT_EQUALS`, `CONTAINS`, `NOT_CONTAINS`, `GREATER_THAN`, `GREATER_THAN_OR_EQUALS`, `LESS_THAN`, `LESS_THAN_OR_EQUALS`) e ValueType (`STRING`, `INTEGER`, `LONG`, `DECIMAL`) são **enums Java na feature**, não catálogos persistidos.
+- `CONFIGURATION` aceita JSON válido; `EXPRESSION` aceita apenas JSON que passa no schema padrão V1. `value` é editável e **não** é publicado até ação explícita.
 
-## 3. Modelo de dados
-Criar entidade/tabela de configuração com:
-- `id`: identificador interno, conforme padrão do projeto;
-- `identifier`: UUID público, se aplicável ao padrão Golden;
-- `feature_id`: FK obrigatória para o catálogo de features, inclusive `PLATFORM`;
-- `key`: nome da chave dentro da feature;
-- `type`: enum obrigatório `CONFIGURATION` ou `EXPRESSION`;
-- `value`: JSON da configuração; para `EXPRESSION`, objeto de regra padronizado;
-- `lifecycle`: ACTIVE/INACTIVE, seguindo catálogo e convenções existentes.
-- Campos de auditoria conforme padrão já adotado no workspace-service.
+## 3. Persistência, domínio e invariantes
+Criar `Configuration` em `feature.configuration` conforme separação domain/service/usecase/infra e Command/Query da Golden:
+- `id` BIGINT PK; `identifier` UUID público único e obrigatório; `microservice_id` FK obrigatória; `key` VARCHAR(80) obrigatória; `description` VARCHAR(200) opcional; `type_id` FK ConfigurationType; `value` JSON MySQL obrigatório, mapeado para JsonNode; `published_value` JSON MySQL nullable, mapeado para JsonNode; `status_id` FK ConfigurationStatus; `active` BOOLEAN obrigatório default true; auditoria conforme convenção existente.
+- Índice UNIQUE (`microservice_id`, `key`); integridade de FK e índices necessários às consultas/reconciliação. Não armazenar `microservice_code` duplicado.
+- Estado inicial: `DRAFT`, `active=true`, `published_value` SQL NULL. JSON literal `null` em `value` é valor JSON válido; não confundir com SQL NULL em `published_value`. O Worker deve testar esse caso.
+- Publicação: somente ativa e em DRAFT; copiar **integralmente** `value` para `published_value`, alterar status para PUBLISHED. `published_value` permanece imutável nas edições subsequentes até nova publicação.
+- Atualização de `value` ou `type` de registro PUBLISHED: validar, salvar novos dados, voltar a DRAFT e **preservar** `published_value`. Não alterar Redis nessa edição. Alterar só descrição não precisa invalidar publicação.
+- Inativação: `active=false`, `status=DRAFT`, limpar `published_value` para SQL NULL e solicitar remoção da chave Redis após commit. Reativação: `active=true`, `status=DRAFT`, `published_value` continua SQL NULL, sem publicação automática.
+- Exclusão física permitida **somente se inativa**; excluir registro e remover eventual chave residual Redis após commit. Não criar versionamento adicional ou histórico na V1.
+- Validar tamanho/formato de key, identidade do microsserviço, tipo, status, JSON e duplicidade. Usar mensagens i18n, exceptions e autorização existentes; nunca registrar payload de configuração em logs.
 
-Impor unicidade de `(feature_id, key)`. Validar chave não vazia, feature existente, tipo permitido e valor JSON válido. `CONFIGURATION` aceita qualquer JSON válido, sem schema individual; o cadastro assume o contrato e a biblioteca valida a conversão no consumo. `EXPRESSION` exige validação pelo JSON Schema padrão antes de persistir/publicar. Alterar `type` exige revalidação do valor. Definir representação de strings e tipos primitivos de forma consistente na publicação e na leitura. Não persistir segredos sem uma política específica de segurança.
+## 4. API e use cases — especificação ao Worker
+Inspecionar controllers/rotas do workspace-service antes de fixar os caminhos concretos; respeitar o padrão Golden de Request/Response e identificador UUID. Implementar:
+1. Create: recebe `microserviceIdentifier`, `key`, `description`, `type`, `value`; valida, persiste DRAFT ativo e **não escreve no Redis**.
+2. Update: recebe apenas campos editáveis (`description`, `type`, `value`); rejeita tentativa de alterar microservice/key. Se `type` ou `value` mudarem, aplica regras de DRAFT/published_value; sem autopublicação.
+3. FindById e FindAll: consulta ao banco, paginação/filtros por microsserviço, status, tipo, ativo e chave segundo padrão existente; Response administrativo não precisa expor `publishedValue` na UI.
+4. Patch Activate e Patch Inactivate: use cases separados e idempotência definida/testada; inativação remove publicação.
+5. Delete: somente INACTIVE; respeitar padrões de autorização/erros.
+6. PublishById: valida ativo e DRAFT, valida novamente JSON Schema da expressão, persiste publicação, agenda atualização da chave Redis após commit.
+7. PublishBatch: recebe lista não vazia de UUIDs, rejeita UUIDs repetidos, inexistentes, inativos, não-DRAFT ou valores inválidos; **validar todo o conjunto antes de alterar qualquer registro**, executar mudanças de todos os registros em **uma única transação do banco**; qualquer falha de validação/persistência reverte o lote inteiro. Não fazer chamadas Redis dentro da transação; após commit, sincronizar cada chave. Falha no Redis não reverte o banco e pode causar divergência temporária, corrigida pelo scheduler.
+8. Não implementar endpoint de publicação automática em POST/PUT, publicação irrestrita de todas as configurações ou troca de key/microsserviço.
+Respostas de publish devem diferenciar persistência confirmada de sincronização Redis falha/pendente; nunca declarar atomicidade distribuída. Garantir concorrência (lock/versionamento transacional ou estratégia equivalente) para impedir publicação de snapshot obsoleto, especialmente entre publish, update e inactivate.
 
-## 4. Endpoints e casos de uso
-- `POST`: criar configuração informando `type` (`CONFIGURATION` ou `EXPRESSION`); validar o JSON Schema padrão quando for expressão; persistir e, após commit, publicar sua chave no Redis.
-- `PUT`: atualizar configuração e revalidar `type`/`value` (inclusive troca de tipo); persistir e, após commit, publicar a versão atual.
-- `GET` por identificador e `GET` paginado/filtros: consulta administrativa ao banco.
-- `PATCH` de lifecycle: ativar/inativar; refletir o estado publicado no Redis.
-- `PATCH` de publish: republicar todas as configurações ou apenas as de uma feature, lendo o banco; não modificar dados de negócio.
-- Exclusão física, se oferecida, deve obedecer às regras de lifecycle e retirar a chave do Redis.
-
-Usar Request/Response nos controllers, Command/Query e use cases separados, validações centralizadas, autorização administrativa e mensagens de erro padronizadas conforme a Golden Reference. Rotas exatas devem respeitar as convenções existentes do repositório.
-
-## 5. Contrato de publicação no Redis
-Chave física padronizada: `config:<feature>:<key>`, por exemplo `config:platform:quarantineDays`. A biblioteca deve receber a chave lógica completa (`platform.quarantineDays`) e transformá-la no nome físico de maneira determinística, sem colisões. Não assumir que nomes de features ou keys nunca contêm pontos: estabelecer validação/escape no contrato.
-
-Publicar somente configurações ACTIVE. Inativação, remoção ou republicação integral devem eliminar entradas obsoletas do namespace gerenciado, sem apagar chaves de outros módulos. Preferir operação idempotente. Não expirar entradas por TTL sem estratégia de reposição definida, pois uma expiração silenciosa produziria ausência de configuração.
-
-### Três gatilhos de publicação
-1. **Automático:** após POST/PUT e alterações de lifecycle, depois do commit do banco, atualizar ou remover somente a chave afetada.
-2. **Manual:** PATCH administrativo republica tudo ou uma feature selecionada, usando o estado atual do banco.
-3. **Agendado:** scheduler a cada uma hora reconcilia Redis e banco.
-
-Todos devem reutilizar o mesmo serviço de publicação. Com múltiplas instâncias, evitar execuções simultâneas do job (lock distribuído ou execução única conforme infraestrutura). Evitar que um snapshot antigo sobrescreva uma gravação mais nova; serializar por chave, usar versão/controle de ordem ou reconciliar novamente após concorrência. O mecanismo concreto deve seguir a infraestrutura disponível e ser testado.
-
-### Consistência e recuperação
-Banco e Redis não participam da mesma transação ACID. Falha na publicação após commit não deve ser tratada como rollback da gravação: registrar erro, sinalizar a condição conforme contrato e permitir republicação manual/agendada. A sincronização horária recupera divergências; pode existir defasagem temporária. Testar Redis vazio, indisponível, remoção de chave, mudança de lifecycle e publicação concorrente.
+## 5. Redis, reconciliação e consistência
+- Redis é armazenamento runtime; consumidores não acessam MySQL/HTTP para resolver configuração. Publicar um **envelope JSON** com `type` e `value` publicado (não `value` de DRAFT), para `ConfigurationProvider` distinguir CONFIGURATION de EXPRESSION.
+- Chave de consumo pública `<microservice.code>.<key>`; convenção física Redis V1: `config:<microservice.code>.<key>` (prefixo `config:` é interno à biblioteca). Exemplo `config:account-service.request.timeout`. A biblioteca recebe a chave pública completa e só adiciona `config:`, sem adivinhar microsserviço. Validar/escapar ambiguidades e colisões; não apagar namespaces alheios.
+- Publicação individual/em lote e inativação sincronizam Redis **após commit**, via serviço único de sincronização idempotente; falha gera log estruturado (identificador/chave/correlation-id, sem payload) e sinalização apropriada.
+- Scheduler de reconciliação aproximadamente horário, seguindo infraestrutura de agendamento existente: consultar todas as configurações com `active=true` e `published_value IS NOT NULL`, inclusive status DRAFT que preserva versão anterior; repor chaves ausentes/desatualizadas e remover chaves obsoletas/inativas/nunca publicadas do namespace gerenciado. Não publicar `value` de DRAFT.
+- Redis sem TTL na V1; Redis vazio/indisponível deve recuperar por reconciliação. Considerar múltiplas instâncias e concorrência para não sobrescrever versão mais recente; não adicionar dependência de lock sem autorização. Se infraestrutura atual não permitir garantia segura, relatar bloqueio no checkpoint arquitetural antes de implementar.
+- Uma publicação confirmada no banco pode ainda não estar visível no Redis; documentar consistência eventual. Falha Redis **não** é motivo para rollback da transação já commitada.
 
 ## 6. platform-libraries — módulo de consumo
 Criar módulo/componente compartilhado de configuração, com nome final alinhado à estrutura real do projeto (sugestão: `platform-configuration`), auto-configurável pelo Spring Boot quando habilitado e com conexão Redis provida pela infraestrutura padrão.
@@ -174,7 +167,7 @@ PlatformSettings settings = configurationProvider.get("platform.settings")
 - **Sem default:** chave/propriedade ausente gera exceção padronizada de configuração não encontrada; falha Redis gera exceção de infraestrutura; JSON incompatível gera exceção de conversão. Não retornar `null` silenciosamente para ausência.
 - **Valor presente e válido:** retornar o valor convertido; default não substitui valor válido.
 - Distinguir explicitamente JSON `null` de chave/propriedade ausente e definir comportamento consistente antes da implementação. Recomenda-se rejeitar default `null` para não criar ambiguidade entre sobrecargas.
-- Fallback não consulta outra feature, nem `PLATFORM`, nem banco ou HTTP; não implementar cache local na V1.
+- Fallback não consulta outro microsserviço, nem `PLATFORM`, nem banco ou HTTP; não implementar cache local na V1.
 - Usar padrão Golden para exceptions, mensagens e MDC. Logs de fallback por falha técnica devem permitir diagnóstico, sem expor dados sensíveis. Não adicionar dependências sem aprovação.
 
 
@@ -250,7 +243,7 @@ boolean meetsAmount = configurationProvider.get("platform.minimumAmount")
     .matches(new BigDecimal("20.00"), false);
 ```
 
-Acrescentar ao contrato `ConfigurationValue` os métodos `boolean matches(Object candidate)` e `boolean matches(Object candidate, boolean defaultValue)`. Sem default, chave ausente, Redis indisponível, operador desconhecido ou comparação inválida geram exceção padronizada. Com default, retornar o valor informado e registrar log estruturado em caso de falha; resultados legítimos `false` não são erros. Não carregar listas piloto junto aos settings gerais da feature: consultar a chave específica no Redis.
+Acrescentar ao contrato `ConfigurationValue` os métodos `boolean matches(Object candidate)` e `boolean matches(Object candidate, boolean defaultValue)`. Sem default, chave ausente, Redis indisponível, operador desconhecido ou comparação inválida geram exceção padronizada. Com default, retornar o valor informado e registrar log estruturado em caso de falha; resultados legítimos `false` não são erros. Não carregar listas piloto junto aos settings gerais do microsserviço: consultar a chave específica no Redis.
 
 #### JSON Schema padrão de EXPRESSION — V1
 
@@ -515,57 +508,26 @@ boolean enabled = configurationProvider.get("platform.newFlow")
 
 Na V2, detalhar separadamente semântica de operadores, limites de profundidade e quantidade de condições, tipagem, validação, segurança e desempenho. Não implementar parser recursivo, `AND`, `OR` ou grupos na V1.
 
-## 7. Segurança e observabilidade
-Restringir mutações e republicação a perfis administrativos; leituras administrativas seguem autorização e visibilidade existentes. Não registrar valores sensíveis nos logs. Incluir correlation-id, resultado da publicação, feature e chave sem expor payloads. Monitorar falhas de sincronização usando mecanismos já existentes; não introduzir framework de métricas não aprovado.
+## 7. Segurança, testes e critérios de aceite
+- Autorização administrativa Golden para mutações e publicação; catálogo Microservice controlado pela owner. Não logar payload, valores sensíveis ou segredos; não criar armazenamento de segredos na V1.
+- Testar migration/constraints, duplicidade (microservice_id,key), UUID, criação DRAFT, imutabilidade de key/microservice, transições de status/active, update preservando published_value, delete somente inativa, reativação sem autopublish, publicação individual, lote tudo-ou-nada (inclusive erro no meio da transação), concorrência, JSON SQL NULL versus JSON literal null, schema e todos os operadores.
+- Testar Redis após commit, falha Redis sem rollback fictício, scheduler restaurando valor anteriormente publicado mesmo com status DRAFT, limpeza de chaves órfãs/inativas, Redis vazio, múltiplas instâncias e idempotência.
+- Testar ConfigurationProvider: getters tipados, path, asList, objetos Java, matches, defaults, falhas Redis/conversão, logs e ausência de fallback automático; executar builds e testes de arquitetura Golden.
+- Revisar precisão do schema LONG: limites exatos Java Long.MIN_VALUE = -9223372036854775808 e Long.MAX_VALUE = 9223372036854775807; **não** usar limites arredondados. Validar com parser/schema que preserva precisão inteira, inclusive limites e vizinhos inválidos. Se a engine existente arredondar, bloquear e reportar alternativa antes de liberar.
+- Critério de aceite: nenhum fluxo de Create/Update/Activate publica automaticamente; só Publish produz novo valor runtime; inativação remove; lote é atômico no banco; divergência Redis é recuperável; nenhuma feature V2 implementada.
 
-## 8. Testes e critérios de aceite
-- Criar/atualizar configuração grava no banco e publica no Redis após commit.
-- Chaves com o mesmo nome em features distintas não colidem.
-- `PLATFORM` é fixa e protegida.
-- Configuração inativa não permanece disponível no Redis após reconciliação.
-- Publicação manual funciona para todas e para uma feature; job horário reconcilia inclusive remoções.
-- Falha do Redis não causa falsa afirmação de rollback no banco; republicação recupera.
-- `get(key).asX()` e `get(key).path(...).asX()` convertem valores simples, atributos aninhados e objetos Java.\n- Com default, ausências e falhas técnicas/de conversão retornam fallback e geram logs apropriados; sem default, lançam exceções padronizadas.
-- Não há fallback automático para `PLATFORM`.
-- Erros de Redis e conversão seguem padrão de exceptions e mensagens.
-- Testar serialização JSON, tipos primitivos, `asLong`, `asList`, os oito operadores de `matches` e os tipos String/Integer/Long/BigDecimal, fallback, concorrência, idempotência e múltiplas instâncias.
-- Testes unitários, integração e arquitetura conforme padrões Golden; sem alterar módulos fora do escopo.
+## 8. Plano prescritivo para o Worker — checkpoints obrigatórios
+**Regra geral:** ler guideline-java, workspace-service e platform-libraries reais antes de modificar; reaproveitar componentes, migrations, convenções de controller, Messenger/i18n, exceptions, autorização, testes e Redis existentes. Não criar dependências sem autorização, não implementar fora do escopo, não realizar merge main. Para cada checkpoint apresentar arquivos alterados, decisões, testes/builds, evidências, riscos e pendências; **aguardar aprovação explícita antes de avançar**.
 
-## 9. Orientação ao Worker
-Antes de implementar, inspecionar os repositórios workspace-service, platform-libraries e as diretrizes de guideline-java. Reutilizar catálogos, lifecycle, autorização, mensagens, arquitetura de pacotes e infraestrutura Redis existentes. Documentar decisões técnicas não especificadas, sem inventar contratos incompatíveis. Entregar alterações por projeto, com testes e evidências, sem adicionar dependências não autorizadas.
+**Checkpoint 1 — Análise (sem código).** Inventariar estrutura real de foundation.catalog, feature.configuration, Microservice, migrations Flyway, bibliotecas, Redis e infraestrutura de scheduler; mapear divergências deste documento, incluindo política de sincronização concorrente e validação LONG. Entregar plano por arquivo/repositório e riscos.
 
-### 9.1. Checkpoints de execução (aprovação obrigatória)
+**Checkpoint 2 — Domínio/persistência e CRUD (workspace-service).** Criar migrations, seeds de ConfigurationType/Status, entidade, repositórios, requests/responses, Command/Query, use cases CRUD/activate/inactivate, validações e mensagens. Testar todas as transições e imutabilidade. Não publicar automaticamente.
 
-Executar os checkpoints **sequencialmente**. Ao concluir cada um, apresentar ao responsável: arquivos alterados, decisões adotadas, testes executados e seus resultados, riscos, pendências e evidências. **Não iniciar o checkpoint seguinte sem aprovação explícita.** Não realizar merge na `main` sem autorização.
+**Checkpoint 3 — Publish e Redis (workspace-service).** Implementar PublishById, PublishBatch com validação prévia e transação única, sincronização após commit, envelope JSON, tratamento de falhas e scheduler de reconciliação. Testar tudo-ou-nada no banco, divergência/recuperação Redis, concorrência e limpeza de obsoletas.
 
-**Checkpoint 1 — Análise arquitetural (sem alterações de código).**
-- Ler este refinamento, as guidelines Golden e a estrutura atual de `workspace-service` e `platform-libraries`.
-- Conferir catálogos/feature `PLATFORM`, lifecycle, convenções de endpoints, migrations, Redis, injeção de dependências, exceptions, autorização e testes.
-- Apontar incompatibilidades, lacunas e decisões pendentes; propor plano incremental por repositório.
-- **Saída:** relatório de aderência e plano para aprovação, sem implementar.
+**Checkpoint 4 — Leitura (platform-libraries).** Implementar ConfigurationProvider/ConfigurationValue conforme contrato da seção 6; Redis exclusivo, conversões, path, matches, defaults, exceptions/logs. Não criar cache local, fallback por microsserviço ou AND/OR. Testar API e compatibilidade.
 
-**Checkpoint 2 — Persistência e domínio (`workspace-service`).**
-- Implementar entidade/tabela Configuration, migration, constraints, relacionamento com catálogo de features e proteção da feature `PLATFORM`.
-- Implementar casos de uso de CRUD, lifecycle, validações, autorização e mensagens conforme Golden.
-- Testar regras de unicidade, lifecycle, tipos de valores, erros e persistência.
-- **Saída:** alterações e evidências dos testes de domínio e integração.
+**Checkpoint 5 — Validação final Golden.** Executar build/testes/arquitetura, verificar segurança, i18n, contratos, simplicidade, cobertura disponível e documentação. Apresentar evidências, riscos residuais e prontidão para PR; não fazer merge sem autorização.
 
-**Checkpoint 3 — Publicação e reconciliação Redis (`workspace-service`).**
-- Publicar alterações após commit do banco; remover chaves inativas/excluídas.
-- Implementar publicação manual (todas ou por feature) e scheduler de reconciliação a cada hora.
-- Validar idempotência, falha de Redis, recuperação, concorrência, múltiplas instâncias e proteção contra publicação obsoleta.
-- **Saída:** evidências de consistência e recuperação, com limitações explicitadas.
-
-**Checkpoint 4 — Consumo pela `platform-libraries`.**
-- Implementar o módulo/componente `ConfigurationProvider` seguindo os padrões de autoconfiguração existentes.
-- Ler exclusivamente do Redis; suportar `ConfigurationValue`, `path`, `asLong`, `asList`, `matches` com os oito operadores simples e sobrecargas com default. Não implementar composição AND/OR da V2. Com default, absorver ausência/falhas e registrar logs; sem default, lançar exceção padronizada. Nunca fazer fallback entre features.
-- Validar tipos primitivos, objetos JSON, erros de conversão e indisponibilidade do Redis.
-- **Saída:** contrato documentado, exemplos de uso e testes.
-
-**Checkpoint 5 — Validação final Golden.**
-- Executar testes unitários, integração, arquitetura e build dos módulos impactados; apresentar resultados e cobertura disponível.
-- Revisar segurança, logs, simplicidade, padrões de pacotes, compatibilidade e documentação.
-- Confirmar ausência de novas dependências não autorizadas e de mudanças fora do escopo.
-- **Saída:** relatório final com evidências, riscos residuais e indicação de prontidão para revisão/PR.
-
-**Restrições para todos os checkpoints:** não adicionar dependências sem autorização, não alterar contratos existentes desnecessariamente, não avançar sem aprovação explícita e não efetuar merge na `main` sem autorização.
+## 9. Itens explicitamente fora da V1
+Composição de expressões AND/OR, grupos aninhados, histórico de versões, publicação automática, outbox, cache local, fallback PLATFORM, ambiente lógico, migração automática quando Microservice.code muda, dependências novas não aprovadas.
