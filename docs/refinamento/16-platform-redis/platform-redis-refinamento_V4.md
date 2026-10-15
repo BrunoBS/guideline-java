@@ -255,3 +255,73 @@ O `platform-messaging` já documenta cache Redis opcional para mensagens vindas 
 ### 12.8 Ordem de implementação
 
 **Não interromper o Worker em execução nas Ondas 0–5 da V3.** Após concluir, validar, documentar e estabilizar essas ondas, encaminhar a V4 para implementar exclusivamente a Onda 6, em branch e escopo acordados. Nenhum merge, publicação de artefatos ou mudança nos serviços consumidores sem autorização.
+
+
+---
+
+## 13. Evolução V4 — Platform Testing Redis (padrão existente verificado)
+
+### 13.1 Evidências da implementação existente
+
+A estrutura da branch `main` de `BrunoBS/platform-libraries/modules/platform-testing` foi inspecionada antes deste refinamento:
+
+- `platform-testing/pom.xml` é um agregador Maven (`packaging=pom`), sem código Java, e lista explicitamente os submódulos.
+- `platform-testing/README.md` exige artefatos consumíveis independentes, usados em `test`, com `platform-testing-core` compartilhado.
+- `platform-testing-database` usa `@WithMySql`, `MySqlTestConfiguration`, `MySqlTestContextCustomizerFactory`, `MySqlContainerImages` e registro `META-INF/spring.factories`.
+- `platform-testing-kafka` usa `@WithKafka`, `KafkaTestConfiguration`, `KafkaTestContextCustomizerFactory`, `KafkaContainerImages` e registro `META-INF/spring.factories`.
+- O padrão atual valida imagens Docker versionadas via `PinnedDockerImage` do Core e traduz configuração inválida com `PlatformConfigurationException` de `platform-messaging`.
+- O POM de `platform-testing-database` depende de `platform-testing-core`, `spring-boot-testcontainers`, Testcontainers específico, `platform-messaging` e mantém dependências de teste próprias com escopo `test`.
+
+**Decisão:** criar `modules/platform-testing/platform-testing-redis` como JAR separado, adicionar o módulo ao agregador e incluir o artefato no BOM/publicação, seguindo rigorosamente os padrões reais de package, registro Spring e dependências mínimas. Não adicionar Redis Testcontainers diretamente ao `platform-testing-core`.
+
+### 13.2 Contrato proposto para o consumidor
+
+```java
+@SpringBootTest
+@WithRedis
+class RedisStoreIntegrationTest {
+    @Autowired RedisStore redisStore;
+
+    @Test
+    void shouldStoreAndRetrieve() {
+        redisStore.set("test:key", "hello");
+        assertEquals("hello", redisStore.get("test:key", String.class).orElseThrow());
+    }
+}
+```
+
+- Nome **`@WithRedis`** em vez de `@PlatformRedisTest`, para corresponder a `@WithMySql` e `@WithKafka`.
+- A anotação importa `RedisTestConfiguration`, com `image()` configurável e valor padrão versionado em `RedisContainerImages`.
+- `RedisTestContextCustomizerFactory` descobre a anotação, valida imagem versionada usando `PinnedDockerImage` e registra a configuração antes do refresh do contexto.
+- Utilizar `GenericContainer` com porta 6379 e Testcontainers, salvo se o BOM disponibilizar integração oficial mais adequada. A conexão Spring deve receber host/porta dinâmicos antes da criação dos beans; verificar propriedades exatas do Spring Boot 4 e propriedades específicas de `platform-redis`.
+- Garantir isolamento de dados entre testes (namespace exclusivo e/ou limpeza limitada ao namespace de teste), sem `FLUSHALL` indiscriminado e sem impacto em outros contextos.
+- Não iniciar container quando a anotação não estiver presente. Reuso de container/contexto apenas quando seguro e compatível com os módulos existentes.
+- Reutilizar mensagens e exceções padronizadas de `platform-messaging`, incluindo validação da imagem, falha de inicialização e configuração inválida.
+- Manter `platform-testing-redis` independente de `platform-testing-database`, Kafka, HTTP, AWS e Azure; não introduzir dependência circular com `platform-redis`.
+
+### 13.3 Estrutura orientativa (ajustar após inspeção de código)
+
+```text
+modules/platform-testing/
+├── pom.xml                         # adicionar <module>platform-testing-redis</module>
+└── platform-testing-redis/
+    ├── pom.xml
+    └── src/main/
+        ├── java/br/com/portalmanager/platform/library/testing/redis/
+        │   ├── annotation/WithRedis.java
+        │   ├── RedisContainerImages.java
+        │   ├── RedisTestConfiguration.java
+        │   ├── RedisTestContextCustomizerFactory.java
+        │   └── RedisTestingTechnicalErrors.java
+        └── resources/META-INF/spring.factories
+```
+
+Classes auxiliares somente se necessárias e alinhadas ao padrão efetivo do repositório. Atualizar README do agregador, guias de uso, mapa de pacotes, BOM e pipelines pertinentes.
+
+### 13.4 Cobertura de testes
+
+Usar `@WithRedis` para testar `RedisStore`, `AsyncRedisStore`, TTL, NX, concorrência, operações atômicas, Pub/Sub, reconexão, Streams, serialização e, na Onda 6, `@Cacheable`, `@CachePut`, `@CacheEvict`, regiões dinâmicas e TTL padrão/específico. Incluir testes de bootstrap, imagem configurável, isolamento, indisponibilidade e ausência de dependências de produção indevidas.
+
+### 13.5 Ordem de execução
+
+A infraestrutura `platform-testing-redis` é **pré-requisito recomendado para a Onda 6**, e também pode ser aproveitada para testes das ondas V3 já concluídas. Não interromper o Worker nem reabrir ondas em execução sem autorização. Antes de implementar, comparar com o código vigente na branch de trabalho, pois a inspeção acima se refere à `main`.
