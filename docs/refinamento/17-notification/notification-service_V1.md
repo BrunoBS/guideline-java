@@ -117,3 +117,36 @@ Testcontainers MySQL, SQS e Redis conforme padrões de platform-testing existent
 - Shell bloqueia navegação da conta em avisos de ciência obrigatória até confirmação no backend, inclusive em recarga, reconexão e chegada por WebSocket.
 - Usuário com acesso revogado não consulta nem recebe novos eventos WebSocket daquela conta; histórico individual permanece até purge.
 - O mesmo usuário em duas contas vê apenas notificações do contexto selecionado, com identidade derivada do JWT.
+
+
+## 14. Prompt para o worker — Onda 1: núcleo do Notification Service
+
+> Copiar o conteúdo abaixo para o worker. Escopo restrito à Onda 1; não antecipar WebSocket, Redis, SQS, Audit ou integração Angular.
+
+```text
+Você é o worker de implementação da Golden Reference. Implemente a Onda 1 do microserviço independente notification-service, seguindo o padrão real dos repositórios da plataforma e as decisões deste documento. Antes de codificar, inspecione o Golden Reference, os módulos platform-build/platform-libraries, o workspace-service e o platform-testing para reutilizar convenções existentes; não invente APIs, anotações, dependências ou módulos. Base técnica: Java 25, Spring Boot 4, MySQL 8, Flyway.
+
+OBJETIVO
+Entregar o núcleo funcional de persistência e consulta HTTP de notificações USER e ACCOUNT, com leitura e ciência individual, expiração, autorização e testes. O serviço deve ser autônomo e não depender da implantação do Audit Service.
+
+IMPLEMENTAÇÃO
+1. Crie o projeto e a estrutura de pacotes/camadas conforme os serviços Golden, usando platform-build e platform-libraries, configurações por ambiente, health checks, observabilidade e documentação mínima.
+2. Modele NOTIFICATION e NOTIFICATION_RECIPIENT com migrations Flyway e índices, preservando identificadores UUID, datas UTC, accountIdentifier, escopo USER/ACCOUNT, tipo, severidade, título, resumo/conteúdo, destino lógico e parâmetros, origem, chave de idempotência, createdBy, expiresAt, deleteAt, reportRequired e acknowledgementRequired. Defina destinatário explícito para USER e a unicidade (notification_id,user_identifier) em RECIPIENT; não materialize todos os membros para ACCOUNT. Garanta deleteAt >= expiresAt. Não introduza dependência circular entre tabelas ou módulos.
+3. Para notificações operacionais, adote expiração padrão configurável de 3 dias, sem limite máximo rígido; datas de exclusão com defaults configuráveis. Para comunicados administrativos, OWNER pode definir expiresAt e deleteAt, respeitando defaults e a ordenação das datas.
+4. Implemente endpoints HTTP para listar notificações vigentes por accountIdentifier, contar não lidas, consultar pendências de ciência, marcar leitura e confirmar ciência, com paginação e ordenação estável. Extraia userIdentifier exclusivamente do contexto autenticado/JWT; o cliente envia accountIdentifier, nunca uma identidade de usuário confiável. Revalide autorização atual de acesso à conta. A mesma identidade em contas diferentes não pode misturar resultados.
+5. A elegibilidade ACCOUNT é dinâmica: membros novos autorizados veem comunicados ainda vigentes. Crie RECIPIENT sob demanda somente quando ocorrer leitura ou ciência; operações idempotentes e seguras para concorrência. USER exige destinatário explícito e contexto de conta quando aplicável. Notificações expiradas não aparecem nem aceitam novos registros de leitura/ciência.
+6. Crie caso de uso e endpoint administrativo de criação de comunicado ACCOUNT, protegido por grupos existentes com papel OWNER. Para edição/publicação/exclusão, se o padrão de domínio exigir casos separados, documente e delimite os não implementados nesta onda; não exponha permissões excessivas. Prepare criação interna autenticada para futuras origens operacionais, sem integração SQS nesta onda.
+7. Diferencie readAt de acknowledgedAt. Somente notificações com acknowledgementRequired podem receber ciência explícita; consulta de pendências deve servir ao futuro bloqueio do Shell, mas NÃO implementar modal nem frontend nesta onda.
+8. Prepare estado de relatório e limpeza física programada com segurança transacional e idempotência. Se relatório estiver requerido e ainda não armazenado com sucesso, NÃO execute purge. Não simule geração de CSV/S3/e-mail; deixe essa integração para onda futura, documentando o bloqueio de limpeza.
+9. Reutilize o padrão de exceções, mensagens i18n, validação, auditoria e autorização da plataforma onde aplicável. Não confie apenas em claims de grupo desatualizadas para prometer revogação imediata; descreva o mecanismo real adotado e as limitações até integrar invalidação ativa.
+
+TESTES E ACEITE
+- Siga o mesmo padrão de Testcontainers e fixtures de platform-testing-database já utilizado no projeto; MySQL real em integração, sem H2 como substituto.
+- Cubra migrations, índices/unicidade, idempotência, concorrência de read/ack, owner versus não-owner, USER versus ACCOUNT, duas contas para o mesmo usuário, membro novo, usuário revogado, expiração, datas inválidas, paginação, purge e relatório pendente.
+- Execute build e testes; apresente comandos, resultados e eventuais falhas reais. Não declare testes verdes sem execução.
+- Documente APIs, exemplos de request/response, variáveis de ambiente, decisões técnicas e pendências das ondas seguintes.
+- Entregue um resumo dos arquivos alterados, migrations, testes e limitações. Não faça merge automaticamente sem solicitação.
+
+FORA DO ESCOPO DA ONDA 1
+Consumo SQS, publicação pelo Audit Service, Redis Pub/Sub, WebSocket, integração com Shell/MFEs, modal bloqueante, relatório CSV/S3/e-mail e escalabilidade horizontal do canal de tempo real. Essas etapas serão tratadas em ondas posteriores, sem alterar as decisões funcionais consolidadas acima.
+```
