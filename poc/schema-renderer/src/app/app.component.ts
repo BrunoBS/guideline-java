@@ -34,7 +34,12 @@ const simple:Schema={'$schema':'https://json-schema.org/draft/2020-12/schema',ti
     <div class="validation-summary" *ngIf="errors.length"><h4>Mensagens de erro</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
   </section>
   <section class="panel tab-panel" *ngIf="activeTab===3">
-    <div class="section-heading"><div><h3>Modo desenvolvedor</h3><p>Cole ou edite o JSON. Conteúdo sintaticamente válido é sincronizado com o formulário.</p></div></div>
+    <div class="section-heading">
+      <div><h3>Modo desenvolvedor</h3><p>Cole ou edite o JSON. Conteúdo sintaticamente válido é sincronizado com o formulário.</p></div>
+      <span class="status invalid" *ngIf="valueError">JSON inválido</span>
+      <span class="status invalid" *ngIf="!valueError && errors.length">{{errors.length}} erro(s)</span>
+      <span class="status valid" *ngIf="!valueError && !errors.length">✓ Válido</span>
+    </div>
     <textarea class="editor" [ngModel]="developerSource" (ngModelChange)="developerJsonChanged($event)" aria-label="Editor JSON de valores"></textarea>
     <div class="opposite-actions developer-actions">
       <span class="status valid" *ngIf="developerValidated && !valueError">✓ JSON válido</span>
