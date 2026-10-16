@@ -6,6 +6,96 @@ import {Schema,ValidationIssue,ajv,effective,initial,validationIssues} from './s
 
 const draft='https://json-schema.org/draft/2020-12/schema';
 
+const parameterKeyRequest:Schema={
+ '$schema':draft,
+ title:'Parameter key request',
+ type:'object',
+ additionalProperties:false,
+ required:['type','value'],
+ properties:{
+  version:{type:['integer','null'],minimum:0,maximum:9223372036854775807},
+  microserviceIdentifier:{type:'string',format:'uuid',maxLength:36},
+  key:{type:'string',maxLength:80,pattern:'^[a-z0-9]+(?:[._-][a-z0-9]+)*$'},
+  description:{type:['string','null'],maxLength:200},
+  type:{type:'string',enum:['CONFIGURATION','EXPRESSION']},
+  value:{}
+ },
+ allOf:[
+  {
+   oneOf:[
+    {
+     required:['microserviceIdentifier','key'],
+     properties:{version:{type:'null'}}
+    },
+    {
+     required:['version'],
+     properties:{version:{type:'integer'},microserviceIdentifier:false,key:false}
+    }
+   ]
+  },
+  {
+   if:{properties:{type:{const:'EXPRESSION'}},required:['type']},
+   then:{
+    properties:{
+     value:{
+      type:'object',
+      additionalProperties:false,
+      required:['operator','valueType','value'],
+      properties:{
+       operator:{enum:['EQUALS','NOT_EQUALS','CONTAINS','NOT_CONTAINS','GREATER_THAN','GREATER_THAN_OR_EQUALS','LESS_THAN','LESS_THAN_OR_EQUALS']},
+       valueType:{enum:['STRING','INTEGER','LONG','DECIMAL']},
+       value:{}
+      },
+      allOf:[
+       {
+        if:{properties:{operator:{enum:['CONTAINS','NOT_CONTAINS']}},required:['operator']},
+        then:{properties:{value:{type:'array',minItems:1,uniqueItems:true}}},
+        else:{properties:{value:{not:{type:'array'}}}}
+       },
+       {
+        if:{properties:{operator:{enum:['GREATER_THAN','GREATER_THAN_OR_EQUALS','LESS_THAN','LESS_THAN_OR_EQUALS']}},required:['operator']},
+        then:{properties:{valueType:{enum:['INTEGER','LONG','DECIMAL']}}}
+       },
+       {
+        if:{properties:{valueType:{const:'STRING'}},required:['valueType']},
+        then:{
+         if:{properties:{operator:{enum:['CONTAINS','NOT_CONTAINS']}},required:['operator']},
+         then:{properties:{value:{items:{type:'string'}}}},
+         else:{properties:{value:{type:'string'}}}
+        }
+       },
+       {
+        if:{properties:{valueType:{const:'INTEGER'}},required:['valueType']},
+        then:{
+         if:{properties:{operator:{enum:['CONTAINS','NOT_CONTAINS']}},required:['operator']},
+         then:{properties:{value:{items:{type:'integer',minimum:-2147483648,maximum:2147483647}}}},
+         else:{properties:{value:{type:'integer',minimum:-2147483648,maximum:2147483647}}}
+        }
+       },
+       {
+        if:{properties:{valueType:{const:'LONG'}},required:['valueType']},
+        then:{
+         if:{properties:{operator:{enum:['CONTAINS','NOT_CONTAINS']}},required:['operator']},
+         then:{properties:{value:{items:{type:'integer',minimum:-9223372036854775808,maximum:9223372036854775807}}}},
+         else:{properties:{value:{type:'integer',minimum:-9223372036854775808,maximum:9223372036854775807}}}
+        }
+       },
+       {
+        if:{properties:{valueType:{const:'DECIMAL'}},required:['valueType']},
+        then:{
+         if:{properties:{operator:{enum:['CONTAINS','NOT_CONTAINS']}},required:['operator']},
+         then:{properties:{value:{items:{type:'number',multipleOf:0.01}}}},
+         else:{properties:{value:{type:'number',multipleOf:0.01}}}
+        }
+       }
+      ]
+     }
+    }
+   }
+  }
+ ]
+};
+
 const exampleSchemas:Record<string,Schema>={
  simple:{
   '$schema':draft,title:'Usuário',type:'object',additionalProperties:false,required:['nome'],properties:{
@@ -156,7 +246,8 @@ const exampleSchemas:Record<string,Schema>={
  },
  directUnion:{
   '$schema':draft,title:'Valor flexível',type:['string','integer','number','boolean','null']
- }
+ },
+ parameterKeyRequest
 };
 
 type SchemaExample={id:string;label:string;description:string};
@@ -190,7 +281,8 @@ const schemaExamples:SchemaExample[]=[
  {id:'contains',label:'27. contains + min/maxContains',description:'Testa regra de conteúdo em array. A lista deve possuir entre 1 e 2 números maiores ou iguais a 10; os itens correspondentes podem ser destacados.'},
  {id:'unevaluatedProperties',label:'28. unevaluatedProperties',description:'Testa fechamento após composição allOf. Nome e Ativo são avaliados pelas branches; qualquer outra propriedade deve ser rejeitada/removida.'},
  {id:'annotations',label:'29. default / examples / readOnly / writeOnly',description:'Testa annotations. ID deve iniciar com default e ser somente leitura; Status deve iniciar ACTIVE; examples ajudam como placeholder; Segredo é writeOnly.'},
- {id:'directUnion',label:'30. Union direta de tipos',description:'Testa type como array diretamente no campo raiz. Tipos editáveis ficam no seletor e null deve ser tratado separadamente como estado do valor.'}
+ {id:'directUnion',label:'30. Union direta de tipos',description:'Testa type como array diretamente no campo raiz. Tipos editáveis ficam no seletor e null deve ser tratado separadamente como estado do valor.'},
+ {id:'parameterKeyRequest',label:'31. Parameter key request · condicionais aninhadas',description:'Testa oneOf dentro de allOf e condicionais aninhadas. Valide os dois modos de versionamento; CONFIGURATION mantém value livre; EXPRESSION cria operator/valueType/value. CONTAINS troca value para lista e operadores comparativos removem STRING de valueType sem perder os demais valores.'}
 ];
 
 @Component({
