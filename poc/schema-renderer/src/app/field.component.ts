@@ -6,57 +6,77 @@ import {Schema,ValidationIssue,deref,effective,initial,primaryType,isNullable,re
 <ng-container *ngIf="resolved as s">
   <fieldset *ngIf="primaryType(s)==='object'||(s.properties && hasProperties(s)); else nonObject">
     <legend>{{s.title||name||'Objeto'}}</legend>
+    <div class="container-nullable-row" *ngIf="isNullable(s)">
+      <label class="nullable-toggle" title="Definir como nulo">
+        <span>Definir como nulo</span>
+        <input type="checkbox" [checked]="value===null" (change)="setNull($any($event.target).checked,s)" />
+        <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+      </label>
+    </div>
 
-    <ng-container *ngIf="hasDictionary(s); else regularObject">
-      <p class="muted" *ngIf="s.description">{{s.description}}</p>
-      <div *ngFor="let item of dictionaryEntries();trackBy:trackKey" class="array-item map-item">
-        <div class="map-key">
-          <label>Chave</label>
-          <input type="text" [value]="item[0]" (change)="renameMapKey(item[0],$any($event.target).value)" />
+    <ng-container *ngIf="value!==null; else nullObjectState">
+      <ng-container *ngIf="hasDictionary(s); else regularObject">
+        <p class="muted" *ngIf="s.description">{{s.description}}</p>
+        <div *ngFor="let item of dictionaryEntries();trackBy:trackKey" class="array-item map-item">
+          <div class="map-key">
+            <label>Chave</label>
+            <input type="text" [value]="item[0]" (change)="renameMapKey(item[0],$any($event.target).value)" />
+          </div>
+          <div class="map-value">
+            <app-field [name]="'Valor'" [schema]="dictionarySchema(s)" [root]="root" [value]="item[1]" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateMapValue(item[0],$event)"></app-field>
+          </div>
+          <div class="array-item-actions"><button type="button" class="secondary danger" (click)="removeMapKey(item[0])">Remover</button></div>
         </div>
-        <div class="map-value">
-          <app-field [name]="'Valor'" [schema]="dictionarySchema(s)" [root]="root" [value]="item[1]" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateMapValue(item[0],$event)"></app-field>
+        <div class="array-footer-actions"><span></span><button type="button" (click)="addMapEntry(s)">+ Adicionar variável</button></div>
+        <p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
+      </ng-container>
+
+      <ng-template #regularObject>
+        <div *ngFor="let item of visibleEntries(s);trackBy:trackKey" class="field">
+          <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue?.[item[0]]" [required]="(s.required||[]).includes(item[0])" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
         </div>
-        <div class="array-item-actions"><button type="button" class="secondary danger" (click)="removeMapKey(item[0])">Remover</button></div>
-      </div>
-      <div class="array-footer-actions"><span></span><button type="button" (click)="addMapEntry(s)">+ Adicionar variável</button></div>
-      <p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
+      </ng-template>
     </ng-container>
-
-    <ng-template #regularObject>
-      <div *ngFor="let item of visibleEntries(s);trackBy:trackKey" class="field">
-        <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue?.[item[0]]" [required]="(s.required||[]).includes(item[0])" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
-      </div>
-    </ng-template>
+    <ng-template #nullObjectState><div class="null-value-state">Valor definido como <code>null</code>.</div></ng-template>
   </fieldset>
   <ng-template #nonObject>
     <fieldset *ngIf="primaryType(s)==='array'; else scalar" [class.invalid-fieldset]="isInvalid(path)">
       <legend>{{s.title||name||'Lista'}} ({{arrayValue.length}}<ng-container *ngIf="s.maxItems!==undefined"> / {{s.maxItems}}</ng-container>)</legend>
-      <p class="muted" *ngIf="s.description">{{s.description}}</p>
+      <div class="container-nullable-row" *ngIf="isNullable(s)">
+        <label class="nullable-toggle" title="Definir como nulo">
+          <span>Definir como nulo</span>
+          <input type="checkbox" [checked]="value===null" (change)="setNull($any($event.target).checked,s)" />
+          <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+        </label>
+      </div>
+      <p class="muted" *ngIf="s.description && value!==null">{{s.description}}</p>
 
-      <ng-container *ngIf="isMultiSelect(s); else regularArray">
-        <div class="multi-select" role="group" [attr.aria-label]="s.title||name||'Seleção múltipla'">
-          <label class="multi-select-option" *ngFor="let option of multiSelectOptions(s)">
-            <input type="checkbox" [checked]="isMultiSelected(option)" [disabled]="isMultiDisabled(s,option)" (change)="toggleMultiSelect(option,$any($event.target).checked)" />
-            <span>{{option}}</span>
-          </label>
-        </div>
-        <p class="muted" *ngIf="s.minItems!==undefined || s.maxItems!==undefined">
-          <ng-container *ngIf="s.minItems!==undefined">Mínimo: {{s.minItems}}</ng-container>
-          <ng-container *ngIf="s.minItems!==undefined && s.maxItems!==undefined"> · </ng-container>
-          <ng-container *ngIf="s.maxItems!==undefined">Máximo: {{s.maxItems}}</ng-container>
-        </p>
+      <ng-container *ngIf="value!==null; else nullArrayState">
+        <ng-container *ngIf="isMultiSelect(s); else regularArray">
+          <div class="multi-select" role="group" [attr.aria-label]="s.title||name||'Seleção múltipla'">
+            <label class="multi-select-option" *ngFor="let option of multiSelectOptions(s)">
+              <input type="checkbox" [checked]="isMultiSelected(option)" [disabled]="isMultiDisabled(s,option)" (change)="toggleMultiSelect(option,$any($event.target).checked)" />
+              <span>{{option}}</span>
+            </label>
+          </div>
+          <p class="muted" *ngIf="s.minItems!==undefined || s.maxItems!==undefined">
+            <ng-container *ngIf="s.minItems!==undefined">Mínimo: {{s.minItems}}</ng-container>
+            <ng-container *ngIf="s.minItems!==undefined && s.maxItems!==undefined"> · </ng-container>
+            <ng-container *ngIf="s.maxItems!==undefined">Máximo: {{s.maxItems}}</ng-container>
+          </p>
+        </ng-container>
+
+        <ng-template #regularArray>
+          <div *ngFor="let v of arrayValue;index as i;trackBy:trackIndex" class="array-item">
+            <app-field [name]="'Item '+(i+1)" [schema]="s.items||{}" [root]="root" [value]="v" [issues]="issues" [path]="indexPath(i)" (valueChange)="updateItem(i,$event)"></app-field>
+            <div class="array-item-actions"><button type="button" class="secondary danger" [disabled]="arrayValue.length <= (s.minItems||0)" (click)="remove(i)">Remover</button></div>
+          </div>
+          <div class="array-footer-actions"><span></span><button type="button" [disabled]="s.maxItems!==undefined && arrayValue.length>=s.maxItems" (click)="add(s.items||{})">+ Adicionar item</button></div>
+        </ng-template>
+
+        <p class="error" *ngIf="s.minItems!==undefined && arrayValue.length<s.minItems">Mínimo de {{s.minItems}} itens.</p><p class="error" *ngIf="s.uniqueItems && hasDuplicates()">Os itens devem ser únicos.</p><p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
       </ng-container>
-
-      <ng-template #regularArray>
-        <div *ngFor="let v of arrayValue;index as i;trackBy:trackIndex" class="array-item">
-          <app-field [name]="'Item '+(i+1)" [schema]="s.items||{}" [root]="root" [value]="v" [issues]="issues" [path]="indexPath(i)" (valueChange)="updateItem(i,$event)"></app-field>
-          <div class="array-item-actions"><button type="button" class="secondary danger" [disabled]="arrayValue.length <= (s.minItems||0)" (click)="remove(i)">Remover</button></div>
-        </div>
-        <div class="array-footer-actions"><span></span><button type="button" [disabled]="s.maxItems!==undefined && arrayValue.length>=s.maxItems" (click)="add(s.items||{})">+ Adicionar item</button></div>
-      </ng-template>
-
-      <p class="error" *ngIf="s.minItems!==undefined && arrayValue.length<s.minItems">Mínimo de {{s.minItems}} itens.</p><p class="error" *ngIf="s.uniqueItems && hasDuplicates()">Os itens devem ser únicos.</p><p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
+      <ng-template #nullArrayState><div class="null-value-state">Valor definido como <code>null</code>.</div></ng-template>
     </fieldset>
     <ng-template #scalar>
       <div class="control" [class.invalid-control]="isInvalid(path)">
