@@ -31,7 +31,10 @@ export function deref(schema:any,root:Schema,depth=0):Schema {
  const s=asObject(schema);
  if(typeof s.$ref!=='string')return s;
  const ref=s.$ref;
- if(!ref.startsWith('#/'))return {...s,__externalRef:ref,title:s.title||'Referência externa'};
+ if(!ref.startsWith('#/')){
+  const annotations=Object.fromEntries(Object.entries(s).filter(([key])=>key!=='$ref'));
+  return {...annotations,__externalRef:ref,__booleanSchema:true,title:s.title||'Referência externa',description:s.description||'A POC não resolve referências externas automaticamente.'};
+ }
  const target=ref.slice(2).split('/').map((part:string)=>part.replace(/~1/g,'/').replace(/~0/g,'~')).reduce((value:any,key:string)=>value?.[key],root as any);
  if(target===undefined)return s;
  const siblings=Object.fromEntries(Object.entries(s).filter(([key])=>key!=='$ref'));
@@ -225,8 +228,12 @@ export function additionalSchemaForKey(schema:any,key:string,root:Schema):Schema
  for(const rule of matchesPatterns)result=merge(result,rule);
  if(matchesPatterns.length)return result;
  if(s.additionalProperties===false)return {__booleanSchema:false};
- if(s.additionalProperties===true||s.additionalProperties===undefined)return {__booleanSchema:true};
- return deref(s.additionalProperties,root);
+ if(s.additionalProperties===true)return {__booleanSchema:true};
+ if(s.additionalProperties&&typeof s.additionalProperties==='object')return deref(s.additionalProperties,root);
+ if(s.unevaluatedProperties===false)return {__booleanSchema:false};
+ if(s.unevaluatedProperties===true)return {__booleanSchema:true};
+ if(s.unevaluatedProperties&&typeof s.unevaluatedProperties==='object')return deref(s.unevaluatedProperties,root);
+ return {__booleanSchema:true};
 }
 
 export function propertyNameIssue(schema:any,key:string,root:Schema):string {
@@ -247,11 +254,7 @@ export function reconcileValue(schema:any,value:any,root:Schema,depth=0):any {
  if(isTrueSchema(s))return value;
  if(!compatibleValue(s,value))return initial(s,root,depth+1);
  if(primaryType(s)==='object'&&value!==null){
-  const props=s.properties||{};
   const next:Record<string,any>={...value};
-  if(s.additionalProperties===false&&!s.patternProperties){
-   for(const key of Object.keys(next))if(!(key in props))delete next[key];
-  }
   for(const key of Object.keys(next)){
    const child=additionalSchemaForKey(s,key,root);
    if(isFalseSchema(child)){delete next[key];continue;}
