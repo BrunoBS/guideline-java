@@ -38,12 +38,29 @@ export class FieldComponent {
  filterNumericInput(input:HTMLInputElement,s:Schema){const integer=primaryType(s)==='integer',before=input.value;const filtered=integer?before.replace(/[^0-9+-]/g,'').replace(/(?!^)[+-]/g,''):before.replace(/[^0-9.,+-]/g,'').replace(/(?!^)[+-]/g,'');if(before!==filtered)input.value=filtered;}
  numericChanged(input:HTMLInputElement,s:Schema){const raw=input.value.trim().replace(',', '.');if(raw===''){this.emit(isNullable(s)?null:undefined);return;}const integer=primaryType(s)==='integer';const valid=integer?/^[+-]?\d+$/:/^[+-]?(?:\d+\.?\d*|\.\d+)$/;if(!valid.test(raw)){input.value=String(this.value??'');return;}const n=Number(raw);if(!Number.isFinite(n)||(integer&&!Number.isInteger(n))){input.value=String(this.value??'');return;}this.emit(n);}
  hasProperties(s:Schema){return Object.keys(s.properties||{}).length>0;}
- get resolved(){const s=effective(this.schema,this.value,this.root);return this.previewOneOf(s);}
+ get resolved(){return this.previewOneOf(effective(this.schema,this.value,this.root));}
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}get arrayValue():any[]{return Array.isArray(this.value)?this.value:[];}
  entries(o:Record<string,Schema>):[string,Schema][]{return Object.entries(o);}visibleEntries(s:Schema):[string,Schema][]{const updating=this.name===''&&Number.isInteger(this.objectValue['version'])&&this.objectValue['version']!==null;return this.entries(s.properties||{}).filter(([key])=>!updating||(key!=='key'&&key!=='microserviceIdentifier'));}
  childPath(key:string){return `${this.path}/${this.escapePointer(key)}`;}indexPath(index:number){return `${this.path}/${index}`;}isInvalid(path:string){return this.issues.some(issue=>issue.path===this.normalizedPath(path));}firstError(path:string){return this.issues.find(issue=>issue.path===this.normalizedPath(path))?.message||'';}private normalizedPath(path:string){return path||'/';}private escapePointer(value:string){return value.replace(/~/g,'~0').replace(/\//g,'~1');}
  trackKey(_i:number,v:[string,Schema]){return v[0];}trackIndex(i:number){return i;}primaryType=primaryType;isNullable=isNullable;setNull(checked:boolean,s:Schema){if(checked)this.emit(null);else this.emit(initial({...s,type:primaryType(s),default:undefined},this.root));}emit(v:any){this.valueChange.emit(v);}
  updateKey(k:string,v:any){const next={...this.objectValue,[k]:v};if(k==='version'&&typeof v==='number'&&Number.isInteger(v)){delete next.key;delete next.microserviceIdentifier;}this.emit(reconcileValue(this.schema,next,this.root));}
  updateItem(i:number,v:any){const a=[...this.arrayValue];a[i]=v;this.emit(a);}add(s:Schema){this.emit([...this.arrayValue,initial(deref(s,this.root),this.root)]);}hasDuplicates(){const a=this.arrayValue;return new Set(a.map(v=>JSON.stringify(v))).size!==a.length;}remove(i:number){this.emit(this.arrayValue.filter((_,j)=>j!==i));}
- private previewOneOf(resolved:Schema):Schema{if(this.hasProperties(resolved)||!Array.isArray(this.schema?.oneOf))return resolved;const options=this.schema.oneOf.map((o:Schema)=>deref(o,this.root));if(!options.length)return resolved;const common=Object.keys(options[0].properties||{}).filter(key=>options.every((o:Schema)=>key in (o.properties||{})));const properties:Record<string,Schema>={};for(const key of common){const rules=options.map((o:Schema)=>deref(o.properties[key],this.root));const constants=rules.map((r:Schema)=>r.const);if(constants.every((v:any)=>v!==undefined)){const base={...rules[0]};delete base.const;properties[key]={...base,enum:[...new Set(constants)]};}}const required=(options[0].required||[]).filter((key:string)=>options.every((o:Schema)=>(o.required||[]).includes(key)));return Object.keys(properties).length?{...resolved,type:'object',properties,required}:resolved;}
+ private previewOneOf(resolved:Schema):Schema{
+  if(!Array.isArray(this.schema?.oneOf))return resolved;
+  const options=this.schema.oneOf.map((o:Schema)=>deref(o,this.root));
+  if(!options.length)return resolved;
+  const common=Object.keys(options[0].properties||{}).filter(key=>options.every((o:Schema)=>key in (o.properties||{})));
+  const properties:Record<string,Schema>={...(resolved.properties||{})};
+  for(const key of common){
+   const rules=options.map((o:Schema)=>deref(o.properties[key],this.root));
+   const constants=rules.map((r:Schema)=>r.const);
+   if(constants.every((v:any)=>v!==undefined)){
+    const current={...(properties[key]||rules[0])};
+    delete current.const;
+    properties[key]={...current,enum:[...new Set(constants)]};
+   }
+  }
+  const required=[...new Set([...(resolved.required||[]),...(options[0].required||[]).filter((key:string)=>options.every((o:Schema)=>(o.required||[]).includes(key)))])];
+  return Object.keys(properties).length?{...resolved,type:'object',properties,required}:resolved;
+ }
 }
