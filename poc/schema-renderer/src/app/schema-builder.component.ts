@@ -185,11 +185,11 @@ export class SchemaBuilderComponent implements OnChanges {
   this.setOptional('pattern',value);
  }
  setBoolean(key:string,value:boolean){this.error='';this.commit(root=>{this.current(root)![key]=value;});}
- enumText(node:Schema):string{return Array.isArray(node.enum)?node.enum.map((v:any)=>JSON.stringify(v)).join('\\n'):'';}
+ enumText(node:Schema):string{return Array.isArray(node.enum)?node.enum.map((v:any)=>JSON.stringify(v)).join('\n'):'';}
  setEnum(text:string){
   this.error='';
   try{
-   const values=text.split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean).map(line=>JSON.parse(line));
+   const values=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>JSON.parse(line));
    if(values.some((v,i)=>values.findIndex(other=>JSON.stringify(other)===JSON.stringify(v))!==i))throw new Error('Valores duplicados.');
    this.commit(root=>{const node=this.current(root)!;if(values.length)node.enum=values;else delete node.enum;});
   }catch(e){this.error='Enum inválido: '+(e instanceof Error?e.message:String(e));}
