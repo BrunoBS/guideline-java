@@ -25,19 +25,41 @@ function branchScore(schema:Schema,value:any,root:Schema):number {
   const s=deref(schema,root);
   let score=0;
   for(const [key,rule] of Object.entries(s.properties||{})){
-    const field=rule as Schema;
-    if(field.const!==undefined && value?.[key]!==undefined)score+=value[key]===field.const?100:-100;
-    if(field.enum && value?.[key]!==undefined)score+=field.enum.includes(value[key])?30:-30;
+    const field=deref(rule as Schema,root);
+    const actual=value?.[key];
+    if(actual===undefined)continue;
+    if(field.const!==undefined)score+=actual===field.const?100:-100;
+    if(Array.isArray(field.enum))score+=field.enum.includes(actual)?30:-30;
+    if(actual!==null && typeof actual==='object')score+=branchScore(field,actual,root);
   }
   if(Array.isArray(s.allOf))for(const part of s.allOf)score+=branchScore(part,value,root);
+  if(s.if && matches(s.if,value,root))score+=10+branchScore(s.then||{},value,root);
   return score;
 }
+function branchErrors(schema:Schema,value:any,root:Schema):number {
+  try {
+    const candidate={...schema,$defs:{...(root.$defs||{}),...(schema.$defs||{})},definitions:{...(root.definitions||{}),...(schema.definitions||{})}};
+    const validator=ajv.compile(candidate);
+    return validator(value)?0:(validator.errors||[]).length;
+  } catch {return Number.MAX_SAFE_INTEGER;}
+}
 function chooseBranch(options:Schema[],value:any,root:Schema):Schema|undefined {
-  const valid=options.filter(s=>matches(s,value,root));
-  if(valid.length===1)return valid[0];
-  const ranked=options.map(s=>({s,score:branchScore(s,value,root)})).sort((a,b)=>b.score-a.score);
-  // Never silently pick the first branch when there is no discriminating evidence.
-  return ranked[0]?.score>0 && (ranked.length===1||ranked[0].score>ranked[1].score)?ranked[0].s:undefined;
+  const ranked=options.map(s=>({s,score:branchScore(s,value,root),errors:branchErrors(s,value,root)}))
+    .sort((a,b)=>a.errors-b.errors||b.score-a.score);
+  if(ranked.length===1)return ranked[0].s;
+  if(ranked[0]?.errors===0 && ranked[1]?.errors!==0)return ranked[0].s;
+  if(ranked[0]?.score>0 && ranked[0].score>ranked[1].score)return ranked[0].s;
+  if(ranked[0]?.errors<ranked[1]?.errors)return ranked[0].s;
+  return undefined;
+}
+function ambiguousFields(options:Schema[],value:any,root:Schema):Schema {
+  // Keep conditional fields editable until the user provides enough information to select a branch.
+  const combined:Schema={properties:{}};
+  for(const option of options){
+    const part=effective(option,value,root);
+    combined.properties={...combined.properties,...(part.properties||{})};
+  }
+  return combined;
 }
 export function effective(schema: Schema, value:any, root:Schema): Schema {
   const base=deref(schema,root);
@@ -47,6 +69,7 @@ export function effective(schema: Schema, value:any, root:Schema): Schema {
   if(Array.isArray(base.oneOf)||Array.isArray(base.anyOf)){
     const selected=chooseBranch(base.oneOf||base.anyOf,value,root);
     if(selected)result=merge(result,effective(selected,value,root));
+    else result=merge(result,ambiguousFields(base.oneOf||base.anyOf,value,root));
   }
   return result;
 }
@@ -61,7 +84,7 @@ function merge(a:Schema,b:Schema):Schema {
 }
 export function initial(schema:Schema,root:Schema,depth=0):any {
   if(depth>10)return null;
-  const s=deref(schema,root);
+  const s=effective(schema,undefined,root);
   if(s.default!==undefined)return structuredClone(s.default);
   if(s.const!==undefined)return s.const;
   if(s.enum?.length)return s.enum[0];
