@@ -4,7 +4,7 @@ export type Schema = Record<string, any>;
 export const typesOf=(s:Schema):string[]=>Array.isArray(s.type)?s.type:typeof s.type==='string'?[s.type]:[];
 export const primaryType=(s:Schema):string=>typesOf(s).find(t=>t!=='null')||'null';
 export const isNullable=(s:Schema):boolean=>typesOf(s).includes('null');
-export const ajv = new Ajv2020({allErrors:true,strict:false});
+export const ajv = new Ajv2020({allErrors:true,strict:false,multipleOfPrecision:12});
 addFormats(ajv);
 export function deref(schema: Schema, root: Schema, depth=0): Schema {
   if (depth>12) return {type:'object',title:'Referência recursiva (editar no JSON)'};
