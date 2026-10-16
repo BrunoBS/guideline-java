@@ -59,7 +59,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <button type="button" *ngIf="node.type==='array'" (click)="addItems()">+ Definir items</button>
     <button type="button" *ngIf="selectedPath!==''" (click)="removeSelected()">Excluir nó</button>
    </div>
-   <label *ngIf="selectedPath!=='' && !selectedPath.endsWith('/items')">Nome da propriedade
+   <label *ngIf="isPropertySelected">Nome da propriedade
     <input [ngModel]="selectedName" (change)="renameSelected($any($event.target).value)"/>
    </label>
    <label>Título<input [ngModel]="node.title||''" (ngModelChange)="setAttribute('title',$event)"/></label>
@@ -172,6 +172,7 @@ export class SchemaBuilderComponent implements OnChanges {
  conditionalKinds=['if','then','else'];
  formats=['email','uri','uuid','date','date-time','time','hostname','ipv4','ipv6','password','regex'];
  rows:NodeRow[]=[];
+ get isPropertySelected(){const parts=this.segments(this.selectedPath);return parts.length>=2&&parts[parts.length-2]==='properties';}
  entries(value:any):[string,any][]{return value&&typeof value==='object'&&!Array.isArray(value)?Object.entries(value):[];}
  escapePath(value:string){return this.escape(value);}
  get definitionNames(){return Object.keys(this.schema?.['$defs']||{});}
@@ -205,7 +206,12 @@ export class SchemaBuilderComponent implements OnChanges {
   this.error='';
   if(kind==='$defs'){
    const reference='#/$defs/'+this.escape(key);
-   if(JSON.stringify(this.schema).includes(JSON.stringify(reference))){this.error='A definição possui referências. Remova os vínculos primeiro.';return;}
+   const usesReference=(value:any):boolean=>{
+    if(!value||typeof value!=='object')return false;
+    if(value['$ref']===reference)return true;
+    return Object.values(value).some(usesReference);
+   };
+   if(usesReference(this.schema)){this.error='A definição possui referências. Remova os vínculos primeiro.';return;}
   }
   this.commit(root=>{
    const node=this.current(root)!;delete node[kind]?.[key];
