@@ -210,7 +210,16 @@ export function initial(schema:any,root:Schema,depth=0):any {
 }
 
 function compatibleValue(schema:any,value:any):boolean {
- const s=asObject(schema);if(value===null)return isNullable(s)||primaryType(s)==='null';const allowed=nonNullTypes(s);if(allowed.length>1)return allowed.includes(runtimeType(value))||(runtimeType(value)==='integer'&&allowed.includes('number'));const kind=primaryType(s);if(kind==='object')return typeof value==='object'&&!Array.isArray(value);if(kind==='array')return Array.isArray(value);if(kind==='integer')return typeof value==='number'&&Number.isInteger(value);if(kind==='number')return typeof value==='number'&&Number.isFinite(value);if(kind==='boolean')return typeof value==='boolean';if(kind==='string')return typeof value==='string';if(kind==='null')return value===null;return true;
+ const s=asObject(schema);
+ if(isFalseSchema(s))return false;
+ if(isTrueSchema(s))return true;
+ if(s.const!==undefined&&!Object.is(value,s.const))return false;
+ if(Array.isArray(s.enum)&&!s.enum.some((candidate:any)=>Object.is(candidate,value)))return false;
+ const declared=typesOf(s);
+ if(!declared.length)return true;
+ if(value===null)return declared.includes('null');
+ const current=runtimeType(value);
+ return declared.some(type=>type===current||(type==='number'&&current==='integer'));
 }
 export function arrayItemSchema(schema:any,index:number,root:Schema):Schema {const s=deref(schema,root);if(Array.isArray(s.prefixItems)&&index<s.prefixItems.length)return deref(s.prefixItems[index],root);if(s.items===false)return {__booleanSchema:false};if(s.items===true||s.items===undefined)return {__booleanSchema:true};return deref(s.items,root);}
 export function additionalSchemaForKey(schema:any,key:string,root:Schema):Schema {
@@ -290,7 +299,20 @@ export function reconcileValue(schema:any,value:any,root:Schema,depth=0,managedP
 
 function issuePath(error:any):string {let path=error.instancePath||'';if(error.keyword==='required'&&error.params?.missingProperty)path=`${path}/${escapePointer(String(error.params.missingProperty))}`;if(error.keyword==='propertyNames'&&error.params?.propertyName)path=`${path}/${escapePointer(String(error.params.propertyName))}`;return path||'/';}
 function uniqueIssues(issues:ValidationIssue[]):ValidationIssue[]{return issues.filter((issue,index,all)=>all.findIndex(other=>other.path===issue.path&&other.message===issue.message)===index);}
+function relevantErrors(errors:any[]):any[]{
+ const filtered=errors.filter(error=>error.keyword!=='if');
+ return filtered.length?filtered:errors;
+}
 export function validationIssues(schema:any,value:any):ValidationIssue[] {
- try{const validator=ajv.compile(schema);const ok=validator(value);if(ok)return [];const errors=validator.errors||[];const oneOf=errors.find(error=>error.keyword==='oneOf');if(oneOf){const details=errors.filter(error=>error.keyword!=='oneOf'&&error.keyword!=='type'&&error.keyword!=='false schema');return uniqueIssues([{path:issuePath(oneOf),message:'O valor não corresponde a exatamente uma alternativa do schema.'},...details.map(error=>({path:issuePath(error),message:error.message||'inválido'}))]);}return uniqueIssues(errors.map(error=>({path:issuePath(error),message:error.message||'inválido'})));}catch(error){return [{path:'/',message:String(error)}];}
+ try{
+  const validator=ajv.compile(schema),ok=validator(value);
+  if(ok)return [];
+  const errors=relevantErrors(validator.errors||[]),oneOf=errors.find(error=>error.keyword==='oneOf');
+  if(oneOf){
+   const details=errors.filter(error=>error.keyword!=='oneOf'&&error.keyword!=='false schema');
+   return uniqueIssues([{path:issuePath(oneOf),message:'O valor não corresponde a exatamente uma alternativa do schema.'},...details.map(error=>({path:issuePath(error),message:error.message||'inválido'}))]);
+  }
+  return uniqueIssues(errors.map(error=>({path:issuePath(error),message:error.message||'inválido'})));
+ }catch(error){return [{path:'/',message:String(error)}];}
 }
 export function validate(schema:any,value:any):string[]{return validationIssues(schema,value).map(issue=>`${issue.path}: ${issue.message}`);}
