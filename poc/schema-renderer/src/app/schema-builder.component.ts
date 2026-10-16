@@ -9,7 +9,28 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  standalone:true,
  imports:[CommonModule,FormsModule],
  styles:[`
- .builder{display:grid;grid-template-columns:minmax(230px,1fr) minmax(280px,1.3fr);gap:18px}
+ .builder{display:grid;grid-template-columns:minmax(180px,.72fr) minmax(300px,1.4fr) minmax(280px,1.12fr);gap:16px;align-items:start}
+ .palette,.canvas{border:1px solid #d9dfe9;border-radius:12px;padding:18px;background:#fff;min-width:0}
+ .palette{position:sticky;top:12px}
+ .palette-item{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:#f7f9fd;color:#17315c;border:1px solid #e0e7f3;border-radius:9px;padding:11px;margin:7px 0;cursor:pointer;font-weight:600}
+ .palette-item:hover{background:#e8efff;border-color:#7fa5e9}
+ .canvas{min-height:420px;background:#fbfcff}
+ .canvas-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+ .canvas-header p{font-size:12px;color:#586477;margin:5px 0}
+ .canvas-fields{display:grid;gap:10px}
+ .canvas-field{display:block;width:100%;padding:14px 16px;border:1px solid #dce4ef;background:#fff;color:#26354d;border-radius:10px;text-align:left;cursor:pointer;box-shadow:0 2px 5px rgba(20,40,80,.035)}
+ .canvas-field:hover{border-color:#88a9e7;background:#f8faff}
+ .canvas-field.active{border:2px solid #2455b5;background:#f0f5ff;padding:13px 15px}
+ .canvas-field-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:700}
+ .canvas-field-meta{display:block;margin-top:5px;font-size:12px;color:#68778f}
+ .canvas-field-placeholder{display:block;margin-top:10px;padding:9px 12px;border:1px solid #dce4ef;border-radius:7px;background:#f8fafc;color:#8793a6;font-size:13px}
+ .canvas-empty{border:2px dashed #c7d5e9;border-radius:12px;padding:32px 15px;text-align:center;color:#65758d}
+ .canvas-add{margin-top:14px;width:100%;border:1px dashed #7d9ed8;background:#f4f8ff;color:#17448c;border-radius:9px;padding:12px;cursor:pointer}
+ .structure-toggle{margin:12px 0 0;background:transparent;color:#2455b5;border:0;cursor:pointer;text-align:left;padding:6px}
+ .structure-panel{margin-top:10px;border-top:1px solid #e3e9f2;padding-top:12px}
+ .inspector{max-height:calc(100vh - 110px);overflow-y:auto;position:sticky;top:12px}
+ @media(max-width:1100px){.builder{grid-template-columns:minmax(170px,.65fr) minmax(260px,1fr)}.inspector{grid-column:1/-1;position:static;max-height:none}}
+ @media(max-width:760px){.builder{grid-template-columns:1fr}.palette{position:static}.inspector{grid-column:auto}}
  .tree,.inspector{border:1px solid #d9dfe9;border-radius:10px;padding:18px;min-width:0;background:#fff}
  .tree{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:4px;align-self:start}
  .tree>strong{margin-bottom:4px}
@@ -46,7 +67,32 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  `],
  template:`
  <div class="builder">
-  <div class="tree">
+  <aside class="palette">
+   <strong>Adicionar componentes</strong>
+   <p class="builder-help">Escolha um tipo para adicionar ao formulário ou ao objeto selecionado.</p>
+   <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
+   <button type="button" class="structure-toggle" (click)="showStructure=!showStructure">{{showStructure?'▾ Ocultar':'▸ Mostrar'}} estrutura completa</button>
+   <div class="structure-panel tree" *ngIf="showStructure">
+   <strong>Estrutura do schema</strong>
+   <p class="builder-help">Selecione qualquer nó, inclusive definições e regras.</p>
+   <button *ngFor="let row of rows" type="button" class="tree-row" [class.selected]="selectedPath===row.path" [style.padding-left.px]="9+row.depth*12" (click)="select(row.path)">
+    <span>{{row.depth ? '↳' : '▣'}}</span><span>{{row.label}}</span><small>({{typeLabel(row.schema)}})</small>
+   </button>
+   </div>
+  </aside>
+  <section class="canvas">
+   <div class="canvas-header"><div><strong>Formulário visual</strong><p>Selecione um campo para editar suas propriedades.</p></div><span class="builder-help">{{canvasFields.length}} campos</span></div>
+   <div class="canvas-fields">
+    <button type="button" class="canvas-field" *ngFor="let field of canvasFields" [class.active]="selectedPath===field.path" (click)="select(field.path)">
+     <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
+     <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
+     <span class="canvas-field-placeholder">{{field.schema.type==='boolean'?'☐ Ativar':field.schema.type==='array'?'Lista de itens':field.schema.type==='object'?'Grupo de campos':'Informe '+(field.schema.title||field.label)}}</span>
+    </button>
+   </div>
+   <div class="canvas-empty" *ngIf="!canvasFields.length">Seu formulário está vazio. Adicione um componente pelo painel à esquerda.</div>
+   <button type="button" class="canvas-add" (click)="addTypedProperty('string')">＋ Adicionar campo de texto</button>
+  </section>
+  <div class="tree" style="display:none">
    <strong>Estrutura do schema</strong>
    <p class="builder-help">Selecione uma propriedade para editar. Objetos e listas podem conter campos aninhados.</p>
    <button *ngFor="let row of rows" type="button" class="tree-row" [class.selected]="selectedPath===row.path" [style.padding-left.px]="9+row.depth*18" (click)="select(row.path)">
@@ -173,6 +219,22 @@ export class SchemaBuilderComponent implements OnChanges {
  conditionalKinds=['if','then','else'];
  formats=['email','uri','uuid','date','date-time','time','hostname','ipv4','ipv6','password','regex'];
  rows:NodeRow[]=[];
+ showStructure=false;
+ palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
+ get canvasFields(){return this.rows.filter(row=>row.path.startsWith('/properties/')&&row.depth===1);}
+ addTypedProperty(type:string){
+  const targetPath=this.selected?.type==='object'?this.selectedPath:'';
+  const node=this.getNodeAt(this.schema,targetPath);
+  if(!node||node.type!=='object'){this.error='Selecione um objeto para adicionar campos.';return;}
+  this.error='';
+  this.commit(root=>{
+   const target=this.getNodeAt(root,targetPath)!;
+   target.properties??={};
+   let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(target.properties,key))key='campo'+i++;
+   target.properties[key]=type==='object'?{type,properties:{},title:key}:type==='array'?{type,items:{type:'string'},title:key}:{type,title:key};
+   this.selectedPath=targetPath+'/properties/'+this.escape(key);
+  });
+ }
  newDefinitionName='';
  newPatternName='';
  get isPropertySelected(){const parts=this.segments(this.selectedPath);return parts.length>=2&&parts[parts.length-2]==='properties';}
