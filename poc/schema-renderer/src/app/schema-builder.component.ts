@@ -45,7 +45,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="builder-actions">
     <button type="button" *ngIf="node.type==='object'" (click)="addProperty()">+ Propriedade</button>
     <button type="button" *ngIf="node.type==='array'" (click)="addItems()">+ Definir items</button>
-    <button type="button" *ngIf="selectedPath!==''" (click)="removeSelected()">Excluir campo</button>
+    <button type="button" *ngIf="selectedPath!==''" (click)="removeSelected()">Excluir nó</button>
    </div>
    <label *ngIf="selectedPath!=='' && !selectedPath.endsWith('/items')">Nome da propriedade
     <input [ngModel]="selectedName" (change)="renameSelected($any($event.target).value)"/>
@@ -297,16 +297,30 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  removeSelected(){
   if(!this.selectedPath)return;
-  const parts=this.segments(this.selectedPath),key=parts.pop()!;
-  const kind=key==='items'?'items':parts.pop()!;
-  const parentPath=parts.length?'/'+parts.map(p=>this.escape(p)).join('/'):'';
+  const path=this.selectedPath;
+  const parts=this.segments(path);
+  const last=parts.pop()!;
+  let parentPath='';
+  let kind='';let key=last;
+  if(parts.at(-1)==='properties'){parts.pop();kind='properties';}
+  else if(parts.at(-1)&&this.compositionKinds.includes(parts.at(-1)!)){kind=parts.pop()!;}
+  else if(last==='items')kind='items';
+  else if(this.conditionalKinds.includes(last))kind='conditional';
+  else {this.error='Não é possível excluir este nó.';return;}
+  parentPath=parts.length?'/'+parts.map(p=>this.escape(p)).join('/'):'';
+  this.error='';
   this.commit(root=>{
    const parent=this.getNodeAt(root,parentPath);
    if(!parent)return;
    if(kind==='properties'){
     delete parent.properties?.[key];
     if(parent.required){parent.required=parent.required.filter((x:string)=>x!==key);if(!parent.required.length)delete parent.required;}
-   }else if(key==='items')delete parent.items;
+   }else if(kind==='items')delete parent.items;
+   else if(kind==='conditional')delete parent[key];
+   else if(Array.isArray(parent[kind])){
+    parent[kind].splice(Number(key),1);
+    if(!parent[kind].length)delete parent[kind];
+   }
    this.selectedPath=parentPath;
   });
  }
