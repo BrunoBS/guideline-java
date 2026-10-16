@@ -74,7 +74,8 @@ import {
                 <span class="property-count">{{objectPropertyCount}}<ng-container *ngIf="v.maxProperties!==undefined"> / {{v.maxProperties}}</ng-container></span>
               </div>
 
-              <div *ngFor="let item of dynamicEntries(v);trackBy:trackKey" class="array-item map-item">
+              <div *ngFor="let item of dynamicEntries(v);trackBy:trackKey" class="array-item map-item"
+                   [style.grid-template-columns]="isDynamicFreeObject(v,item[0],item[1]) ? 'minmax(180px,1fr) minmax(140px,.45fr) auto' : null">
                 <div class="map-key">
                   <label>Chave</label>
                   <input type="text" [value]="item[0]" [disabled]="v.readOnly" (change)="renameDynamicKey(v,item[0],$any($event.target).value)" />
@@ -87,10 +88,39 @@ import {
                   </select>
                   <ng-template #staticDynamicType><div class="map-type-static">{{typeLabel(dynamicActiveType(v,item[0],item[1]))}}</div></ng-template>
                 </div>
-                <div class="map-value">
+
+                <div class="map-value" *ngIf="!isDynamicFreeObject(v,item[0],item[1])">
                   <app-field [name]="'Valor'" [schema]="dynamicValueSchema(v,item[0],item[1])" [root]="root" [value]="item[1]" [required]="true" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateMapValue(item[0],$event)"></app-field>
                 </div>
+
                 <div class="map-action"><button type="button" class="secondary danger" [disabled]="v.readOnly || !canRemoveProperty(v)" (click)="removeDynamicKey(v,item[0])">Remover</button></div>
+
+                <div *ngIf="isDynamicFreeObject(v,item[0],item[1])" style="grid-column:1/-1;margin-top:4px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px">
+                    <label style="margin:0">Valor (JSON)</label>
+                    <label *ngIf="isNullable(dynamicSchema(v,item[0]))" class="nullable-toggle" style="position:relative;right:auto;top:auto" title="Definir como nulo">
+                      <span>Definir como nulo</span>
+                      <input type="checkbox" [checked]="item[1]===null" (change)="setDynamicNull(v,item[0],$any($event.target).checked)" />
+                      <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+                    </label>
+                  </div>
+
+                  <ng-container *ngIf="item[1]!==null; else dynamicNullState">
+                    <textarea class="json-value-editor"
+                              style="min-height:150px"
+                              [class.invalid-json-editor]="!!dynamicJsonError(item[0])"
+                              [value]="dynamicJsonText(item[0],item[1])"
+                              [disabled]="v.readOnly"
+                              (input)="dynamicJsonChanged(item[0],$any($event.target).value)"
+                              placeholder='{\n  "chave": "valor"\n}'></textarea>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px">
+                      <span class="success" *ngIf="!dynamicJsonError(item[0])">✓ JSON válido</span>
+                      <span class="error" *ngIf="dynamicJsonError(item[0])">{{dynamicJsonError(item[0])}}</span>
+                      <button type="button" class="secondary" style="margin:0" [disabled]="v.readOnly" (click)="formatDynamicJson(item[0],item[1])">Formatar JSON</button>
+                    </div>
+                  </ng-container>
+                  <ng-template #dynamicNullState><div class="null-value-state">Valor definido como <code>null</code>.</div></ng-template>
+                </div>
               </div>
 
               <div class="array-footer-actions"><span class="muted" *ngIf="v.minProperties!==undefined">Mínimo de {{v.minProperties}} propriedades.</span><button type="button" [disabled]="v.readOnly || !canAddProperty(v)" (click)="addDynamicProperty(v)">+ Adicionar campo</button></div>
@@ -178,6 +208,8 @@ export class FieldComponent {
  @Input() name='';@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;@Input() issues:ValidationIssue[]=[];@Input() path='';@Output() valueChange=new EventEmitter<any>();
  chosenType?:string;
  private dynamicChosenTypes:Record<string,string>={};
+ private dynamicJsonDraftValues:Record<string,string>={};
+ private dynamicJsonErrors:Record<string,string>={};
 
  get resolved(){return effective(this.schema,this.value,this.root);}
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}
@@ -229,12 +261,48 @@ export class FieldComponent {
   const type=this.dynamicActiveType(s,key,value);
   return {...base,type:isNullable(base)?[type,'null']:type};
  }
+ isDynamicFreeObject(s:Schema,key:string,value:any):boolean{
+  const schema=this.dynamicValueSchema(s,key,value);
+  return this.dynamicActiveType(s,key,value)==='object'&&isFreeSchema(schema);
+ }
  changeDynamicType(s:Schema,key:string,type:string){
   const base=this.dynamicSchema(s,key);
   this.dynamicChosenTypes[key]=type;
+  delete this.dynamicJsonDraftValues[key];delete this.dynamicJsonErrors[key];
   if(this.objectValue[key]===null&&isNullable(base))return;
   const selected:Schema={...base,type};
-  this.updateMapValue(key,initial(selected,this.root));
+  const next=type==='object'&&isFreeSchema(selected)?{}:initial(selected,this.root);
+  this.updateMapValue(key,next);
+ }
+ setDynamicNull(s:Schema,key:string,checked:boolean){
+  const base=this.dynamicSchema(s,key);
+  if(!isNullable(base))return;
+  if(checked){delete this.dynamicJsonDraftValues[key];delete this.dynamicJsonErrors[key];this.updateMapValue(key,null);return;}
+  this.dynamicChosenTypes[key]='object';this.updateMapValue(key,{});
+ }
+ dynamicJsonText(key:string,value:any):string{
+  if(Object.prototype.hasOwnProperty.call(this.dynamicJsonDraftValues,key))return this.dynamicJsonDraftValues[key];
+  return this.jsonValue(value&&typeof value==='object'&&!Array.isArray(value)?value:{});
+ }
+ dynamicJsonError(key:string){return this.dynamicJsonErrors[key]||'';}
+ dynamicJsonChanged(key:string,text:string){
+  this.dynamicJsonDraftValues[key]=text;
+  try{
+   const parsed=JSON.parse(text);
+   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('O valor deve ser um objeto JSON.');
+   this.dynamicJsonErrors[key]='';
+   this.updateMapValue(key,parsed);
+  }catch(error){this.dynamicJsonErrors[key]=error instanceof Error?error.message:'JSON inválido.';}
+ }
+ formatDynamicJson(key:string,value:any){
+  const source=this.dynamicJsonText(key,value);
+  try{
+   const parsed=JSON.parse(source);
+   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('O valor deve ser um objeto JSON.');
+   this.dynamicJsonDraftValues[key]=JSON.stringify(parsed,null,2);
+   this.dynamicJsonErrors[key]='';
+   this.updateMapValue(key,parsed);
+  }catch(error){this.dynamicJsonErrors[key]=error instanceof Error?error.message:'JSON inválido.';}
  }
  keyIssue(s:Schema,key:string){const propertyIssue=propertyNameIssue(s,key,this.root);if(propertyIssue)return propertyIssue;const dynamic=additionalSchemaForKey(s,key,this.root);return isFalseSchema(dynamic)?'Esta chave não é permitida pelo schema.':'';}
  updateKey(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(reconcileValue(this.schema,next,this.root));}
@@ -243,10 +311,12 @@ export class FieldComponent {
   const key=newKey.trim();if(!key||key===oldKey||key in this.objectValue||key in (s.properties||{}))return;
   const next:Record<string,any>={};for(const [current,value] of Object.entries(this.objectValue))next[current===oldKey?key:current]=value;
   if(this.dynamicChosenTypes[oldKey]){this.dynamicChosenTypes[key]=this.dynamicChosenTypes[oldKey];delete this.dynamicChosenTypes[oldKey];}
+  if(Object.prototype.hasOwnProperty.call(this.dynamicJsonDraftValues,oldKey)){this.dynamicJsonDraftValues[key]=this.dynamicJsonDraftValues[oldKey];delete this.dynamicJsonDraftValues[oldKey];}
+  if(Object.prototype.hasOwnProperty.call(this.dynamicJsonErrors,oldKey)){this.dynamicJsonErrors[key]=this.dynamicJsonErrors[oldKey];delete this.dynamicJsonErrors[oldKey];}
   this.emit(next);
  }
- removeDynamicKey(s:Schema,key:string){if(key in (s.properties||{})||!this.canRemoveProperty(s))return;const next={...this.objectValue};delete next[key];delete this.dynamicChosenTypes[key];this.emit(next);}
- addDynamicProperty(s:Schema){if(!this.canAddProperty(s))return;let index=1,key='key';while(key in this.objectValue||key in (s.properties||{}))key=`key${++index}`;const child=additionalSchemaForKey(s,key,this.root);const type=this.dynamicTypeOptions(s,key)[0];if(type)this.dynamicChosenTypes[key]=type;const selected=type?{...child,type}:child;this.emit({...this.objectValue,[key]:isFalseSchema(child)?'':initial(selected,this.root)});}
+ removeDynamicKey(s:Schema,key:string){if(key in (s.properties||{})||!this.canRemoveProperty(s))return;const next={...this.objectValue};delete next[key];delete this.dynamicChosenTypes[key];delete this.dynamicJsonDraftValues[key];delete this.dynamicJsonErrors[key];this.emit(next);}
+ addDynamicProperty(s:Schema){if(!this.canAddProperty(s))return;let index=1,key='key';while(key in this.objectValue||key in (s.properties||{}))key=`key${++index}`;const child=additionalSchemaForKey(s,key,this.root);const type=this.dynamicTypeOptions(s,key)[0];if(type)this.dynamicChosenTypes[key]=type;const selected=type?{...child,type}:child;const next=type==='object'&&isFreeSchema(selected)?{}:initial(selected,this.root);this.emit({...this.objectValue,[key]:isFalseSchema(child)?'':next});}
  canAddProperty(s:Schema){return s.maxProperties===undefined||this.objectPropertyCount<s.maxProperties;}
  canRemoveProperty(s:Schema){return s.minProperties===undefined||this.objectPropertyCount>s.minProperties;}
 
