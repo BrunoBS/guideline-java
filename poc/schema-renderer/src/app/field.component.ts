@@ -4,7 +4,7 @@ import {FormsModule} from '@angular/forms';
 import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-engine';
 @Component({selector:'app-field',standalone:true,imports:[CommonModule,FormsModule],template:`
 <ng-container *ngIf="resolved as s">
-  <fieldset *ngIf="primaryType(s)==='object'||(s.properties && Object.keys(s.properties).length>0); else nonObject">
+  <fieldset *ngIf="primaryType(s)==='object'||(s.properties && hasProperties(s)); else nonObject">
     <legend>{{s.title||name||'Objeto'}}</legend>
     <div *ngFor="let item of entries(s.properties||{});trackBy:trackKey" class="field">
       <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue?.[item[0]]" [required]="(s.required||[]).includes(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
@@ -38,6 +38,7 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
 export class FieldComponent {
  @Input() name='';@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;
  @Output() valueChange=new EventEmitter<any>();
+ hasProperties(s:Schema){return Object.keys(s.properties||{}).length>0;}
  get resolved(){return effective(this.schema,this.value,this.root);}
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}
  get arrayValue():any[]{return Array.isArray(this.value)?this.value:[];}
@@ -56,8 +57,8 @@ export class FieldComponent {
    if(!(name in next))continue;
    const kind=primaryType(rule as Schema),current=next[name];
    if(kind==='array'&&!Array.isArray(current))next[name]=initial(rule as Schema,this.root);
-   else if(kind==='integer' && current!==null && (typeof current!=='number'||!Number.isInteger(current)))next[name]=initial(rule as Schema,this.root);
-   else if(kind==='number' && current!==null && typeof current!=='number')next[name]=initial(rule as Schema,this.root);
+   else if(kind==='integer' && (typeof current!=='number'||!Number.isInteger(current)))next[name]=initial(rule as Schema,this.root);
+   else if(kind==='number' && typeof current!=='number')next[name]=initial(rule as Schema,this.root);
    else if(kind==='object' && (current===null||typeof current!=='object'||Array.isArray(current)))next[name]=initial(rule as Schema,this.root);
    else if(kind==='string' && current!==null && typeof current!=='string')next[name]=initial(rule as Schema,this.root);
   }
