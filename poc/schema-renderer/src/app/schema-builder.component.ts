@@ -91,6 +91,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <label *ngIf="node.type!=='object'&&node.type!=='array'">Enum (um valor JSON por linha)
     <textarea [ngModel]="enumText(node)" (change)="setEnum($any($event.target).value)" placeholder="Exemplo:&#10;&quot;ATIVO&quot;&#10;&quot;INATIVO&quot;"></textarea>
    </label>
+   <h4 class="rule-heading">Regras avançadas</h4>
+   <p class="builder-help">Edite as regras JSON deste nó para usar if/then/else, allOf, oneOf, anyOf, not, $defs, $ref, patternProperties e dependências. O restante do nó será preservado.</p>
+   <label>Regras avançadas (JSON)
+    <textarea [ngModel]="advancedText(node)" (change)="setAdvanced($any($event.target).value)" style="min-height:150px;font-family:monospace"></textarea>
+   </label>
    <p class="builder-help">Os campos não suportados visualmente são preservados. Enum deve conter valores JSON válidos, um por linha.</p>
    <p class="builder-error" *ngIf="error">{{error}}</p>
   </div>
@@ -193,6 +198,25 @@ export class SchemaBuilderComponent implements OnChanges {
    if(values.some((v,i)=>values.findIndex(other=>JSON.stringify(other)===JSON.stringify(v))!==i))throw new Error('Valores duplicados.');
    this.commit(root=>{const node=this.current(root)!;if(values.length)node.enum=values;else delete node.enum;});
   }catch(e){this.error='Enum inválido: '+(e instanceof Error?e.message:String(e));}
+ }
+ advancedText(node:Schema):string{
+  const keys=['if','then','else','allOf','oneOf','anyOf','not','$defs','$ref','patternProperties','propertyNames','dependentRequired','dependentSchemas','unevaluatedProperties','contains','minContains','maxContains','prefixItems'];
+  return JSON.stringify(Object.fromEntries(keys.filter(key=>Object.prototype.hasOwnProperty.call(node,key)).map(key=>[key,node[key]])),null,2);
+ }
+ setAdvanced(text:string){
+  this.error='';
+  try{
+   const parsed=JSON.parse(text||'{}');
+   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Informe um objeto JSON.');
+   const keys=['if','then','else','allOf','oneOf','anyOf','not','$defs','$ref','patternProperties','propertyNames','dependentRequired','dependentSchemas','unevaluatedProperties','contains','minContains','maxContains','prefixItems'];
+   const unknown=Object.keys(parsed).filter(key=>!keys.includes(key));
+   if(unknown.length)throw new Error('Atributos não permitidos nesta seção: '+unknown.join(', '));
+   this.commit(root=>{
+    const node=this.current(root)!;
+    for(const key of keys)delete node[key];
+    Object.assign(node,parsed);
+   });
+  }catch(e){this.error='Regras avançadas inválidas: '+(e instanceof Error?e.message:String(e));}
  }
  setType(type:string){this.commit(root=>{this.current(root)!.type=type;});}
  setRequired(checked:boolean){
