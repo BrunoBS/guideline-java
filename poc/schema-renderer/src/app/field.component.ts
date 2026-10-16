@@ -371,11 +371,30 @@ export class FieldComponent {
   this.emit(next);
  }
  removeDynamicKey(s:Schema,key:string){if(key in (s.properties||{})||!this.canRemoveProperty(s))return;const next={...this.objectValue};delete next[key];delete this.dynamicChosenTypes[key];delete this.dynamicJsonDraftValues[key];delete this.dynamicJsonErrors[key];this.emit(next);}
+ private nextDynamicKey(s:Schema):string|undefined {
+  const patterns=Object.keys(s.patternProperties||{});
+  const prefixes=patterns.map(pattern=>{
+   if(!pattern.startsWith('^'))return '';
+   const match=pattern.slice(1).match(/^(?:[a-zA-Z0-9_-]|\\[.\\-])+/);
+   return match?match[0].replace(/\\([.\\-])/g,'$1'):'';
+  });
+  const bases=[...prefixes.filter(Boolean).map(prefix=>prefix+'key'),'key'];
+  for(const base of bases){
+   for(let index=0;index<1000;index++){
+    const key=index===0?base:`${base}${index+1}`;
+    if(key in this.objectValue||key in (s.properties||{}))continue;
+    if(propertyNameIssue(s,key,this.root))continue;
+    if(isFalseSchema(additionalSchemaForKey(s,key,this.root)))continue;
+    return key;
+   }
+  }
+  return undefined;
+ }
  addDynamicProperty(s:Schema){
   if(!this.canAddProperty(s))return;
-  let index=1,key='key';while(key in this.objectValue||key in (s.properties||{}))key=`key${++index}`;
+  const key=this.nextDynamicKey(s);
+  if(!key)return;
   const child=additionalSchemaForKey(s,key,this.root),types=this.dynamicTypeOptions(s,key),type=types[0];
-  if(isFalseSchema(child)){this.emit({...this.objectValue,[key]:''});return;}
   if(!type&&this.dynamicAllowsNull(s,key)){this.emit({...this.objectValue,[key]:null});return;}
   if(type)this.dynamicChosenTypes[key]=type;
   const selected:Schema=this.declaredDynamicTypes(child).length&&type?{...child,type}:type?{type}:child;
