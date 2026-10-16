@@ -177,6 +177,7 @@ import {
 export class FieldComponent {
  @Input() name='';@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;@Input() issues:ValidationIssue[]=[];@Input() path='';@Output() valueChange=new EventEmitter<any>();
  chosenType?:string;
+ private dynamicChosenTypes:Record<string,string>={};
 
  get resolved(){return effective(this.schema,this.value,this.root);}
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}
@@ -213,16 +214,39 @@ export class FieldComponent {
  dynamicPropertiesDescription(s:Schema){if(s.patternProperties&&s.additionalProperties===false)return 'Atributos extras devem corresponder aos padrões definidos em patternProperties.';if(s.unevaluatedProperties!==undefined)return 'Atributos extras seguem as regras de patternProperties/additionalProperties e unevaluatedProperties.';if(s.patternProperties)return 'Atributos extras podem usar patternProperties e additionalProperties.';return 'Atributos extras permitidos por additionalProperties.';}
  dynamicEntries(s:Schema):[string,any][]{const fixed=new Set(Object.keys(s.properties||{}));return Object.entries(this.objectValue).filter(([key])=>!fixed.has(key));}
  dynamicSchema(s:Schema,key:string){return additionalSchemaForKey(s,key,this.root);}
- dynamicTypeOptions(s:Schema,key:string):string[]{const types=nonNullTypes(this.dynamicSchema(s,key));return types.length?types:[primaryType(this.dynamicSchema(s,key))].filter(type=>type&&type!=='null');}
- dynamicActiveType(s:Schema,key:string,value:any):string{const options=this.dynamicTypeOptions(s,key),current=runtimeType(value);if(options.includes(current))return current;if(current==='integer'&&options.includes('number')&&!options.includes('integer'))return 'number';return options[0]||primaryType(this.dynamicSchema(s,key));}
- dynamicValueSchema(s:Schema,key:string,value:any):Schema{const schema=this.dynamicSchema(s,key),options=this.dynamicTypeOptions(s,key);if(options.length<=1)return schema;const type=this.dynamicActiveType(s,key,value);return {...schema,type:isNullable(schema)?[type,'null']:type};}
- changeDynamicType(s:Schema,key:string,type:string){const base=this.dynamicSchema(s,key),schema={...base,type:isNullable(base)?[type,'null']:type};this.updateMapValue(key,initial(schema,this.root));}
+ dynamicTypeOptions(s:Schema,key:string):string[]{const schema=this.dynamicSchema(s,key),types=nonNullTypes(schema);return types.length?types:[primaryType(schema)].filter(type=>type&&type!=='null');}
+ dynamicActiveType(s:Schema,key:string,value:any):string{
+  const options=this.dynamicTypeOptions(s,key),chosen=this.dynamicChosenTypes[key];
+  if(chosen&&options.includes(chosen))return chosen;
+  const current=runtimeType(value);
+  if(options.includes(current))return current;
+  if(current==='integer'&&options.includes('number')&&!options.includes('integer'))return 'number';
+  return options[0]||primaryType(this.dynamicSchema(s,key));
+ }
+ dynamicValueSchema(s:Schema,key:string,value:any):Schema{
+  const base=this.dynamicSchema(s,key),options=this.dynamicTypeOptions(s,key);
+  if(options.length<=1)return base;
+  const type=this.dynamicActiveType(s,key,value);
+  return {...base,type:isNullable(base)?[type,'null']:type};
+ }
+ changeDynamicType(s:Schema,key:string,type:string){
+  const base=this.dynamicSchema(s,key);
+  this.dynamicChosenTypes[key]=type;
+  if(this.objectValue[key]===null&&isNullable(base))return;
+  const selected:Schema={...base,type};
+  this.updateMapValue(key,initial(selected,this.root));
+ }
  keyIssue(s:Schema,key:string){const propertyIssue=propertyNameIssue(s,key,this.root);if(propertyIssue)return propertyIssue;const dynamic=additionalSchemaForKey(s,key,this.root);return isFalseSchema(dynamic)?'Esta chave não é permitida pelo schema.':'';}
  updateKey(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(reconcileValue(this.schema,next,this.root));}
  updateMapValue(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(reconcileValue(this.schema,next,this.root));}
- renameDynamicKey(s:Schema,oldKey:string,newKey:string){const key=newKey.trim();if(!key||key===oldKey||key in this.objectValue||key in (s.properties||{}))return;const next:Record<string,any>={};for(const [current,value] of Object.entries(this.objectValue))next[current===oldKey?key:current]=value;this.emit(next);}
- removeDynamicKey(s:Schema,key:string){if(key in (s.properties||{})||!this.canRemoveProperty(s))return;const next={...this.objectValue};delete next[key];this.emit(next);}
- addDynamicProperty(s:Schema){if(!this.canAddProperty(s))return;let index=1,key='key';while(key in this.objectValue||key in (s.properties||{}))key=`key${++index}`;const child=additionalSchemaForKey(s,key,this.root);this.emit({...this.objectValue,[key]:isFalseSchema(child)?'':initial(child,this.root)});}
+ renameDynamicKey(s:Schema,oldKey:string,newKey:string){
+  const key=newKey.trim();if(!key||key===oldKey||key in this.objectValue||key in (s.properties||{}))return;
+  const next:Record<string,any>={};for(const [current,value] of Object.entries(this.objectValue))next[current===oldKey?key:current]=value;
+  if(this.dynamicChosenTypes[oldKey]){this.dynamicChosenTypes[key]=this.dynamicChosenTypes[oldKey];delete this.dynamicChosenTypes[oldKey];}
+  this.emit(next);
+ }
+ removeDynamicKey(s:Schema,key:string){if(key in (s.properties||{})||!this.canRemoveProperty(s))return;const next={...this.objectValue};delete next[key];delete this.dynamicChosenTypes[key];this.emit(next);}
+ addDynamicProperty(s:Schema){if(!this.canAddProperty(s))return;let index=1,key='key';while(key in this.objectValue||key in (s.properties||{}))key=`key${++index}`;const child=additionalSchemaForKey(s,key,this.root);const type=this.dynamicTypeOptions(s,key)[0];if(type)this.dynamicChosenTypes[key]=type;const selected=type?{...child,type}:child;this.emit({...this.objectValue,[key]:isFalseSchema(child)?'':initial(selected,this.root)});}
  canAddProperty(s:Schema){return s.maxProperties===undefined||this.objectPropertyCount<s.maxProperties;}
  canRemoveProperty(s:Schema){return s.minProperties===undefined||this.objectPropertyCount>s.minProperties;}
 
