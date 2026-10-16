@@ -423,7 +423,7 @@ export class FieldComponent {
  formattedInputValue(s:Schema):string {
   if(typeof this.value!=='string')return '';
   if(s.format==='date-time'){
-   const match=this.value.match(/^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2})(?::\\d{2}(?:\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})$/);
+   const match=this.value.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/);
    if(match){
     const date=new Date(this.value);
     if(!Number.isNaN(date.getTime())){
@@ -433,15 +433,15 @@ export class FieldComponent {
    }
    return this.value;
   }
-  if(s.format==='time')return this.value.replace(/^(\\d{2}:\\d{2}):\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?$/,'$1');
+  if(s.format==='time')return this.value.replace(/^(\d{2}:\d{2}):\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/,'$1');
   return this.value;
  }
  formattedInputChanged(s:Schema,value:string){
-  if(s.format==='date-time' && /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2})?$/.test(value)){
+  if(s.format==='date-time' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value)){
    const date=new Date(value);
    if(!Number.isNaN(date.getTime())){this.emit(date.toISOString());return;}
   }
-  if(s.format==='time' && /^\\d{2}:\\d{2}$/.test(value)){this.emit(value+':00');return;}
+  if(s.format==='time' && /^\d{2}:\d{2}$/.test(value)){this.emit(value+':00');return;}
   this.emit(value);
  }
  inputType(s:Schema){switch(s.format){case 'password':return 'password';case 'email':return 'email';case 'date':return 'date';case 'date-time':return 'datetime-local';case 'time':return 'time';case 'uri':case 'url':return 'url';default:return 'text';}}
