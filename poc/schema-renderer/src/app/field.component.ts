@@ -220,7 +220,7 @@ export class FieldComponent {
  private dynamicChosenTypes:Record<string,string>={};
  private dynamicJsonDraftValues:Record<string,string>={};
  private dynamicJsonErrors:Record<string,string>={};
- private readonly jsonTypes=['string','integer','number','boolean','object','array'];
+ private readonly jsonTypes=['string','password','integer','number','boolean','object','array'];
 
  get resolved(){return effective(this.schema,this.value,this.root);}
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}
@@ -240,7 +240,7 @@ export class FieldComponent {
   const current=runtimeType(this.value);if(allowed.includes(current))return current;if(current==='integer'&&allowed.includes('number')&&!allowed.includes('integer'))return 'number';return allowed[0]||primaryType(s);
  }
  changeType(type:string,s:Schema){this.chosenType=type;this.emit(initial(narrowedSchema(s,type,this.root),this.root));}
- typeLabel(type:string){return ({string:'Texto',integer:'Inteiro',number:'Número',boolean:'Booleano',object:'Objeto',array:'Lista',null:'Nulo'} as Record<string,string>)[type]||type;}
+ typeLabel(type:string){return ({string:'Texto',password:'Senha',integer:'Inteiro',number:'Número',boolean:'Booleano',object:'Objeto',array:'Lista',null:'Nulo'} as Record<string,string>)[type]||type;}
 
  compositionOptions():Schema[]{const s:any=this.schema||{};return [...(s.oneOf||[]),...(s.anyOf||[])].map((option:any)=>deref(option,this.root));}
  hasCompositionOptions(){return this.compositionOptions().length>1;}
@@ -297,7 +297,7 @@ export class FieldComponent {
   const base=this.dynamicSchema(s,key),type=this.dynamicActiveType(s,key,value);
   if(value===null)return {type:'null'};
   const declared=this.declaredDynamicTypes(base);
-  if(!declared.length&&isFreeSchema(base))return {type};
+  if(!declared.length&&isFreeSchema(base))return type==='password'?{type:'string',format:'password'}:{type};
   const options=this.dynamicTypeOptions(s,key);
   if(options.length<=1)return base;
   return {...base,type};
@@ -316,7 +316,7 @@ export class FieldComponent {
   const base=this.dynamicSchema(s,key);
   this.dynamicChosenTypes[key]=type;
   delete this.dynamicJsonDraftValues[key];delete this.dynamicJsonErrors[key];
-  const selected:Schema=this.declaredDynamicTypes(base).length?{...base,type}:{type};
+  const selected:Schema=type==='password'?{type:'string',format:'password'}:this.declaredDynamicTypes(base).length?{...base,type}:{type};
   let next:any;
   if(type==='object'&&isFreeSchema(selected))next={};
   else if(type==='array'&&this.isUnconstrainedArray(selected))next=[];
@@ -397,7 +397,7 @@ export class FieldComponent {
   const child=additionalSchemaForKey(s,key,this.root),types=this.dynamicTypeOptions(s,key),type=types[0];
   if(!type&&this.dynamicAllowsNull(s,key)){this.emit({...this.objectValue,[key]:null});return;}
   if(type)this.dynamicChosenTypes[key]=type;
-  const selected:Schema=this.declaredDynamicTypes(child).length&&type?{...child,type}:type?{type}:child;
+  const selected:Schema=type==='password'?{type:'string',format:'password'}:this.declaredDynamicTypes(child).length&&type?{...child,type}:type?{type}:child;
   const next=type==='object'&&isFreeSchema(selected)?{}:type==='array'&&this.isUnconstrainedArray(selected)?[]:initial(selected,this.root);
   this.emit({...this.objectValue,[key]:next});
  }
