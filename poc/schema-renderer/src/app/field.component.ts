@@ -28,7 +28,7 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
         <option *ngFor="let option of (s.enum||[s.const])" [ngValue]="option">{{option}}</option>
       </select>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean' && value!==null" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
-      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="text" inputmode="decimal" [value]="numericDraft !== null ? numericDraft : (value ?? '')" (input)="numericInput($any($event.target),s)" (blur)="commitNumeric(s)"/>
+      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="text" [attr.inputmode]="primaryType(s)==='integer'?'numeric':'decimal'" [value]="numericDraft !== null ? numericDraft : (value ?? '')" (input)="numericInput($any($event.target),s)" (blur)="commitNumeric(s)"/>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer' && value!==null" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
       <div class="muted" *ngIf="s.description">{{s.description}}</div>
     </ng-template>
@@ -53,6 +53,8 @@ export class FieldComponent {
   if(!/^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/.test(normalized))return;
   const n=Number(normalized);
   if(!Number.isFinite(n)||(integer&&!Number.isInteger(n)))return;
+  // Commit immediately; preserve only an intermediate decimal draft locally.
+  if(integer)this.numericDraft=null;
   this.emit(n);
  }
  commitNumeric(s:Schema){
