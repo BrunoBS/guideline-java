@@ -32,7 +32,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .inspector input:focus-visible,.inspector select:focus-visible,.inspector textarea:focus-visible{outline:2px solid #1455c0;outline-offset:1px}
  .builder-help{font-size:12px;color:#586477}
  .builder-error{color:#b42318}
- .composition-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+ .composition-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0}
+ .composition-actions input{flex:1 1 180px;min-width:0}
  .composition-row{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #edf0f5}
  .composition-row button{cursor:pointer}
  .rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -123,7 +124,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <button type="button" *ngFor="let kind of conditionalKinds" [disabled]="node[kind]===undefined" (click)="select(selectedPath+'/'+kind)">Editar {{kind}}</button>
    </div>
    <h4 class="rule-heading">Definições reutilizáveis</h4>
-   <div class="composition-actions"><button type="button" (click)="addNamedSchema('$defs')">+ Definição ($defs)</button></div>
+   <div class="composition-actions"><input aria-label="Nome da definição" placeholder="Nome da definição" [(ngModel)]="newDefinitionName"/><button type="button" (click)="addNamedSchema('$defs')">+ Definição ($defs)</button></div>
    <div *ngFor="let entry of entries(node['$defs'])" class="composition-row">
     <button type="button" class="tree-row" (click)="select(selectedPath+'/$defs/'+escapePath(entry[0]))">{{entry[0]}}</button>
     <button type="button" (click)="removeNamedSchema('$defs',entry[0])">Excluir</button>
@@ -138,7 +139,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <p class="builder-help">Referências externas existentes são preservadas. Para criá-las, use o editor avançado.</p>
    <h4 class="rule-heading" *ngIf="node.type==='object'">Propriedades dinâmicas</h4>
    <ng-container *ngIf="node.type==='object'">
-    <div class="composition-actions"><button type="button" (click)="addNamedSchema('patternProperties')">+ Padrão de chave</button></div>
+    <div class="composition-actions"><input aria-label="Expressão regular da chave" placeholder="Ex.: ^custom_" [(ngModel)]="newPatternName"/><button type="button" (click)="addNamedSchema('patternProperties')">+ Padrão de chave</button></div>
     <div *ngFor="let entry of entries(node.patternProperties)" class="composition-row">
      <button type="button" class="tree-row" (click)="select(selectedPath+'/patternProperties/'+escapePath(entry[0]))">{{entry[0]}}</button>
      <button type="button" (click)="removeNamedSchema('patternProperties',entry[0])">Excluir</button>
@@ -172,6 +173,8 @@ export class SchemaBuilderComponent implements OnChanges {
  conditionalKinds=['if','then','else'];
  formats=['email','uri','uuid','date','date-time','time','hostname','ipv4','ipv6','password','regex'];
  rows:NodeRow[]=[];
+ newDefinitionName='';
+ newPatternName='';
  get isPropertySelected(){const parts=this.segments(this.selectedPath);return parts.length>=2&&parts[parts.length-2]==='properties';}
  entries(value:any):[string,any][]{return value&&typeof value==='object'&&!Array.isArray(value)?Object.entries(value):[];}
  escapePath(value:string){return this.escape(value);}
@@ -189,8 +192,8 @@ export class SchemaBuilderComponent implements OnChanges {
  setReference(ref:string){this.commit(root=>{const node=this.current(root)!;if(ref)node['$ref']=ref;else delete node['$ref'];});}
  addNamedSchema(kind:'$defs'|'patternProperties'){
   const name=kind==='$defs'?'Definicao':'^campo_';
-  const proposed=globalThis.prompt?.('Nome '+(kind==='$defs'?'da definição':'do padrão regex'),name);
-  if(proposed===null||proposed===undefined)return;
+  const proposed=kind==='$defs'?this.newDefinitionName:this.newPatternName;
+  if(!proposed.trim()){this.error='Informe um nome.';return;}
   const key=proposed.trim();
   if(!key){this.error='Informe um nome.';return;}
   if(kind==='patternProperties'){try{new RegExp(key);}catch{this.error='Padrão regex inválido.';return;}}
@@ -201,6 +204,7 @@ export class SchemaBuilderComponent implements OnChanges {
    const target=this.current(root)!;target[kind]??={};target[kind][key]={type:'string'};
    this.selectedPath+='/'+kind+'/'+this.escape(key);
   });
+  if(kind==='$defs')this.newDefinitionName='';else this.newPatternName='';
  }
  removeNamedSchema(kind:'$defs'|'patternProperties',key:string){
   this.error='';
