@@ -63,20 +63,46 @@ export function matches(schema:any,value:any,root:Schema):boolean {
  try{return !!compileSchema(schema,root)(value);}catch{return false;}
 }
 
+function intersectTypePair(a:string,b:string):string|undefined {
+ if(a===b)return a;
+ if((a==='number'&&b==='integer')||(a==='integer'&&b==='number'))return 'integer';
+ return undefined;
+}
+
+function intersectTypes(a:Schema,b:Schema):string|string[]|undefined {
+ const left=typesOf(a),right=typesOf(b);
+ if(!left.length)return b.type;
+ if(!right.length)return a.type;
+ const intersection=[...new Set(left.flatMap(l=>right.map(r=>intersectTypePair(l,r)).filter((type):type is string=>!!type)))];
+ if(!intersection.length)return '__impossible__';
+ return intersection.length===1?intersection[0]:intersection;
+}
+
+function intersectEnums(a:Schema,b:Schema):any[]|undefined {
+ if(!Array.isArray(a.enum))return b.enum;
+ if(!Array.isArray(b.enum))return a.enum;
+ return a.enum.filter((value:any)=>b.enum.some((candidate:any)=>Object.is(candidate,value)));
+}
+
 export function merge(a:any,b:any):Schema {
  if(a===false||b===false)return {__booleanSchema:false};
  if(a===true)return asObject(b);
  if(b===true)return asObject(a);
  const aa=asObject(a),bb=asObject(b);
+ if(aa.const!==undefined&&bb.const!==undefined&&!Object.is(aa.const,bb.const))return {__booleanSchema:false};
+ const mergedType=intersectTypes(aa,bb);
+ if(mergedType==='__impossible__')return {__booleanSchema:false};
+ const mergedEnum=intersectEnums(aa,bb);
+ if(mergedEnum&&mergedEnum.length===0)return {__booleanSchema:false};
  const out:Schema={...aa,...bb};
+ if(mergedType!==undefined)out.type=mergedType;
+ if(mergedEnum!==undefined)out.enum=mergedEnum;
  const props:Record<string,any>={...(aa.properties||{})};
  for(const [key,value] of Object.entries(bb.properties||{}))props[key]=merge(props[key]||{},value);
  if(Object.keys(props).length)out.properties=props;
  if(aa.required||bb.required)out.required=[...new Set([...(aa.required||[]),...(bb.required||[])])];
  if(aa.allOf||bb.allOf)out.allOf=[...(aa.allOf||[]),...(bb.allOf||[])];
  if(aa.patternProperties||bb.patternProperties)out.patternProperties={...(aa.patternProperties||{}),...(bb.patternProperties||{})};
- if(Array.isArray(aa.type)&&typeof bb.type==='string'&&aa.type.includes(bb.type))out.type=aa.type;
- if(Array.isArray(bb.type)&&typeof aa.type==='string'&&bb.type.includes(aa.type))out.type=bb.type;
  return out;
 }
 
@@ -88,6 +114,7 @@ function branchScore(schema:any,value:any,root:Schema):number {
   if(current===undefined)continue;
   if(rule.const!==undefined)score+=current===rule.const?100:-100;
   if(Array.isArray(rule.enum))score+=rule.enum.includes(current)?30:-30;
+  if(rule===false||isFalseSchema(rule))score-=100;
  }
  const kind=runtimeType(value);
  if(nonNullTypes(s).includes(kind))score+=10;
@@ -131,11 +158,9 @@ function collect(schema:any,value:any,root:Schema,depth=0):Schema {
 }
 
 export function effective(schema:any,value:any,root:Schema):Schema {
- const base=collect(schema,value,root);
- if(isFalseSchema(base)||isTrueSchema(base))return base;
- const properties:Record<string,any>={};
- for(const [key,child] of Object.entries(base.properties||{}))properties[key]=effective(child,value?.[key],root);
- return {...base,...(Object.keys(properties).length?{properties}:{})};
+ // Resolve apenas o nível atual. Os schemas filhos permanecem declarativos para
+ // que seus próprios if/then/allOf sejam recalculados quando irmãos mudarem.
+ return collect(schema,value,root);
 }
 
 export function runtimeType(value:any):string {
@@ -144,6 +169,13 @@ export function runtimeType(value:any):string {
 export function narrowedSchema(schema:any,type:string,root:Schema):Schema {return {...deref(schema,root),type};}
 export function schemaAlternatives(schema:any,root:Schema):Schema[]{const s=deref(schema,root);const compositions=[...(s.oneOf||[]),...(s.anyOf||[])];return compositions.length?compositions.map((option:any)=>deref(option,root)):nonNullTypes(s).map(type=>({...s,type}));}
 export function schemaLabel(schema:any,index:number,root:Schema):string {const s=deref(schema,root);if(s.title)return s.title;if(s.const!==undefined)return String(s.const);if(Array.isArray(s.enum)&&s.enum.length<=4)return s.enum.join(' / ');const types=nonNullTypes(s);return types.length?types.join(' | '):`Alternativa ${index+1}`;}
+
+function initialComposition(s:Schema,marker:'__oneOfOptions'|'__anyOfOptions',root:Schema,depth:number):any {
+ const options=s[marker] as any[]|undefined;
+ if(!options?.length)return undefined;
+ const base={...s};delete base[marker];
+ return initial(merge(base,options[0]),root,depth+1);
+}
 
 export function initial(schema:any,root:Schema,depth=0):any {
  if(depth>20)return null;
@@ -154,13 +186,13 @@ export function initial(schema:any,root:Schema,depth=0):any {
  if(s.const!==undefined)return structuredClone(s.const);
  if(s.enum?.length)return structuredClone(s.enum[0]);
  if(hasTypeUnion(s))return initial(narrowedSchema(s,nonNullTypes(s)[0],root),root,depth+1);
- if(s.__oneOfOptions?.length)return initial(s.__oneOfOptions[0],root,depth+1);
- if(s.__anyOfOptions?.length)return initial(s.__anyOfOptions[0],root,depth+1);
+ if(s.__oneOfOptions?.length)return initialComposition(s,'__oneOfOptions',root,depth);
+ if(s.__anyOfOptions?.length)return initialComposition(s,'__anyOfOptions',root,depth);
  if(primaryType(s)==='object'||(primaryType(s)==='null'&&Object.keys(s.properties||{}).length>0)){
   const obj:any={};
   for(const [key,raw] of Object.entries(s.properties||{})){
    const child=effective(raw as Schema,undefined,root),required=(s.required||[]).includes(key);
-   if(required||child.default!==undefined||child.const!==undefined)obj[key]=initial(child,root,depth+1);
+   if(required||child.default!==undefined||child.const!==undefined)obj[key]=initial(raw as Schema,root,depth+1);
    else if(isNullable(child))obj[key]=null;
   }
   return obj;
@@ -212,11 +244,29 @@ function collectBranchManagedPaths(schema:any,root:Schema,basePath='',paths=new 
  return paths;
 }
 
+function coerceCompatibleValue(schema:Schema,value:any,root:Schema):{matched:boolean;value:any} {
+ const kind=primaryType(schema);
+ if(kind==='array'&&!Array.isArray(value)){
+  const itemSchema=arrayItemSchema(schema,0,root);
+  if(!isFalseSchema(itemSchema)&&compatibleValue(effective(itemSchema,value,root),value))return {matched:true,value:[value]};
+ }
+ if(kind!=='array'&&Array.isArray(value)&&value.length){
+  const first=value[0];
+  if(compatibleValue(schema,first))return {matched:true,value:first};
+ }
+ return {matched:false,value};
+}
+
 export function reconcileValue(schema:any,value:any,root:Schema,depth=0,managedPaths?:Set<string>,currentPath=''):any {
  if(depth>30)return value;
  const branchPaths=managedPaths||collectBranchManagedPaths(schema,root);
  const s=effective(schema,value,root);
- if(value===undefined)return value;if(isFalseSchema(s))return undefined;if(isTrueSchema(s))return value;if(!compatibleValue(s,value))return initial(s,root,depth+1);
+ if(value===undefined)return value;if(isFalseSchema(s))return undefined;if(isTrueSchema(s))return value;
+ if(!compatibleValue(s,value)){
+  const coerced=coerceCompatibleValue(s,value,root);
+  if(!coerced.matched)return initial(s,root,depth+1);
+  value=coerced.value;
+ }
  if(primaryType(s)==='object'&&value!==null){
   const next:Record<string,any>={...value};const required=new Set<string>(s.required||[]);
   for(const key of Object.keys(next)){
