@@ -151,6 +151,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <label *ngIf="node.type!=='object'&&node.type!=='array'">Enum (um valor JSON por linha)
     <textarea [ngModel]="enumText(node)" (change)="setEnum($any($event.target).value)" placeholder="Exemplo:&#10;&quot;ATIVO&quot;&#10;&quot;INATIVO&quot;"></textarea>
    </label>
+   <button type="button" class="structure-toggle" (click)="showAdvanced=!showAdvanced">{{showAdvanced?'▾ Ocultar':'▸ Exibir'}} regras avançadas</button>
+   <ng-container *ngIf="showAdvanced">
    <h4 class="rule-heading">Composições visuais</h4>
    <div *ngFor="let kind of compositionKinds">
     <strong>{{kind}}</strong>
@@ -203,6 +205,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <textarea [ngModel]="advancedText(node)" (change)="setAdvanced($any($event.target).value)" style="min-height:150px;font-family:monospace"></textarea>
    </label>
    <p class="builder-help">Os campos não suportados visualmente são preservados. Enum deve conter valores JSON válidos, um por linha.</p>
+   </ng-container>
    <p class="builder-error" *ngIf="error">{{error}}</p>
   </div>
  </div>`
@@ -218,6 +221,7 @@ export class SchemaBuilderComponent implements OnChanges {
  formats=['email','uri','uuid','date','date-time','time','hostname','ipv4','ipv6','password','regex'];
  rows:NodeRow[]=[];
  showAddMenu=false;
+ showAdvanced=false;
  showStructure=false;
  palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
  get canvasFields(){return this.rows.filter(row=>row.path.startsWith('/properties/')&&row.depth===1);}
