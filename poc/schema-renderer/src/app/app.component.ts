@@ -34,20 +34,33 @@ const simple:Schema={'$schema':'https://json-schema.org/draft/2020-12/schema',ti
     <div class="validation-summary" *ngIf="errors.length"><h4>Mensagens de erro</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
   </section>
   <section class="panel tab-panel" *ngIf="activeTab===3">
-    <div class="section-heading"><div><h3>Modo desenvolvedor</h3><p>Cole ou edite o JSON. Sempre que o conteúdo formar um JSON válido, ele é refletido imediatamente no formulário.</p></div></div>
-    <textarea class="editor" [ngModel]="developerSource" (ngModelChange)="developerJsonChanged($event)" aria-label="Editor JSON de valores"></textarea><p class="error callout" *ngIf="valueError">{{valueError}}</p><p class="success callout" *ngIf="!valueError">✓ JSON sintaticamente válido e sincronizado com o formulário.</p>
-    <div class="validation-summary" *ngIf="errors.length"><h4>Validação contra o schema</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
+    <div class="section-heading"><div><h3>Modo desenvolvedor</h3><p>Cole ou edite o JSON. Conteúdo sintaticamente válido é sincronizado com o formulário.</p></div></div>
+    <textarea class="editor" [ngModel]="developerSource" (ngModelChange)="developerJsonChanged($event)" aria-label="Editor JSON de valores"></textarea>
+    <div class="opposite-actions developer-actions">
+      <span class="status valid" *ngIf="developerValidated && !valueError">✓ JSON válido</span>
+      <span></span>
+      <div>
+        <button type="button" class="secondary" (click)="validateDeveloperJson()">Validar JSON</button>
+        <button type="button" (click)="formatDeveloperJson()">Formatar JSON</button>
+      </div>
+    </div>
+    <p class="error callout" *ngIf="valueError">{{valueError}}</p>
+    <p class="success callout" *ngIf="!valueError && developerValidated">✓ JSON sintaticamente válido e sincronizado com o formulário.</p>
+    <div class="validation-summary" *ngIf="!valueError && errors.length"><h4>Validação contra o schema</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
   </section>
   <section class="panel tab-panel" *ngIf="activeTab===4">
     <div class="section-heading"><div><h3>Resposta</h3><p>JSON final produzido pelo formulário e pelo modo desenvolvedor.</p></div><span class="status valid" *ngIf="!errors.length">✓ Válido</span><span class="status invalid" *ngIf="errors.length">Inválido</span></div><pre class="response-json">{{value|json}}</pre>
   </section>
 </main>`})
 export class AppComponent {
- activeTab=1;schema:Schema=publisher;source=JSON.stringify(publisher,null,2);value:any={};developerSource='';errors:string[]=[];issues:ValidationIssue[]=[];parseError='';valueError='';
+ activeTab=1;schema:Schema=publisher;source=JSON.stringify(publisher,null,2);value:any={};developerSource='';errors:string[]=[];issues:ValidationIssue[]=[];parseError='';valueError='';developerValidated=false;
  constructor(){this.value=initial(this.schema,this.schema);this.sync(true);}
- load(kind:string){this.schema=kind==='oneOf'?oneOf:kind==='simple'?simple:publisher;this.source=JSON.stringify(this.schema,null,2);this.value=initial(this.schema,this.schema);this.parseError='';this.valueError='';this.sync(true);}
- apply(){try{const s=JSON.parse(this.source);if(!s||typeof s!=='object'||Array.isArray(s))throw Error('Schema deve ser um objeto JSON');this.schema=s;this.value=initial(s,s);this.parseError='';this.valueError='';this.sync(true);this.activeTab=2;}catch(e){this.parseError=String(e);}}
- changed(v:any){this.value=v;this.valueError='';this.sync(true);}
- developerJsonChanged(text:string){this.developerSource=text;try{this.value=JSON.parse(text);this.valueError='';this.sync(false);}catch(e){this.valueError=String(e);}}
+ load(kind:string){this.schema=kind==='oneOf'?oneOf:kind==='simple'?simple:publisher;this.source=JSON.stringify(this.schema,null,2);this.value=initial(this.schema,this.schema);this.parseError='';this.valueError='';this.developerValidated=false;this.sync(true);}
+ apply(){try{const s=JSON.parse(this.source);if(!s||typeof s!=='object'||Array.isArray(s))throw Error('Schema deve ser um objeto JSON');this.schema=s;this.value=initial(s,s);this.parseError='';this.valueError='';this.developerValidated=false;this.sync(true);this.activeTab=2;}catch(e){this.parseError=String(e);}}
+ changed(v:any){this.value=v;this.valueError='';this.developerValidated=false;this.sync(true);}
+ developerJsonChanged(text:string){this.developerSource=text;this.developerValidated=false;try{this.value=JSON.parse(text);this.valueError='';this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);}}
+ validateDeveloperJson(){try{this.value=JSON.parse(this.developerSource);this.valueError='';this.developerValidated=true;this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
+ formatDeveloperJson(){try{const parsed=JSON.parse(this.developerSource);this.developerSource=JSON.stringify(parsed,null,2);this.value=parsed;this.valueError='';this.developerValidated=true;this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
+ private jsonErrorMessage(error:any){return `JSON inválido: ${error?.message||String(error)}`;}
  private sync(updateDeveloperSource:boolean){if(updateDeveloperSource)this.developerSource=JSON.stringify(this.value,null,2);this.issues=validationIssues(this.schema,this.value);this.errors=this.issues.map(issue=>`${issue.path}: ${issue.message}`);}
 }
