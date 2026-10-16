@@ -179,8 +179,10 @@ export function initial(schema:any,root:Schema,depth=0):any {
  if(primaryType(s)==='object'||(primaryType(s)==='null'&&Object.keys(s.properties||{}).length>0)){
   const obj:any={};
   for(const [key,raw] of Object.entries(s.properties||{})){
-   const child=raw as Schema;
-   if((s.required||[]).includes(key)||child.default!==undefined||child.const!==undefined)obj[key]=initial(child,root,depth+1);
+   const child=effective(raw as Schema,undefined,root);
+   const required=(s.required||[]).includes(key);
+   if(required||child.default!==undefined||child.const!==undefined)obj[key]=initial(child,root,depth+1);
+   else if(isNullable(child))obj[key]=null;
   }
   return obj;
  }
