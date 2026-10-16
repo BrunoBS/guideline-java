@@ -10,14 +10,26 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  imports:[CommonModule,FormsModule],
  styles:[`
  .builder{display:grid;grid-template-columns:minmax(230px,1fr) minmax(280px,1.3fr);gap:18px}
- .tree,.inspector{border:1px solid #d9dfe9;border-radius:10px;padding:14px;min-width:0}
- .tree-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:transparent;padding:9px;border-radius:6px;cursor:pointer}
+ .tree,.inspector{border:1px solid #d9dfe9;border-radius:10px;padding:18px;min-width:0;background:#fff}
+ .tree{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:4px;align-self:start}
+ .tree>strong{margin-bottom:4px}
+ .tree>.builder-help{margin:0 0 12px;line-height:1.5}
+ .inspector{align-self:start}
+ .tree-row{display:flex;flex:0 0 auto;align-items:center;justify-content:flex-start;gap:8px;width:100%;min-height:38px;height:auto;margin:0;text-align:left;border:0;background:transparent;color:#26354d;padding:9px;border-radius:6px;cursor:pointer;font:inherit;line-height:1.3;box-shadow:none}
+ .tree-row span,.tree-row small{color:inherit}
+ .tree-row small{font-size:12px;opacity:.75}
+ .tree-row:focus-visible{outline:2px solid #1455c0;outline-offset:2px}
  .tree-row.selected{background:#e8efff;color:#003399;font-weight:700}
- .tree-row:hover{background:#f2f5fa}
+ .tree-row:hover{background:#f2f5fa;color:#003399}
  .inspector label{display:grid;gap:5px;margin-bottom:12px;font-weight:600}
  .inspector input,.inspector select{width:100%;box-sizing:border-box;padding:9px;border:1px solid #b8c4d4;border-radius:6px;background:white}
  .builder-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
  .builder-actions button{padding:8px 12px;cursor:pointer}
+ .inspector>strong{display:block;margin-bottom:12px}
+ .inspector label{line-height:1.4}
+ .inspector .builder-actions{margin:0 0 14px}
+ .inspector .builder-actions button{border-radius:7px}
+ .inspector input:focus-visible,.inspector select:focus-visible,.inspector textarea:focus-visible{outline:2px solid #1455c0;outline-offset:1px}
  .builder-help{font-size:12px;color:#586477}
  .builder-error{color:#b42318}
  .composition-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
@@ -29,7 +41,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .inspector textarea{width:100%;box-sizing:border-box;min-height:84px;border:1px solid #b8c4d4;border-radius:6px;padding:9px}
  .inspector .checkline{display:flex;align-items:center;gap:8px;font-weight:500}
  .inspector .checkline input{width:auto}
- @media(max-width:760px){.builder{grid-template-columns:1fr}}
+ @media(max-width:760px){.builder{grid-template-columns:1fr}.tree,.inspector{padding:14px}.rule-grid{grid-template-columns:1fr}}
  `],
  template:`
  <div class="builder">
