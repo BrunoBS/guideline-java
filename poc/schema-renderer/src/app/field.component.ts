@@ -62,9 +62,9 @@ import {Schema,ValidationIssue,deref,effective,initial,primaryType,isNullable,re
       <div class="control" [class.invalid-control]="isInvalid(path)">
         <div class="field-heading">
           <label>{{s.title||name||'Valor'}} {{required?'*':''}}</label>
-          <label *ngIf="isNullable(s)" class="nullable-toggle" [attr.title]="value===null?'Ativar valor':'Definir como null'">
-            <span>{{value===null?'Desligado':'Ligado'}}</span>
-            <input type="checkbox" [checked]="value!==null" (change)="setNull(!$any($event.target).checked,s)" />
+          <label *ngIf="isNullable(s)" class="nullable-toggle" title="Definir como nulo">
+            <span>Definir como nulo</span>
+            <input type="checkbox" [checked]="value===null" (change)="setNull($any($event.target).checked,s)" />
             <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
           </label>
         </div>
