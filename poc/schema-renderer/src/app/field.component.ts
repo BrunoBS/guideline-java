@@ -39,7 +39,7 @@ import {
         </div>
         <ng-container *ngIf="!isNullState(); else nullFreeState">
           <div class="constraint-hint" *ngIf="v.__externalRef">Referência externa <code>{{v.__externalRef}}</code>. A POC não resolve esse recurso automaticamente; o valor permanece editável em JSON.</div>
-          <textarea class="json-value-editor" [value]="jsonValue(value)" [disabled]="v.readOnly" (change)="freeChanged($any($event.target))" placeholder='Ex.: "texto", 123, true, null, {}, []'></textarea>
+          <textarea class="json-value-editor" [value]="jsonValue(value)" [disabled]="v.readOnly" (change)="freeChanged($any($event.target))" [placeholder]="freeValuePlaceholder()"></textarea>
           <div class="muted">Valor livre em JSON.</div>
         </ng-container>
         <ng-template #nullFreeState><div class="null-value-state">{{nullStateLabel(s)}}</div></ng-template>
@@ -121,7 +121,7 @@ import {
                               [value]="dynamicJsonText(v,item[0],item[1])"
                               [disabled]="v.readOnly"
                               (input)="dynamicJsonChanged(v,item[0],$any($event.target).value)"
-                              [placeholder]="dynamicActiveType(v,item[0],item[1])==='array'?'[\n  \"valor\"\n]':'{\n  \"chave\": \"valor\"\n}'"></textarea>
+                              [placeholder]="dynamicJsonPlaceholder(v,item[0],item[1])"></textarea>
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px">
                       <span class="success" *ngIf="!dynamicJsonError(item[0])">✓ JSON válido</span>
                       <span class="error" *ngIf="dynamicJsonError(item[0])">{{dynamicJsonError(item[0])}}</span>
@@ -341,6 +341,8 @@ export class FieldComponent {
   try{const parsed=this.validateDynamicStructure(s,key,source);this.dynamicJsonDraftValues[key]=JSON.stringify(parsed,null,2);this.dynamicJsonErrors[key]='';this.updateMapValue(key,parsed);}
   catch(error){this.dynamicJsonErrors[key]=error instanceof Error?error.message:'JSON inválido.';}
  }
+ dynamicJsonPlaceholder(s:Schema,key:string,value:any){return this.dynamicActiveType(s,key,value)==='array'?'[\n  "valor"\n]':'{\n  "chave": "valor"\n}';}
+ freeValuePlaceholder(){return 'Ex.: "texto", 123, true, null, objeto JSON ou lista JSON';}
  keyIssue(s:Schema,key:string){const propertyIssue=propertyNameIssue(s,key,this.root);if(propertyIssue)return propertyIssue;const dynamic=additionalSchemaForKey(s,key,this.root);return isFalseSchema(dynamic)?'Esta chave não é permitida pelo schema.':'';}
  updateKey(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(reconcileValue(this.schema,next,this.root));}
  updateMapValue(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(reconcileValue(this.schema,next,this.root));}
