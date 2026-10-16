@@ -20,6 +20,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder-actions button{padding:8px 12px;cursor:pointer}
  .builder-help{font-size:12px;color:#586477}
  .builder-error{color:#b42318}
+ .rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .rule-grid label{min-width:0}
+ .rule-heading{margin:20px 0 12px;border-top:1px solid #e0e5ef;padding-top:14px}
+ .inspector textarea{width:100%;box-sizing:border-box;min-height:84px;border:1px solid #b8c4d4;border-radius:6px;padding:9px}
+ .inspector .checkline{display:flex;align-items:center;gap:8px;font-weight:500}
+ .inspector .checkline input{width:auto}
  @media(max-width:760px){.builder{grid-template-columns:1fr}}
  `],
  template:`
@@ -51,7 +57,41 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <label *ngIf="selectedPath!=='' && !selectedPath.endsWith('/items')" style="display:flex;align-items:center;gap:8px">
     <input type="checkbox" style="width:auto" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)"/> Obrigatório
    </label>
-   <p class="builder-help">Atributos avançados existentes são preservados ao editar as propriedades suportadas.</p>
+   <h4 class="rule-heading">Validações</h4>
+   <ng-container *ngIf="node.type==='string'">
+    <label>Formato
+     <select [ngModel]="node.format||''" (ngModelChange)="setOptional('format',$event)">
+      <option value="">Sem formato</option>
+      <option *ngFor="let format of formats" [value]="format">{{format}}</option>
+     </select>
+    </label>
+    <div class="rule-grid">
+     <label>Tamanho mínimo<input type="number" min="0" step="1" [ngModel]="node.minLength" (ngModelChange)="setNumber('minLength',$event,0,true)"/></label>
+     <label>Tamanho máximo<input type="number" min="0" step="1" [ngModel]="node.maxLength" (ngModelChange)="setNumber('maxLength',$event,0,true)"/></label>
+    </div>
+    <label>Expressão regular (pattern)<input [ngModel]="node.pattern||''" (ngModelChange)="setPattern($event)" placeholder="^[A-Za-z]+$"/></label>
+   </ng-container>
+   <div class="rule-grid" *ngIf="node.type==='integer'||node.type==='number'">
+    <label>Mínimo<input type="number" [step]="node.type==='integer'?1:'any'" [ngModel]="node.minimum" (ngModelChange)="setNumber('minimum',$event,undefined,node.type==='integer')"/></label>
+    <label>Máximo<input type="number" [step]="node.type==='integer'?1:'any'" [ngModel]="node.maximum" (ngModelChange)="setNumber('maximum',$event,undefined,node.type==='integer')"/></label>
+    <label>Exclusivo mínimo<input type="number" [step]="node.type==='integer'?1:'any'" [ngModel]="node.exclusiveMinimum" (ngModelChange)="setNumber('exclusiveMinimum',$event,undefined,node.type==='integer')"/></label>
+    <label>Exclusivo máximo<input type="number" [step]="node.type==='integer'?1:'any'" [ngModel]="node.exclusiveMaximum" (ngModelChange)="setNumber('exclusiveMaximum',$event,undefined,node.type==='integer')"/></label>
+    <label>Múltiplo de<input type="number" min="0" [step]="node.type==='integer'?1:'any'" [ngModel]="node.multipleOf" (ngModelChange)="setNumber('multipleOf',$event,0,node.type==='integer',true)"/></label>
+   </div>
+   <div class="rule-grid" *ngIf="node.type==='array'">
+    <label>Mínimo de itens<input type="number" min="0" step="1" [ngModel]="node.minItems" (ngModelChange)="setNumber('minItems',$event,0,true)"/></label>
+    <label>Máximo de itens<input type="number" min="0" step="1" [ngModel]="node.maxItems" (ngModelChange)="setNumber('maxItems',$event,0,true)"/></label>
+   </div>
+   <label *ngIf="node.type==='array'" class="checkline"><input type="checkbox" [ngModel]="!!node.uniqueItems" (ngModelChange)="setBoolean('uniqueItems',$event)"/> Itens únicos</label>
+   <div class="rule-grid" *ngIf="node.type==='object'">
+    <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
+    <label>Máximo de propriedades<input type="number" min="0" step="1" [ngModel]="node.maxProperties" (ngModelChange)="setNumber('maxProperties',$event,0,true)"/></label>
+   </div>
+   <label *ngIf="node.type==='object'" class="checkline"><input type="checkbox" [ngModel]="node.additionalProperties!==false" (ngModelChange)="setBoolean('additionalProperties',$event)"/> Permitir propriedades adicionais</label>
+   <label *ngIf="node.type!=='object'&&node.type!=='array'">Enum (um valor JSON por linha)
+    <textarea [ngModel]="enumText(node)" (change)="setEnum($any($event.target).value)" placeholder="Exemplo:&#10;&quot;ATIVO&quot;&#10;&quot;INATIVO&quot;"></textarea>
+   </label>
+   <p class="builder-help">Os campos não suportados visualmente são preservados. Enum deve conter valores JSON válidos, um por linha.</p>
    <p class="builder-error" *ngIf="error">{{error}}</p>
   </div>
  </div>`
@@ -62,6 +102,7 @@ export class SchemaBuilderComponent implements OnChanges {
  selectedPath='';
  error='';
  types=['string','integer','number','boolean','object','array','null'];
+ formats=['email','uri','uuid','date','date-time','time','hostname','ipv4','ipv6','password','regex'];
  rows:NodeRow[]=[];
  ngOnChanges(_changes:SimpleChanges){this.rebuild();}
  private segments(path:string){return path.split('/').slice(1).map(x=>x.replace(/~1/g,'/').replace(/~0/g,'~'));}
@@ -130,6 +171,29 @@ export class SchemaBuilderComponent implements OnChanges {
   });
  }
  setAttribute(key:'title'|'description',value:string){this.commit(root=>{const node=this.current(root)!;if(value)node[key]=value;else delete node[key];});}
+ setOptional(key:string,value:string){this.error='';this.commit(root=>{const node=this.current(root)!;if(value)node[key]=value;else delete node[key];});}
+ setNumber(key:string,value:any,min?:number,integer=false,strictPositive=false){
+  this.error='';
+  if(value===''||value===null||value===undefined){this.commit(root=>{delete this.current(root)![key];});return;}
+  const n=Number(value);
+  if(!Number.isFinite(n)||(min!==undefined&&n<min)||(integer&&!Number.isInteger(n))||(strictPositive&&n<=0)){this.error='Número inválido para '+key;return;}
+  this.commit(root=>{this.current(root)![key]=n;});
+ }
+ setPattern(value:string){
+  this.error='';
+  if(value){try{new RegExp(value);}catch{this.error='Expressão regular inválida.';return;}}
+  this.setOptional('pattern',value);
+ }
+ setBoolean(key:string,value:boolean){this.error='';this.commit(root=>{this.current(root)![key]=value;});}
+ enumText(node:Schema):string{return Array.isArray(node.enum)?node.enum.map((v:any)=>JSON.stringify(v)).join('\\n'):'';}
+ setEnum(text:string){
+  this.error='';
+  try{
+   const values=text.split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean).map(line=>JSON.parse(line));
+   if(values.some((v,i)=>values.findIndex(other=>JSON.stringify(other)===JSON.stringify(v))!==i))throw new Error('Valores duplicados.');
+   this.commit(root=>{const node=this.current(root)!;if(values.length)node.enum=values;else delete node.enum;});
+  }catch(e){this.error='Enum inválido: '+(e instanceof Error?e.message:String(e));}
+ }
  setType(type:string){this.commit(root=>{this.current(root)!.type=type;});}
  setRequired(checked:boolean){
   this.commit(root=>{
@@ -144,7 +208,7 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  renameSelected(name:string){
   this.error='';
-  if(!name||name.includes('/')||name.includes('~')){this.error='Informe um nome sem barras ou til.';return;}
+  if(!name){this.error='Informe o nome da propriedade.';return;}
   const parts=this.segments(this.selectedPath),old=parts.pop()!;
   if(parts.pop()!=='properties'||name===old)return;
   const parentPath='/'+parts.map(p=>this.escape(p)).join('/');
