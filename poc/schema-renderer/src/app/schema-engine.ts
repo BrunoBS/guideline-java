@@ -14,99 +14,80 @@ export function deref(schema: Schema, root: Schema, depth=0): Schema {
   const target=ref.slice(2).split('/').map(s=>s.replace(/~1/g,'/').replace(/~0/g,'~')).reduce((v,k)=>v?.[k],root as any);
   return target ? deref({...target,...Object.fromEntries(Object.entries(schema).filter(([k])=>k!=='$ref'))},root,depth+1):schema;
 }
-function matches(schema: Schema, value: any, root:Schema): boolean {
-  try {
-    // Ajv needs the root definitions when a branch uses local $ref.
-    const candidate={...schema,$defs:{...(root.$defs||{}),...(schema.$defs||{})},definitions:{...(root.definitions||{}),...(schema.definitions||{})}};
-    return !!ajv.validate(candidate,value);
-  } catch {return false;}
-}
-function branchScore(schema:Schema,value:any,root:Schema):number {
-  const s=deref(schema,root);
-  let score=0;
-  for(const [key,rule] of Object.entries(s.properties||{})){
-    const field=deref(rule as Schema,root);
-    const actual=value?.[key];
-    if(actual===undefined)continue;
-    if(field.const!==undefined)score+=actual===field.const?100:-100;
-    if(Array.isArray(field.enum))score+=field.enum.includes(actual)?30:-30;
-    if(actual!==null && typeof actual==='object')score+=branchScore(field,actual,root);
-  }
-  if(Array.isArray(s.allOf))for(const part of s.allOf)score+=branchScore(part,value,root);
-  if(s.if && matches(s.if,value,root))score+=10+branchScore(s.then||{},value,root);
-  return score;
-}
-function branchErrors(schema:Schema,value:any,root:Schema):number {
-  try {
-    const candidate={...schema,$defs:{...(root.$defs||{}),...(schema.$defs||{})},definitions:{...(root.definitions||{}),...(schema.definitions||{})}};
-    const validator=ajv.compile(candidate);
-    return validator(value)?0:(validator.errors||[]).length;
-  } catch {return Number.MAX_SAFE_INTEGER;}
-}
-function chooseBranch(options:Schema[],value:any,root:Schema):Schema|undefined {
-  const create=options.find(s=>Array.isArray(s.required)&&s.required.includes('key')&&s.required.includes('microserviceIdentifier'));
-  if(create && value?.version===undefined && value?.key===undefined && value?.microserviceIdentifier===undefined)return create;
-  const ranked=options.map(s=>({s,score:branchScore(s,value,root),errors:branchErrors(s,value,root)}))
-    .sort((a,b)=>a.errors-b.errors||b.score-a.score);
-  if(ranked.length===1)return ranked[0].s;
-  if(ranked[0]?.errors===0 && ranked[1]?.errors!==0)return ranked[0].s;
-  if(ranked[0]?.score>0 && ranked[0].score>ranked[1].score)return ranked[0].s;
-  if(ranked[0]?.errors<ranked[1]?.errors)return ranked[0].s;
-  return undefined;
-}
-function ambiguousFields(options:Schema[],value:any,root:Schema):Schema {
-  // Keep conditional fields editable until the user provides enough information to select a branch.
-  const combined:Schema={properties:{}};
-  for(const option of options){
-    const part=effective(option,value,root);
-    combined.properties={...combined.properties,...(part.properties||{})};
-  }
-  return combined;
-}
-export function effective(schema: Schema, value:any, root:Schema): Schema {
-  const base=deref(schema,root);
-  let result={...base};
-  if(Array.isArray(base.allOf))for(const s of base.allOf)result=merge(result,effective(s,value,root));
-  if(base.if)result=merge(result,effective(matches(base.if,value,root)?(base.then||{}):(base.else||{}),value,root));
-  if(Array.isArray(base.oneOf)||Array.isArray(base.anyOf)){
-    const selected=chooseBranch(base.oneOf||base.anyOf,value,root);
-    if(selected)result=merge(result,effective(selected,value,root));
-    else result=merge(result,ambiguousFields(base.oneOf||base.anyOf,value,root));
-  }
-  // Resolve each child after combining allOf/if/then/oneOf. Conditional
-  // fragments may be spread across multiple properties of the same object.
-  if(result.properties){
-    const props:Record<string,Schema>={};
-    for(const [key,child] of Object.entries(result.properties))
-      props[key]=effective(child as Schema,value?.[key],root);
-    result={...result,properties:props};
-  }
-  return result;
+function matches(schema:Schema,value:any,root:Schema):boolean {
+ try {const check=ajv.compile({...schema,$defs:{...(root.$defs||{}),...(schema.$defs||{})}});return !!check(value);}
+ catch {return false;}
 }
 function merge(a:Schema,b:Schema):Schema {
-  const properties={...(a.properties||{})};
-  for(const [key,v] of Object.entries(b.properties||{})){
-    const existing=properties[key];
-    properties[key]=existing && typeof existing==='object' && typeof v==='object'
-      ?merge(existing,v as Schema):v;
-  }
-  // Preserve nested composition keywords instead of replacing an earlier allOf.
-  const allOf=[...(a.allOf||[]),...(b.allOf||[])];
-  const merged={...a,...b,properties,required:[...new Set([...(a.required||[]),...(b.required||[])])]};
-  if(allOf.length)merged.allOf=allOf;
-  return merged;
+ const out:Schema={...a,...b};
+ const props:Record<string,Schema>={...(a.properties||{})};
+ for(const [key,v] of Object.entries(b.properties||{}))props[key]=merge(props[key]||{},v as Schema);
+ if(Object.keys(props).length)out.properties=props;
+ if(a.required||b.required)out.required=[...new Set([...(a.required||[]),...(b.required||[])])];
+ if(a.allOf||b.allOf)out.allOf=[...(a.allOf||[]),...(b.allOf||[])];
+ // UI types are based on the base contract, not on the selected oneOf
+ // alternative's null-only constraint.
+ if(Array.isArray(a.type)&&typeof b.type==='string'&&a.type.includes(b.type))out.type=a.type;
+ return out;
+}
+function branchScore(s:Schema,value:any,root:Schema):number {
+ let score=0;
+ for(const [key,raw] of Object.entries(deref(s,root).properties||{})){
+  const rule=deref(raw as Schema,root),v=value?.[key];
+  if(v===undefined)continue;
+  if(rule.const!==undefined)score+=v===rule.const?100:-100;
+  if(Array.isArray(rule.enum))score+=rule.enum.includes(v)?30:-30;
+ }
+ return score;
+}
+function chooseBranch(options:Schema[],value:any,root:Schema):Schema|undefined {
+ const valid=options.filter(s=>matches(s,value,root));
+ if(valid.length===1)return valid[0];
+ const scored=options.map(s=>({s,score:branchScore(s,value,root)})).sort((a,b)=>b.score-a.score);
+ if(scored[0]?.score>0&&scored[0].score>(scored[1]?.score??-Infinity))return scored[0].s;
+ // Incomplete values must not lock the form into an arbitrary oneOf branch.
+ return undefined;
+}
+function collect(schema:Schema,value:any,root:Schema,depth=0):Schema {
+ if(depth>20)return {};
+ const s=deref(schema,root);
+ let out:Schema={...s};
+ // Merge applicable constraints without recursively resolving properties yet.
+ for(const part of s.allOf||[])out=merge(out,collect(part,value,root,depth+1));
+ if(s.if)out=merge(out,collect(matches(s.if,value,root)?s.then||{}:s.else||{},value,root,depth+1));
+ const options=s.oneOf||s.anyOf;
+ if(Array.isArray(options)){
+  const chosen=chooseBranch(options,value,root);
+  if(chosen)out=merge(out,collect(chosen,value,root,depth+1));
+  // Without a discriminator, retain all base properties as editable.
+ }
+ return out;
+}
+export function effective(schema:Schema,value:any,root:Schema):Schema {
+ const base=collect(schema,value,root);
+ const properties:Record<string,Schema>={};
+ for(const [key,child] of Object.entries(base.properties||{}))
+  properties[key]=effective(child as Schema,value?.[key],root);
+ return {...base,...(Object.keys(properties).length?{properties}:{})};
 }
 export function initial(schema:Schema,root:Schema,depth=0):any {
-  if(depth>10)return null;
-  const s=effective(schema,undefined,root);
-  if(s.default!==undefined)return structuredClone(s.default);
-  if(s.const!==undefined)return s.const;
-  if(s.enum?.length)return s.enum[0];
-  if(primaryType(s)==='object'||Object.keys(s.properties||{}).length>0){const obj:any={};for(const [key,child] of Object.entries(s.properties||{})) {const c=child as Schema;if((s.required||[]).includes(key)||c.default!==undefined||c.const!==undefined)obj[key]=initial(c,root,depth+1);}return obj;}
-  if(primaryType(s)==='array')return Array.from({length:s.minItems||0},()=>initial(s.items||{},root,depth+1));
-  if(primaryType(s)==='boolean')return isNullable(s)?null:false;
-  if(primaryType(s)==='integer'||primaryType(s)==='number')return isNullable(s)?null:0;
-  return isNullable(s)?null:'';
+ if(depth>12)return null;
+ const s=effective(schema,undefined,root);
+ if(s.default!==undefined)return structuredClone(s.default);
+ if(s.const!==undefined)return s.const;
+ if(s.enum?.length)return s.enum[0];
+ if(primaryType(s)==='object'||Object.keys(s.properties||{}).length){
+  const obj:any={};
+  for(const [key,raw] of Object.entries(s.properties||{})){
+   const child=raw as Schema;
+   if((s.required||[]).includes(key)||child.default!==undefined||child.const!==undefined)obj[key]=initial(child,root,depth+1);
+  }
+  return obj;
+ }
+ if(primaryType(s)==='array')return Array.from({length:s.minItems||0},()=>initial(s.items||{},root,depth+1));
+ if(primaryType(s)==='boolean')return isNullable(s)?null:false;
+ if(primaryType(s)==='integer'||primaryType(s)==='number')return isNullable(s)?null:0;
+ return isNullable(s)?null:'';
 }
 export function validate(schema:Schema,value:any):string[] {
   try {const ok=ajv.validate(schema,value);if(ok)return [];
