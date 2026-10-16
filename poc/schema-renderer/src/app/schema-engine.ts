@@ -25,41 +25,6 @@ export const isFreeSchema=(schema:any):boolean=>{
  return isTrueSchema(s)||(!isFalseSchema(s)&&Object.keys(s).filter(k=>!['title','description','examples','default','$comment'].includes(k)).length===0);
 };
 
-function addNullType(schema:any):any {
- if(schema===true||schema===false||!schema||typeof schema!=='object')return schema;
- if(schema.const!==undefined||Array.isArray(schema.enum))return schema;
- if(Array.isArray(schema.type))return schema.type.includes('null')?schema:{...schema,type:[...schema.type,'null']};
- if(typeof schema.type==='string')return schema.type==='null'?schema:{...schema,type:[schema.type,'null']};
- return {...schema,anyOf:[...(schema.anyOf||[]),{type:'null'}]};
-}
-
-function optionalNullSchema(schema:any):any {
- if(schema===true||schema===false||!schema||typeof schema!=='object')return schema;
- const out:any={...schema};
- const required=new Set<string>(schema.required||[]);
- if(schema.properties){
-  out.properties={};
-  for(const [key,child] of Object.entries(schema.properties)){
-   const normalized=optionalNullSchema(child);
-   out.properties[key]=required.has(key)?normalized:addNullType(normalized);
-  }
- }
- for(const keyword of ['allOf','oneOf','anyOf','prefixItems'])if(Array.isArray(schema[keyword]))out[keyword]=schema[keyword].map((item:any)=>optionalNullSchema(item));
- for(const keyword of ['items','contains','not','if','then','else','additionalProperties','unevaluatedProperties','propertyNames']){
-  if(schema[keyword]&&typeof schema[keyword]==='object')out[keyword]=optionalNullSchema(schema[keyword]);
- }
- if(schema.patternProperties){
-  out.patternProperties=Object.fromEntries(Object.entries(schema.patternProperties).map(([key,value])=>[key,optionalNullSchema(value)]));
- }
- if(schema.dependentSchemas){
-  out.dependentSchemas=Object.fromEntries(Object.entries(schema.dependentSchemas).map(([key,value])=>[key,optionalNullSchema(value)]));
- }
- if(schema.$defs){
-  out.$defs=Object.fromEntries(Object.entries(schema.$defs).map(([key,value])=>[key,optionalNullSchema(value)]));
- }
- return out;
-}
-
 export function deref(schema:any,root:Schema,depth=0):Schema {
  if(schema===true||schema===false)return asObject(schema);
  if(depth>20)return {type:'object',title:'Referência recursiva',description:'Profundidade máxima de referência atingida.'};
@@ -77,8 +42,7 @@ export function deref(schema:any,root:Schema,depth=0):Schema {
 }
 
 function compileSchema(schema:any,root:Schema){
- const normalized=optionalNullSchema(schema);
- const raw=normalized===true||normalized===false?normalized:{...normalized,$defs:{...(optionalNullSchema(root.$defs||{})),...(normalized?.$defs||{})}};
+ const raw=schema===true||schema===false?schema:{...schema,$defs:{...(root.$defs||{}),...(schema?.$defs||{})}};
  return ajv.compile(raw);
 }
 
@@ -183,7 +147,8 @@ export function initial(schema:any,root:Schema,depth=0):any {
   const obj:any={};
   for(const [key,raw] of Object.entries(s.properties||{})){
    const child=effective(raw as Schema,undefined,root),required=(s.required||[]).includes(key);
-   if(required||child.default!==undefined||child.const!==undefined)obj[key]=initial(child,root,depth+1);else obj[key]=null;
+   if(required||child.default!==undefined||child.const!==undefined)obj[key]=initial(child,root,depth+1);
+   else if(isNullable(child))obj[key]=null;
   }
   return obj;
  }
@@ -209,7 +174,8 @@ export function reconcileValue(schema:any,value:any,root:Schema,depth=0):any {
   const next:Record<string,any>={...value};const required=new Set<string>(s.required||[]);
   for(const key of Object.keys(next)){
    const child=additionalSchemaForKey(s,key,root);if(isFalseSchema(child)){delete next[key];continue;}
-   if(next[key]===null&&key in (s.properties||{})&&!required.has(key))continue;
+   if(next[key]===undefined){delete next[key];continue;}
+   if(next[key]===null&&key in (s.properties||{})&&!required.has(key)&&!isNullable(child)){delete next[key];continue;}
    next[key]=reconcileValue(child,next[key],root,depth+1);
   }
   return next;
@@ -222,6 +188,6 @@ function escapePointer(value:string):string{return value.replace(/~/g,'~0').repl
 function issuePath(error:any):string {let path=error.instancePath||'';if(error.keyword==='required'&&error.params?.missingProperty)path=`${path}/${escapePointer(String(error.params.missingProperty))}`;if(error.keyword==='propertyNames'&&error.params?.propertyName)path=`${path}/${escapePointer(String(error.params.propertyName))}`;return path||'/';}
 function uniqueIssues(issues:ValidationIssue[]):ValidationIssue[]{return issues.filter((issue,index,all)=>all.findIndex(other=>other.path===issue.path&&other.message===issue.message)===index);}
 export function validationIssues(schema:any,value:any):ValidationIssue[] {
- try{const validator=ajv.compile(optionalNullSchema(schema));const ok=validator(value);if(ok)return [];const errors=validator.errors||[];const oneOf=errors.find(error=>error.keyword==='oneOf');if(oneOf){const details=errors.filter(error=>error.keyword!=='oneOf'&&error.keyword!=='type'&&error.keyword!=='false schema');return uniqueIssues([{path:issuePath(oneOf),message:'O valor não corresponde a exatamente uma alternativa do schema.'},...details.map(error=>({path:issuePath(error),message:error.message||'inválido'}))]);}return uniqueIssues(errors.map(error=>({path:issuePath(error),message:error.message||'inválido'})));}catch(error){return [{path:'/',message:String(error)}];}
+ try{const validator=ajv.compile(schema);const ok=validator(value);if(ok)return [];const errors=validator.errors||[];const oneOf=errors.find(error=>error.keyword==='oneOf');if(oneOf){const details=errors.filter(error=>error.keyword!=='oneOf'&&error.keyword!=='type'&&error.keyword!=='false schema');return uniqueIssues([{path:issuePath(oneOf),message:'O valor não corresponde a exatamente uma alternativa do schema.'},...details.map(error=>({path:issuePath(error),message:error.message||'inválido'}))]);}return uniqueIssues(errors.map(error=>({path:issuePath(error),message:error.message||'inválido'})));}catch(error){return [{path:'/',message:String(error)}];}
 }
 export function validate(schema:any,value:any):string[]{return validationIssues(schema,value).map(issue=>`${issue.path}: ${issue.message}`);}
