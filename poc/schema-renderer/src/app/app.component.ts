@@ -72,21 +72,35 @@ const exampleSchemas:Record<string,Schema>={
 };
 
 const schemaExamples=[
- {id:'simple',label:'1. Objeto simples'},
- {id:'booleanNullable',label:'2. Booleano + nullable'},
- {id:'enum',label:'3. Enum'},
- {id:'simpleArray',label:'4. Lista simples'},
- {id:'multiSelect',label:'5. Multi-select'},
- {id:'nestedObject',label:'6. Objeto aninhado'},
- {id:'additionalProperties',label:'7. Objeto + additionalProperties'},
- {id:'dynamicTypes',label:'8. Campos dinâmicos com múltiplos tipos'},
- {id:'conditional',label:'9. Condicional if / then'},
- {id:'oneOf',label:'10. oneOf'},
- {id:'tuple',label:'11. Tuple com prefixItems'},
- {id:'dependentRequired',label:'12. dependentRequired'}
+ {id:'simple',label:'1. Objeto simples',description:'Testa propriedades básicas de um objeto: nome obrigatório e idade opcional inteira com mínimo 0. Valide obrigatoriedade, tipo numérico e limite mínimo.'},
+ {id:'booleanNullable',label:'2. Booleano + nullable',description:'Testa booleano como liga/desliga e um campo que aceita string ou null. Valide o switch de Ativo e o controle “Definir como nulo” da descrição.'},
+ {id:'enum',label:'3. Enum',description:'Testa seleção restrita por enum. O campo Tipo deve aceitar somente DEV, HML ou PRD e ser renderizado como select.'},
+ {id:'simpleArray',label:'4. Lista simples',description:'Testa array homogêneo de strings. Valide inclusão, remoção e edição dos itens da lista.'},
+ {id:'multiSelect',label:'5. Multi-select',description:'Testa array com enum e uniqueItems. Deve renderizar seleção múltipla, aceitar somente permissões previstas e impedir duplicidade.'},
+ {id:'nestedObject',label:'6. Objeto aninhado',description:'Testa objeto dentro de objeto. Owner é obrigatório, owner.nome é obrigatório e owner.email deve respeitar o formato de e-mail.'},
+ {id:'additionalProperties',label:'7. Objeto + additionalProperties',description:'Testa objeto híbrido: campo conhecido responsavel e campos adicionais dinâmicos. Os valores adicionais devem ser strings.'},
+ {id:'dynamicTypes',label:'8. Campos dinâmicos com múltiplos tipos',description:'Testa additionalProperties com union de tipos. Cada chave dinâmica pode escolher Texto, Inteiro, Booleano, Nulo ou Objeto; o editor do valor deve mudar conforme o tipo.'},
+ {id:'conditional',label:'9. Condicional if / then',description:'Testa regra condicional. Ao selecionar EMAIL, o campo email deve aparecer e se tornar obrigatório; ao trocar para SMS, email deve desaparecer do valor final.'},
+ {id:'oneOf',label:'10. oneOf',description:'Testa alternativas exclusivas. HTTP exige type=HTTP e url; Kafka exige type=KAFKA e topic. Ao trocar de alternativa, campos da branch anterior devem ser removidos.'},
+ {id:'tuple',label:'11. Tuple com prefixItems',description:'Testa array posicional: primeiro item string, segundo inteiro e terceiro booleano. items=false impede posições adicionais.'},
+ {id:'dependentRequired',label:'12. dependentRequired',description:'Testa dependência entre propriedades. cartao e enderecoCobranca são opcionais isoladamente, mas ao informar cartao o endereço de cobrança passa a ser obrigatório.'}
 ];
 
-@Component({selector:'app-root',standalone:true,imports:[CommonModule,FormsModule,FieldComponent],template:`
+@Component({
+ selector:'app-root',
+ standalone:true,
+ imports:[CommonModule,FormsModule,FieldComponent],
+ styles:[`
+  .example-picker{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .example-picker>label{display:grid;grid-template-columns:auto minmax(280px,460px);align-items:center;gap:10px;margin:0}
+  .schema-example-help{position:relative;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#f2f5ff;border:1px solid #b8c4e4;color:#003399;font-weight:800;cursor:help;outline:none;user-select:none}
+  .schema-example-help:hover,.schema-example-help:focus{border-color:#ec7000;box-shadow:0 0 0 3px rgba(236,112,0,.16)}
+  .schema-example-tooltip{position:absolute;left:50%;top:calc(100% + 10px);transform:translateX(-50%);z-index:30;width:min(420px,75vw);padding:12px 14px;border-radius:8px;background:#1f2937;color:#fff;font-size:13px;font-weight:500;line-height:1.45;box-shadow:0 8px 24px rgba(0,0,0,.2);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s ease}
+  .schema-example-help:hover .schema-example-tooltip,.schema-example-help:focus .schema-example-tooltip,.schema-example-help:focus-within .schema-example-tooltip{opacity:1;visibility:visible}
+  .schema-example-tooltip:before{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-bottom-color:#1f2937}
+  @media(max-width:700px){.example-picker>label{grid-template-columns:1fr;width:100%}.example-picker>label select{width:100%}.schema-example-tooltip{left:auto;right:0;transform:none}.schema-example-tooltip:before{left:auto;right:8px;transform:none}}
+ `],
+ template:`
 <header class="app-header"><h2>POC · Universal JSON Schema Renderer</h2><small>Draft 2020-12 · Angular · Ajv</small></header>
 <main class="workspace">
   <nav class="tabs" aria-label="Etapas da POC">
@@ -97,14 +111,18 @@ const schemaExamples=[
   </nav>
   <section class="panel tab-panel" *ngIf="activeTab===1">
     <div class="section-heading"><div><h3>JSON Schema</h3><p>Defina o contrato que controla a renderização e a validação do formulário.</p></div></div>
-    <div class="preset-actions">
-      <label style="display:grid;grid-template-columns:auto minmax(280px,460px);align-items:center;gap:10px;margin:0">
+    <div class="preset-actions example-picker">
+      <label>
         <span>Exemplo</span>
         <select [ngModel]="selectedExample" (ngModelChange)="loadExample($event)" aria-label="Selecionar exemplo de JSON Schema">
           <option value="">Selecione um exemplo</option>
-          <option *ngFor="let example of schemaExamples" [value]="example.id">{{example.label}}</option>
+          <option *ngFor="let example of schemaExamples" [value]="example.id" [attr.title]="example.description">{{example.label}}</option>
         </select>
       </label>
+      <span class="schema-example-help" tabindex="0" aria-label="Ajuda sobre o exemplo selecionado">
+        ?
+        <span class="schema-example-tooltip" role="tooltip">{{selectedExampleDescription}}</span>
+      </span>
     </div>
     <textarea class="editor" [(ngModel)]="source" aria-label="Editor JSON Schema"></textarea><div class="opposite-actions"><span></span><button type="button" (click)="apply()">Renderizar schema</button></div><p class="error callout" *ngIf="parseError">{{parseError}}</p>
   </section>
@@ -136,10 +154,12 @@ const schemaExamples=[
   <section class="panel tab-panel" *ngIf="activeTab===4">
     <div class="section-heading"><div><h3>Resposta</h3><p>JSON final produzido pelo formulário e pelo modo desenvolvedor.</p></div><span class="status valid" *ngIf="!errors.length">✓ Válido</span><span class="status invalid" *ngIf="errors.length">Inválido</span></div><pre class="response-json">{{value|json}}</pre>
   </section>
-</main>`})
+</main>`
+})
 export class AppComponent {
  activeTab=1;schema:Schema=exampleSchemas.simple;source=JSON.stringify(exampleSchemas.simple,null,2);value:any={};developerSource='';errors:string[]=[];issues:ValidationIssue[]=[];parseError='';valueError='';developerValidated=false;selectedExample='simple';schemaExamples=schemaExamples;
  constructor(){this.value=initial(this.schema,this.schema);this.sync(true);}
+ get selectedExampleDescription(){return this.schemaExamples.find(example=>example.id===this.selectedExample)?.description||'Selecione um exemplo para ver o objetivo do schema e os pontos que devem ser validados.';}
  loadExample(id:string){
   this.selectedExample=id;
   const next=exampleSchemas[id];
