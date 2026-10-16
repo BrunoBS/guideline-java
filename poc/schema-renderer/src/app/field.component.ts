@@ -247,7 +247,22 @@ export class FieldComponent {
  alternativeLabel(option:Schema,index:number){return schemaLabel(option,index,this.root);}
  selectAlternative(index:number){const options=this.compositionOptions();const option=options[Number(index)];if(!option)return;const raw:any={...(this.schema||{})};delete raw.oneOf;delete raw.anyOf;const composed=merge(raw,option);this.chosenType=undefined;this.emit(initial(composed,this.root));}
 
- setNull(checked:boolean,s:Schema){if(checked)this.emit(isNullable(s)?null:undefined);else this.emit(this.nonNullInitial(s));}
+ setNull(checked:boolean,s:Schema){if(checked)this.emit(isNullable(s)?null:undefined);else this.emit(this.nonNullInitial(this.nullToggleSource(s)));}
+ private nullToggleSource(s:Schema):Schema{
+  const base=this.baseSchemaAtPath();
+  return base&&nonNullTypes(base).length?base:s;
+ }
+ private baseSchemaAtPath():Schema|undefined{
+  if(!this.path)return this.schema;
+  const parts=this.path.split('/').filter(Boolean).map(part=>part.replace(/~1/g,'/').replace(/~0/g,'~'));
+  let current:any=this.root;
+  for(const part of parts){
+   if(!current||typeof current!=='object')return undefined;
+   if(current.properties?.[part]!==undefined){current=current.properties[part];continue;}
+   return undefined;
+  }
+  return current as Schema;
+ }
  private nonNullInitial(s:Schema){const type=nonNullTypes(s)[0]||primaryType(s);return initial({...s,type,default:s.default===null?undefined:s.default},this.root);}
  emit(value:any){this.valueChange.emit(value);}
 
