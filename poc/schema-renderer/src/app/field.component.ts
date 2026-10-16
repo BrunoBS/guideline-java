@@ -28,7 +28,7 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
         <option *ngFor="let option of (s.enum||[s.const])" [ngValue]="option">{{option}}</option>
       </select>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean' && value!==null" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
-      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="text" inputmode="decimal" [value]="numericDraft !== null ? numericDraft : (value ?? '')" (input)="numericInput($any($event.target).value,s)" (blur)="commitNumeric(s)"/>
+      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="text" inputmode="decimal" [value]="numericDraft !== null ? numericDraft : (value ?? '')" (input)="numericInput($any($event.target),s)" (blur)="commitNumeric(s)"/>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer' && value!==null" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
       <div class="muted" *ngIf="s.description">{{s.description}}</div>
     </ng-template>
@@ -39,12 +39,20 @@ export class FieldComponent {
  @Input() name='';@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;
  @Output() valueChange=new EventEmitter<any>();
  numericDraft:string|null=null;
- numericInput(raw:string,s:Schema){
+ numericInput(input:HTMLInputElement,s:Schema){
+  const raw=input.value;
+  const integer=primaryType(s)==='integer';
+  // Never retain alphabetic or fractional input for integer fields.
+  const allowed=integer ? /^[-+]?\\d*$/ : /^[-+]?(?:\\d*(?:[.,]\\d*)?)$/;
+  if(!allowed.test(raw)){
+   input.value=this.numericDraft ?? String(this.value ?? '');
+   return;
+  }
   this.numericDraft=raw;
   const normalized=raw.trim().replace(',', '.');
-  if(!/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(normalized))return;
+  if(!/^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/.test(normalized))return;
   const n=Number(normalized);
-  if(!Number.isFinite(n)||(primaryType(s)==='integer'&&!Number.isInteger(n)))return;
+  if(!Number.isFinite(n)||(integer&&!Number.isInteger(n)))return;
   this.emit(n);
  }
  commitNumeric(s:Schema){
