@@ -196,3 +196,24 @@ test('external refs are exposed as free editable schemas instead of failing sile
  assert.equal(resolved.__externalRef,'https://example.com/schemas/config.json');
  assert.equal(isFreeSchema(resolved),true);
 });
+
+test('switching conditional branch removes properties introduced only by the previous branch',()=>{
+ const notification:any={
+  type:'object',required:['tipo'],properties:{tipo:{type:'string',enum:['EMAIL','SMS']}},
+  allOf:[{if:{properties:{tipo:{const:'EMAIL'}},required:['tipo']},then:{required:['email'],properties:{email:{type:'string',format:'email'}}}}]
+ };
+ const stale={tipo:'SMS',email:'bbs@bbs.com'};
+ assert.deepEqual(reconcileValue(notification,stale,notification),{tipo:'SMS'});
+});
+
+test('conditional cleanup works for nested branch-only properties',()=>{
+ const publisher:any={
+  type:'object',required:['code','settings'],properties:{code:{type:'string',enum:['HTTP','KAFKA']},settings:{type:'object'}},
+  allOf:[
+   {if:{properties:{code:{const:'HTTP'}},required:['code']},then:{properties:{settings:{type:'object',properties:{endpoint:{type:'string'},method:{type:'string'}}}}}},
+   {if:{properties:{code:{const:'KAFKA'}},required:['code']},then:{properties:{settings:{type:'object',properties:{topic:{type:'string'}}}}}}
+  ]
+ };
+ const stale={code:'KAFKA',settings:{topic:'events',endpoint:'https://example.com',method:'POST'}};
+ assert.deepEqual(reconcileValue(publisher,stale,publisher),{code:'KAFKA',settings:{topic:'events'}});
+});
