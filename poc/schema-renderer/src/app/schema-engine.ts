@@ -44,15 +44,14 @@ function branchErrors(schema:Schema,value:any,root:Schema):number {
   } catch {return Number.MAX_SAFE_INTEGER;}
 }
 function chooseBranch(options:Schema[],value:any,root:Schema):Schema|undefined {
+  const create=options.find(s=>Array.isArray(s.required)&&s.required.includes('key')&&s.required.includes('microserviceIdentifier'));
+  if(create && value?.version===undefined && value?.key===undefined && value?.microserviceIdentifier===undefined)return create;
   const ranked=options.map(s=>({s,score:branchScore(s,value,root),errors:branchErrors(s,value,root)}))
     .sort((a,b)=>a.errors-b.errors||b.score-a.score);
   if(ranked.length===1)return ranked[0].s;
   if(ranked[0]?.errors===0 && ranked[1]?.errors!==0)return ranked[0].s;
   if(ranked[0]?.score>0 && ranked[0].score>ranked[1].score)return ranked[0].s;
   if(ranked[0]?.errors<ranked[1]?.errors)return ranked[0].s;
-  // Prefer the create branch only when the object has not yet selected an operation.
-  const create=options.find(s=>Array.isArray(s.required)&&s.required.includes('key')&&s.required.includes('microserviceIdentifier'));
-  if(create && value?.version===undefined && value?.key===undefined && value?.microserviceIdentifier===undefined)return create;
   return undefined;
 }
 function ambiguousFields(options:Schema[],value:any,root:Schema):Schema {
