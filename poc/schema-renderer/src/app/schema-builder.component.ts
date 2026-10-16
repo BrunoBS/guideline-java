@@ -92,13 +92,6 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-empty" *ngIf="!canvasFields.length">Seu formulário está vazio. Adicione um componente pelo painel à esquerda.</div>
    <button type="button" class="canvas-add" (click)="addTypedProperty('string')">＋ Adicionar campo de texto</button>
   </section>
-  <div class="tree" style="display:none">
-   <strong>Estrutura do schema</strong>
-   <p class="builder-help">Selecione uma propriedade para editar. Objetos e listas podem conter campos aninhados.</p>
-   <button *ngFor="let row of rows" type="button" class="tree-row" [class.selected]="selectedPath===row.path" [style.padding-left.px]="9+row.depth*18" (click)="select(row.path)">
-    <span>{{row.depth ? '↳' : '▣'}}</span><span>{{row.label}}</span><small>({{typeLabel(row.schema)}})</small><span *ngIf="row.required">*</span>
-   </button>
-  </div>
   <div class="inspector" *ngIf="selected as node">
    <strong>Propriedades {{selectedPath===''?'do schema':'do campo'}}</strong>
    <div class="builder-actions">
