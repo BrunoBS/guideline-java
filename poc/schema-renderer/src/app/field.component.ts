@@ -76,6 +76,14 @@ import {
 
               <div *ngFor="let item of dynamicEntries(v);trackBy:trackKey" class="array-item map-item"
                    [style.grid-template-columns]="isDynamicJsonStructure(v,item[0],item[1]) ? 'minmax(180px,1fr) minmax(140px,.45fr) auto' : null">
+                <div *ngIf="dynamicAllowsNull(v,item[0])" style="grid-column:1/-1;display:flex;justify-content:flex-end;align-items:center;margin-bottom:-2px">
+                  <label class="nullable-toggle" style="position:relative;right:auto;top:auto" title="Definir como nulo">
+                    <span>Definir como nulo</span>
+                    <input type="checkbox" [checked]="item[1]===null" [disabled]="v.readOnly" (change)="setDynamicNull(v,item[0],$any($event.target).checked)" />
+                    <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+                  </label>
+                </div>
+
                 <div class="map-key">
                   <label>Chave</label>
                   <input type="text" [value]="item[0]" [disabled]="v.readOnly" (change)="renameDynamicKey(v,item[0],$any($event.target).value)" />
@@ -93,11 +101,6 @@ import {
                   <ng-template #staticDynamicType>
                     <div class="map-type-static">{{typeLabel(dynamicActiveType(v,item[0],item[1]))}}</div>
                   </ng-template>
-                  <label *ngIf="dynamicAllowsNull(v,item[0])" class="nullable-toggle" style="position:relative;right:auto;top:auto;margin-top:8px" title="Definir como nulo">
-                    <span>Definir como nulo</span>
-                    <input type="checkbox" [checked]="item[1]===null" [disabled]="v.readOnly" (change)="setDynamicNull(v,item[0],$any($event.target).checked)" />
-                    <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
-                  </label>
                 </div>
 
                 <div class="map-value" *ngIf="!isDynamicJsonStructure(v,item[0],item[1])">
