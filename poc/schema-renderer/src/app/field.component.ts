@@ -42,29 +42,24 @@ export class FieldComponent {
  numericInput(input:HTMLInputElement,s:Schema){
   const raw=input.value;
   const integer=primaryType(s)==='integer';
-  // Never retain alphabetic or fractional input for integer fields.
-  const allowed=integer ? /^[-+]?\\d*$/ : /^[-+]?(?:\\d*(?:[.,]\\d*)?)$/;
+  const allowed=integer ? /^[+-]?\\d*$/ : /^[+-]?(?:\\d*(?:[.,]\\d*)?)$/;
   if(!allowed.test(raw)){
    input.value=this.numericDraft ?? String(this.value ?? '');
    return;
   }
+  // Do not update the parent while typing: parent reconciliation can rebuild
+  // the conditional schema and overwrite the focused input on every keystroke.
   this.numericDraft=raw;
-  const normalized=raw.trim().replace(',', '.');
-  if(!/^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/.test(normalized))return;
-  const n=Number(normalized);
-  if(!Number.isFinite(n)||(integer&&!Number.isInteger(n)))return;
-  // Commit immediately; preserve only an intermediate decimal draft locally.
-  if(integer)this.numericDraft=null;
-  this.emit(n);
  }
  commitNumeric(s:Schema){
   if(this.numericDraft===null)return;
   const raw=this.numericDraft.trim().replace(',', '.');
   if(!raw){this.numericDraft=null;this.emit(isNullable(s)?null:undefined);return;}
-  if(!/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(raw))return;
+  if(!/^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/.test(raw))return;
   const parsed=Number(raw);
   if(!Number.isFinite(parsed)||(primaryType(s)==='integer'&&!Number.isInteger(parsed)))return;
-  this.numericDraft=null;this.emit(parsed);
+  this.numericDraft=null;
+  this.emit(parsed);
  }
  hasProperties(s:Schema){return Object.keys(s.properties||{}).length>0;}
  get resolved(){return effective(this.schema,this.value,this.root);}
