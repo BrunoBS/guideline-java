@@ -441,7 +441,14 @@ export class FieldComponent {
    const date=new Date(value);
    if(!Number.isNaN(date.getTime())){this.emit(date.toISOString());return;}
   }
-  if(s.format==='time' && /^\d{2}:\d{2}$/.test(value)){this.emit(value+':00');return;}
+  if(s.format==='time' && /^\d{2}:\d{2}(?::\d{2})?$/.test(value)){
+   const offsetMinutes=-new Date().getTimezoneOffset();
+   const sign=offsetMinutes>=0?'+':'-';
+   const pad=(n:number)=>String(n).padStart(2,'0');
+   const offset=`${sign}${pad(Math.floor(Math.abs(offsetMinutes)/60))}:${pad(Math.abs(offsetMinutes)%60)}`;
+   this.emit((value.length===5?value+':00':value)+offset);
+   return;
+  }
   this.emit(value);
  }
  inputType(s:Schema){switch(s.format){case 'password':return 'password';case 'email':return 'email';case 'date':return 'date';case 'date-time':return 'datetime-local';case 'time':return 'time';case 'uri':case 'url':return 'url';default:return 'text';}}
