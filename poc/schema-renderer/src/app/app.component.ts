@@ -176,7 +176,7 @@ export class AppComponent {
    const parsed=JSON.parse(this.builderImportSource);
    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Schema deve ser um objeto JSON.');
    ajv.compile(parsed);
-   this.builderChanged(structuredClone(parsed));
+   if(!this.builderChanged(structuredClone(parsed)))return;
    this.builderImport=false;this.builderImportSource='';this.builderError='';
   }catch(error){this.builderError=this.schemaErrorMessage(error);}
  }
@@ -187,13 +187,13 @@ export class AppComponent {
   URL.revokeObjectURL(url);
  }
  newBuilderSchema(){this.builderChanged({$schema:'https://json-schema.org/draft/2020-12/schema',title:'Novo schema',type:'object',properties:{},additionalProperties:false});}
- builderChanged(next:Schema){
+ builderChanged(next:Schema):boolean{
   try{
    ajv.compile(next);
    this.schema=next;this.source=JSON.stringify(next,null,2);this.selectedExample='';
    this.value=reconcileValue(next,this.value,next);
-   this.parseError='';this.builderError='';this.schemaValidated=true;this.valueError='';this.developerValidated=false;this.sync(true);
-  }catch(error){this.builderError=this.schemaErrorMessage(error);}
+   this.parseError='';this.builderError='';this.schemaValidated=true;this.valueError='';this.developerValidated=false;this.sync(true);return true;
+  }catch(error){this.builderError=this.schemaErrorMessage(error);return false;}
  }
  loadExample(id:string){
   this.selectedExample=id;
