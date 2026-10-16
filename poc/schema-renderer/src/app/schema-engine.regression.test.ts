@@ -73,6 +73,23 @@ test('optional properties are not created unless required/default/const',()=>{
  assert.deepEqual(initial(s,s),{requiredValue:'',withDefault:5});
 });
 
+test('optional nullable properties initialize as null',()=>{
+ const s:any={type:'object',properties:{description:{type:['string','null']}}};
+ assert.deepEqual(initial(s,s),{description:null});
+});
+
+test('optional non-nullable enum must be omitted instead of serialized as null',()=>{
+ const publisher:any={
+  type:'object',required:['code','settings'],properties:{code:{type:'string',enum:['HTTP']},settings:{type:'object'}},
+  allOf:[{if:{properties:{code:{const:'HTTP'}},required:['code']},then:{properties:{settings:{type:'object',additionalProperties:false,required:['endpoint'],properties:{endpoint:{type:'string',format:'uri'},method:{enum:['POST','PUT']}}}}}}]
+ };
+ const initialValue=initial(publisher,publisher);
+ assert.deepEqual(initialValue,{code:'HTTP',settings:{endpoint:''}});
+ assert.deepEqual(validate(publisher,{code:'HTTP',settings:{endpoint:'https://example.com'}}),[]);
+ assert.notDeepEqual(validate(publisher,{code:'HTTP',settings:{endpoint:'https://example.com',method:null}}),[]);
+ assert.deepEqual(reconcileValue(publisher,{code:'HTTP',settings:{endpoint:'https://example.com',method:null}},publisher),{code:'HTTP',settings:{endpoint:'https://example.com'}});
+});
+
 test('boolean schemas validate true and reject false',()=>{
  assert.deepEqual(validate(true,{anything:'goes'}),[]);
  assert.notDeepEqual(validate(false,'nope'),[]);
