@@ -73,6 +73,14 @@ export function effective(schema: Schema, value:any, root:Schema): Schema {
     if(selected)result=merge(result,effective(selected,value,root));
     else result=merge(result,ambiguousFields(base.oneOf||base.anyOf,value,root));
   }
+  // Resolve each child after combining allOf/if/then/oneOf. Conditional
+  // fragments may be spread across multiple properties of the same object.
+  if(result.properties){
+    const props:Record<string,Schema>={};
+    for(const [key,child] of Object.entries(result.properties))
+      props[key]=effective(child as Schema,value?.[key],root);
+    result={...result,properties:props};
+  }
   return result;
 }
 function merge(a:Schema,b:Schema):Schema {
@@ -82,7 +90,11 @@ function merge(a:Schema,b:Schema):Schema {
     properties[key]=existing && typeof existing==='object' && typeof v==='object'
       ?merge(existing,v as Schema):v;
   }
-  return {...a,...b,properties,required:[...new Set([...(a.required||[]),...(b.required||[])])]};
+  // Preserve nested composition keywords instead of replacing an earlier allOf.
+  const allOf=[...(a.allOf||[]),...(b.allOf||[])];
+  const merged={...a,...b,properties,required:[...new Set([...(a.required||[]),...(b.required||[])])]};
+  if(allOf.length)merged.allOf=allOf;
+  return merged;
 }
 export function initial(schema:Schema,root:Schema,depth=0):any {
   if(depth>10)return null;
@@ -90,7 +102,7 @@ export function initial(schema:Schema,root:Schema,depth=0):any {
   if(s.default!==undefined)return structuredClone(s.default);
   if(s.const!==undefined)return s.const;
   if(s.enum?.length)return s.enum[0];
-  if(primaryType(s)==='object'||s.properties){const obj:any={};for(const [key,child] of Object.entries(s.properties||{})) {const c=child as Schema;if((s.required||[]).includes(key)||c.default!==undefined||c.const!==undefined)obj[key]=initial(c,root,depth+1);}return obj;}
+  if(primaryType(s)==='object'||Object.keys(s.properties||{}).length>0){const obj:any={};for(const [key,child] of Object.entries(s.properties||{})) {const c=child as Schema;if((s.required||[]).includes(key)||c.default!==undefined||c.const!==undefined)obj[key]=initial(c,root,depth+1);}return obj;}
   if(primaryType(s)==='array')return Array.from({length:s.minItems||0},()=>initial(s.items||{},root,depth+1));
   if(primaryType(s)==='boolean')return isNullable(s)?null:false;
   if(primaryType(s)==='integer'||primaryType(s)==='number')return isNullable(s)?null:0;
