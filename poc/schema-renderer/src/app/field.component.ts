@@ -80,10 +80,17 @@ import {
                   <input type="text" [value]="item[0]" [disabled]="v.readOnly" (change)="renameDynamicKey(v,item[0],$any($event.target).value)" />
                   <p class="error" *ngIf="keyIssue(v,item[0])">{{keyIssue(v,item[0])}}</p>
                 </div>
-                <div class="map-value">
-                  <app-field [name]="'Valor'" [schema]="dynamicSchema(v,item[0])" [root]="root" [value]="item[1]" [required]="true" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateMapValue(item[0],$event)"></app-field>
+                <div class="map-type">
+                  <label>Tipo</label>
+                  <select *ngIf="dynamicTypeOptions(v,item[0]).length > 1; else staticDynamicType" [ngModel]="dynamicActiveType(v,item[0],item[1])" [disabled]="v.readOnly" (ngModelChange)="changeDynamicType(v,item[0],$event)">
+                    <option *ngFor="let type of dynamicTypeOptions(v,item[0])" [ngValue]="type">{{typeLabel(type)}}</option>
+                  </select>
+                  <ng-template #staticDynamicType><div class="map-type-static">{{typeLabel(dynamicActiveType(v,item[0],item[1]))}}</div></ng-template>
                 </div>
-                <div class="array-item-actions"><button type="button" class="secondary danger" [disabled]="v.readOnly || !canRemoveProperty(v)" (click)="removeDynamicKey(v,item[0])">Remover</button></div>
+                <div class="map-value">
+                  <app-field [name]="'Valor'" [schema]="dynamicValueSchema(v,item[0],item[1])" [root]="root" [value]="item[1]" [required]="true" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateMapValue(item[0],$event)"></app-field>
+                </div>
+                <div class="map-action"><button type="button" class="secondary danger" [disabled]="v.readOnly || !canRemoveProperty(v)" (click)="removeDynamicKey(v,item[0])">Remover</button></div>
               </div>
 
               <div class="array-footer-actions"><span class="muted" *ngIf="v.minProperties!==undefined">Mínimo de {{v.minProperties}} propriedades.</span><button type="button" [disabled]="v.readOnly || !canAddProperty(v)" (click)="addDynamicProperty(v)">+ Adicionar campo</button></div>
@@ -206,6 +213,10 @@ export class FieldComponent {
  dynamicPropertiesDescription(s:Schema){if(s.patternProperties&&s.additionalProperties===false)return 'Atributos extras devem corresponder aos padrões definidos em patternProperties.';if(s.unevaluatedProperties!==undefined)return 'Atributos extras seguem as regras de patternProperties/additionalProperties e unevaluatedProperties.';if(s.patternProperties)return 'Atributos extras podem usar patternProperties e additionalProperties.';return 'Atributos extras permitidos por additionalProperties.';}
  dynamicEntries(s:Schema):[string,any][]{const fixed=new Set(Object.keys(s.properties||{}));return Object.entries(this.objectValue).filter(([key])=>!fixed.has(key));}
  dynamicSchema(s:Schema,key:string){return additionalSchemaForKey(s,key,this.root);}
+ dynamicTypeOptions(s:Schema,key:string):string[]{const types=nonNullTypes(this.dynamicSchema(s,key));return types.length?types:[primaryType(this.dynamicSchema(s,key))].filter(type=>type&&type!=='null');}
+ dynamicActiveType(s:Schema,key:string,value:any):string{const options=this.dynamicTypeOptions(s,key),current=runtimeType(value);if(options.includes(current))return current;if(current==='integer'&&options.includes('number')&&!options.includes('integer'))return 'number';return options[0]||primaryType(this.dynamicSchema(s,key));}
+ dynamicValueSchema(s:Schema,key:string,value:any):Schema{const schema=this.dynamicSchema(s,key),options=this.dynamicTypeOptions(s,key);if(options.length<=1)return schema;const type=this.dynamicActiveType(s,key,value);return {...schema,type:isNullable(schema)?[type,'null']:type};}
+ changeDynamicType(s:Schema,key:string,type:string){const base=this.dynamicSchema(s,key),schema={...base,type:isNullable(base)?[type,'null']:type};this.updateMapValue(key,initial(schema,this.root));}
  keyIssue(s:Schema,key:string){const propertyIssue=propertyNameIssue(s,key,this.root);if(propertyIssue)return propertyIssue;const dynamic=additionalSchemaForKey(s,key,this.root);return isFalseSchema(dynamic)?'Esta chave não é permitida pelo schema.':'';}
  updateKey(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(reconcileValue(this.schema,next,this.root));}
  updateMapValue(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(reconcileValue(this.schema,next,this.root));}
