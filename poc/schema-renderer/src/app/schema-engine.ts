@@ -181,23 +181,58 @@ export function additionalSchemaForKey(schema:any,key:string,root:Schema):Schema
 }
 export function propertyNameIssue(schema:any,key:string,root:Schema):string {const s=deref(schema,root);if(!s.propertyNames)return '';try{const validator=compileSchema(s.propertyNames,root);if(validator(key))return '';return validator.errors?.[0]?.message||'Nome de propriedade inválido.';}catch{return 'Não foi possível validar o nome da propriedade.';}}
 
-export function reconcileValue(schema:any,value:any,root:Schema,depth=0):any {
- if(depth>30)return value;const s=effective(schema,value,root);if(value===undefined)return value;if(isFalseSchema(s))return undefined;if(isTrueSchema(s))return value;if(!compatibleValue(s,value))return initial(s,root,depth+1);
+function escapePointer(value:string):string{return value.replace(/~/g,'~0').replace(/\//g,'~1');}
+
+function collectPropertyPaths(schema:any,root:Schema,basePath:string,paths:Set<string>,depth=0):void {
+ if(depth>30||schema===true||schema===false)return;
+ const s=deref(schema,root);
+ for(const [key,child] of Object.entries(s.properties||{})){
+  const path=`${basePath}/${escapePointer(key)}`;
+  paths.add(path);
+  collectPropertyPaths(child,root,path,paths,depth+1);
+ }
+ for(const part of s.allOf||[])collectPropertyPaths(part,root,basePath,paths,depth+1);
+ if(s.if){collectPropertyPaths(s.then||{},root,basePath,paths,depth+1);collectPropertyPaths(s.else||{},root,basePath,paths,depth+1);}
+ for(const option of s.oneOf||[])collectPropertyPaths(option,root,basePath,paths,depth+1);
+ for(const option of s.anyOf||[])collectPropertyPaths(option,root,basePath,paths,depth+1);
+ for(const dependent of Object.values(s.dependentSchemas||{}))collectPropertyPaths(dependent,root,basePath,paths,depth+1);
+}
+
+function collectBranchManagedPaths(schema:any,root:Schema,basePath='',paths=new Set<string>(),depth=0):Set<string> {
+ if(depth>30||schema===true||schema===false)return paths;
+ const s=deref(schema,root);
+ for(const [key,child] of Object.entries(s.properties||{})){
+  collectBranchManagedPaths(child,root,`${basePath}/${escapePointer(key)}`,paths,depth+1);
+ }
+ for(const part of s.allOf||[])collectBranchManagedPaths(part,root,basePath,paths,depth+1);
+ if(s.if){collectPropertyPaths(s.then||{},root,basePath,paths,depth+1);collectPropertyPaths(s.else||{},root,basePath,paths,depth+1);}
+ for(const option of s.oneOf||[])collectPropertyPaths(option,root,basePath,paths,depth+1);
+ for(const option of s.anyOf||[])collectPropertyPaths(option,root,basePath,paths,depth+1);
+ for(const dependent of Object.values(s.dependentSchemas||{}))collectPropertyPaths(dependent,root,basePath,paths,depth+1);
+ return paths;
+}
+
+export function reconcileValue(schema:any,value:any,root:Schema,depth=0,managedPaths?:Set<string>,currentPath=''):any {
+ if(depth>30)return value;
+ const branchPaths=managedPaths||collectBranchManagedPaths(schema,root);
+ const s=effective(schema,value,root);
+ if(value===undefined)return value;if(isFalseSchema(s))return undefined;if(isTrueSchema(s))return value;if(!compatibleValue(s,value))return initial(s,root,depth+1);
  if(primaryType(s)==='object'&&value!==null){
   const next:Record<string,any>={...value};const required=new Set<string>(s.required||[]);
   for(const key of Object.keys(next)){
+   const path=`${currentPath}/${escapePointer(key)}`;
+   if(!(key in (s.properties||{}))&&branchPaths.has(path)){delete next[key];continue;}
    const child=additionalSchemaForKey(s,key,root);if(isFalseSchema(child)){delete next[key];continue;}
    if(next[key]===undefined){delete next[key];continue;}
    if(next[key]===null&&key in (s.properties||{})&&!required.has(key)&&!isNullable(child)){delete next[key];continue;}
-   next[key]=reconcileValue(child,next[key],root,depth+1);
+   next[key]=reconcileValue(child,next[key],root,depth+1,branchPaths,path);
   }
   return next;
  }
- if(primaryType(s)==='array'&&Array.isArray(value)){const max=s.maxItems===undefined?value.length:Math.min(value.length,s.maxItems);return value.slice(0,max).map((item,index)=>reconcileValue(arrayItemSchema(s,index,root),item,root,depth+1));}
+ if(primaryType(s)==='array'&&Array.isArray(value)){const max=s.maxItems===undefined?value.length:Math.min(value.length,s.maxItems);return value.slice(0,max).map((item,index)=>reconcileValue(arrayItemSchema(s,index,root),item,root,depth+1,branchPaths,`${currentPath}/${index}`));}
  return value;
 }
 
-function escapePointer(value:string):string{return value.replace(/~/g,'~0').replace(/\//g,'~1');}
 function issuePath(error:any):string {let path=error.instancePath||'';if(error.keyword==='required'&&error.params?.missingProperty)path=`${path}/${escapePointer(String(error.params.missingProperty))}`;if(error.keyword==='propertyNames'&&error.params?.propertyName)path=`${path}/${escapePointer(String(error.params.propertyName))}`;return path||'/';}
 function uniqueIssues(issues:ValidationIssue[]):ValidationIssue[]{return issues.filter((issue,index,all)=>all.findIndex(other=>other.path===issue.path&&other.message===issue.message)===index);}
 export function validationIssues(schema:any,value:any):ValidationIssue[] {
