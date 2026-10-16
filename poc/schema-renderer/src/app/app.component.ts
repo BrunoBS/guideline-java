@@ -4,6 +4,7 @@ import {FormsModule} from '@angular/forms';
 import {FieldComponent} from './field.component';
 import {Schema,ValidationIssue,ajv,effective,initial,validationIssues} from './schema-engine';
 import {allSchemaExamples,allSchemas} from './schema-examples';
+import {parameterKeyRequestSchema} from './parameter-key-request.schema';
 
 @Component({
  selector:'app-root',
@@ -114,7 +115,7 @@ export class AppComponent {
 
  loadExample(id:string){
   this.selectedExample=id;
-  const next=allSchemas[id];
+  const next=id==='parameterKeyRequest'?parameterKeyRequestSchema:allSchemas[id];
   if(!next)return;
   this.schema=structuredClone(next);
   this.source=JSON.stringify(this.schema,null,2);
