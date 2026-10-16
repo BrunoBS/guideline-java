@@ -2,7 +2,7 @@ import {Component} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {FieldComponent} from './field.component';
-import {Schema,ValidationIssue,ajv,effective,initial,validationIssues} from './schema-engine';
+import {Schema,ValidationIssue,ajv,initial,reconcileValue,validationIssues} from './schema-engine';
 import {allSchemaExamples,allSchemas} from './schema-examples';
 import {parameterKeyRequestSchema} from './parameter-key-request.schema';
 
@@ -138,7 +138,12 @@ export class AppComponent {
   }catch(error){this.parseError=this.schemaErrorMessage(error);this.schemaValidated=false;}
  }
 
- changed(v:any){this.value=v;this.valueError='';this.developerValidated=false;this.sync(true);}
+ changed(v:any){
+  this.value=reconcileValue(this.schema,v,this.schema);
+  this.valueError='';
+  this.developerValidated=false;
+  this.sync(true);
+ }
  developerJsonChanged(text:string){this.developerSource=text;this.developerValidated=false;try{this.value=JSON.parse(text);this.valueError='';this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);}}
  validateDeveloperJson(){try{this.value=JSON.parse(this.developerSource);this.valueError='';this.developerValidated=true;this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
  formatDeveloperJson(){try{const parsed=JSON.parse(this.developerSource);this.developerSource=JSON.stringify(parsed,null,2);this.value=parsed;this.valueError='';this.developerValidated=true;this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
@@ -153,8 +158,7 @@ export class AppComponent {
  private jsonErrorMessage(error:any){return `JSON inválido: ${error?.message||String(error)}`;}
  private sync(updateDeveloperSource:boolean){
   if(updateDeveloperSource)this.developerSource=JSON.stringify(this.value,null,2);
-  const activeSchema=effective(this.schema,this.value,this.schema);
-  this.issues=validationIssues(activeSchema,this.value);
+  this.issues=validationIssues(this.schema,this.value);
   this.errors=this.issues.map(issue=>`${issue.path}: ${issue.message}`);
  }
 }
