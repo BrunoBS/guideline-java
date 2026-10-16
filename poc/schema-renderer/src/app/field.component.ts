@@ -42,7 +42,7 @@ export class FieldComponent {
   const raw=input.value.trim().replace(',', '.');
   if(raw===''){this.emit(isNullable(s)?null:undefined);return;}
   const integer=primaryType(s)==='integer';
-  const valid=integer ? /^[+-]?\\d+$/ : /^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/;
+  const valid=integer ? /^[+-]?\d+$/ : /^[+-]?(?:\d+\.?\d*|\.\d+)$/;
   if(!valid.test(raw)){input.value=String(this.value??'');return;}
   const n=Number(raw);
   if(!Number.isFinite(n)||(integer&&!Number.isInteger(n))){input.value=String(this.value??'');return;}
