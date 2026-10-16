@@ -30,7 +30,7 @@ const simple:Schema={'$schema':'https://json-schema.org/draft/2020-12/schema',ti
   </section>
   <section class="panel tab-panel" *ngIf="activeTab===2">
     <div class="section-heading"><div><h3>Formulário dinâmico</h3><p>Os controles abaixo são derivados exclusivamente do JSON Schema.</p></div><span class="status valid" *ngIf="!errors.length">✓ Válido</span><span class="status invalid" *ngIf="errors.length">{{errors.length}} erro(s)</span></div>
-    <app-field *ngIf="schema" [schema]="schema" [root]="schema" [value]="value" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
+    <app-field *ngIf="schema" [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
     <div class="validation-summary" *ngIf="errors.length"><h4>Mensagens de erro</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
   </section>
   <section class="panel tab-panel" *ngIf="activeTab===3">
