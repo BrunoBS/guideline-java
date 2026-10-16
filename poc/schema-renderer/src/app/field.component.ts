@@ -31,12 +31,31 @@ import {Schema,ValidationIssue,deref,effective,initial,primaryType,isNullable,re
   </fieldset>
   <ng-template #nonObject>
     <fieldset *ngIf="primaryType(s)==='array'; else scalar" [class.invalid-fieldset]="isInvalid(path)">
-      <legend>{{s.title||name||'Lista'}} ({{arrayValue.length}}<ng-container *ngIf="s.maxItems!==undefined"> / {{s.maxItems}}</ng-container>)</legend><p class="muted" *ngIf="s.description">{{s.description}}</p>
-      <div *ngFor="let v of arrayValue;index as i;trackBy:trackIndex" class="array-item">
-        <app-field [name]="'Item '+(i+1)" [schema]="s.items||{}" [root]="root" [value]="v" [issues]="issues" [path]="indexPath(i)" (valueChange)="updateItem(i,$event)"></app-field>
-        <div class="array-item-actions"><button type="button" class="secondary danger" [disabled]="arrayValue.length <= (s.minItems||0)" (click)="remove(i)">Remover</button></div>
-      </div>
-      <div class="array-footer-actions"><span></span><button type="button" [disabled]="s.maxItems!==undefined && arrayValue.length>=s.maxItems" (click)="add(s.items||{})">+ Adicionar item</button></div>
+      <legend>{{s.title||name||'Lista'}} ({{arrayValue.length}}<ng-container *ngIf="s.maxItems!==undefined"> / {{s.maxItems}}</ng-container>)</legend>
+      <p class="muted" *ngIf="s.description">{{s.description}}</p>
+
+      <ng-container *ngIf="isMultiSelect(s); else regularArray">
+        <div class="multi-select" role="group" [attr.aria-label]="s.title||name||'Seleção múltipla'">
+          <label class="multi-select-option" *ngFor="let option of multiSelectOptions(s)">
+            <input type="checkbox" [checked]="isMultiSelected(option)" [disabled]="isMultiDisabled(s,option)" (change)="toggleMultiSelect(option,$any($event.target).checked)" />
+            <span>{{option}}</span>
+          </label>
+        </div>
+        <p class="muted" *ngIf="s.minItems!==undefined || s.maxItems!==undefined">
+          <ng-container *ngIf="s.minItems!==undefined">Mínimo: {{s.minItems}}</ng-container>
+          <ng-container *ngIf="s.minItems!==undefined && s.maxItems!==undefined"> · </ng-container>
+          <ng-container *ngIf="s.maxItems!==undefined">Máximo: {{s.maxItems}}</ng-container>
+        </p>
+      </ng-container>
+
+      <ng-template #regularArray>
+        <div *ngFor="let v of arrayValue;index as i;trackBy:trackIndex" class="array-item">
+          <app-field [name]="'Item '+(i+1)" [schema]="s.items||{}" [root]="root" [value]="v" [issues]="issues" [path]="indexPath(i)" (valueChange)="updateItem(i,$event)"></app-field>
+          <div class="array-item-actions"><button type="button" class="secondary danger" [disabled]="arrayValue.length <= (s.minItems||0)" (click)="remove(i)">Remover</button></div>
+        </div>
+        <div class="array-footer-actions"><span></span><button type="button" [disabled]="s.maxItems!==undefined && arrayValue.length>=s.maxItems" (click)="add(s.items||{})">+ Adicionar item</button></div>
+      </ng-template>
+
       <p class="error" *ngIf="s.minItems!==undefined && arrayValue.length<s.minItems">Mínimo de {{s.minItems}} itens.</p><p class="error" *ngIf="s.uniqueItems && hasDuplicates()">Os itens devem ser únicos.</p><p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
     </fieldset>
     <ng-template #scalar>
@@ -60,6 +79,11 @@ export class FieldComponent {
  hasDictionary(s:Schema){return primaryType(s)==='object'&&!this.hasProperties(s)&&s.additionalProperties!==undefined&&s.additionalProperties!==true&&s.additionalProperties!==false&&typeof s.additionalProperties==='object';}
  dictionarySchema(s:Schema):Schema{return deref(s.additionalProperties||{},this.root);}
  dictionaryEntries():[string,any][]{return Object.entries(this.objectValue);}
+ isMultiSelect(s:Schema){const item=deref(s.items||{},this.root);return primaryType(s)==='array'&&Array.isArray(item.enum)&&item.enum.length>0;}
+ multiSelectOptions(s:Schema):any[]{return deref(s.items||{},this.root).enum||[];}
+ isMultiSelected(option:any){return this.arrayValue.some(value=>Object.is(value,option));}
+ isMultiDisabled(s:Schema,option:any){return !this.isMultiSelected(option)&&s.maxItems!==undefined&&this.arrayValue.length>=s.maxItems;}
+ toggleMultiSelect(option:any,checked:boolean){const next=checked?[...this.arrayValue.filter(v=>!Object.is(v,option)),option]:this.arrayValue.filter(v=>!Object.is(v,option));this.emit(next);}
  get resolved(){return this.previewOneOf(effective(this.schema,this.value,this.root));}
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}get arrayValue():any[]{return Array.isArray(this.value)?this.value:[];}
  entries(o:Record<string,Schema>):[string,Schema][]{return Object.entries(o);}visibleEntries(s:Schema):[string,Schema][]{const updating=this.name===''&&Number.isInteger(this.objectValue['version'])&&this.objectValue['version']!==null;return this.entries(s.properties||{}).filter(([key])=>!updating||(key!=='key'&&key!=='microserviceIdentifier'));}
