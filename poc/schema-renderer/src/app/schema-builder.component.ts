@@ -133,7 +133,7 @@ export class SchemaBuilderComponent implements OnChanges {
   if(!this.getNode(this.schema,this.selectedPath))this.selectedPath='';
  }
  private getNodeAt(root:Schema,path:string):Schema|undefined {
-  if(!path)return root;
+  if(!path||path==='/')return root;
   const parts=this.segments(path);
   let node:any=root;
   for(let i=0;i<parts.length;i++){
@@ -159,7 +159,7 @@ export class SchemaBuilderComponent implements OnChanges {
    target.properties??={};
    let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(target.properties,key))key='campo'+i++;
    target.properties[key]={type:'string',title:key};
-   this.selectedPath+=(this.selectedPath?'':'')+'/properties/'+this.escape(key);
+   this.selectedPath+='/properties/'+this.escape(key);
   });
  }
  addItems(){
