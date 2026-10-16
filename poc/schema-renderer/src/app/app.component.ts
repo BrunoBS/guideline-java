@@ -108,8 +108,26 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
   <section class="panel tab-panel" *ngIf="area==='builder'">
     <div class="section-heading"><div><h3>Visual Schema Builder</h3><p>Crie e edite propriedades visualmente. As alterações atualizam o JSON Schema e o formulário.</p></div></div>
     <p class="error callout" *ngIf="builderError">{{builderError}}</p>
-    <div class="developer-actions"><button type="button" class="secondary" (click)="newBuilderSchema()">Novo schema</button></div>
+    <div class="developer-actions">
+      <button type="button" class="secondary" (click)="newBuilderSchema()">Novo schema</button>
+      <button type="button" class="secondary" (click)="builderPreview=!builderPreview">{{builderPreview?'Ocultar':'Mostrar'}} preview</button>
+      <button type="button" class="secondary" (click)="builderJson=!builderJson">{{builderJson?'Ocultar':'Mostrar'}} JSON</button>
+      <button type="button" class="secondary" (click)="downloadBuilderSchema()">Exportar JSON Schema</button>
+      <button type="button" class="secondary" (click)="builderImport=!builderImport">Importar JSON Schema</button>
+    </div>
+    <div *ngIf="builderImport">
+      <label for="builder-import">Cole um JSON Schema Draft 2020-12</label>
+      <textarea id="builder-import" class="editor" [(ngModel)]="builderImportSource"></textarea>
+      <button type="button" (click)="importBuilderSchema()">Validar e importar</button>
+    </div>
     <app-schema-builder [schema]="schema" (schemaChange)="builderChanged($event)"></app-schema-builder>
+    <div *ngIf="builderJson" class="panel"><h4>JSON Schema gerado</h4><pre class="response-json">{{schema|json}}</pre></div>
+    <div *ngIf="builderPreview" class="panel">
+      <h4>Preview do formulário</h4>
+      <p class="error" *ngIf="errors.length">{{errors.length}} erro(s) de validação</p>
+      <app-field [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
+      <h4>Resposta JSON</h4><pre class="response-json">{{value|json}}</pre>
+    </div>
   </section>
 
   <section class="panel tab-panel" *ngIf="area==='renderer' && activeTab===4">
@@ -125,6 +143,10 @@ export class AppComponent {
  enterBuilder(){this.area='builder';this.openBuilder();}
  enterRenderer(){this.area='renderer';this.activeTab=1;}
  builderError='';
+ builderPreview=false;
+ builderJson=true;
+ builderImport=false;
+ builderImportSource='';
  schema:Schema=allSchemas['simple'];
  source=JSON.stringify(this.schema,null,2);
  value:any={};
@@ -148,6 +170,21 @@ export class AppComponent {
  openBuilder(){
   try{const parsed=this.parseSchemaSource();this.schema=structuredClone(parsed);this.builderError='';this.area='builder';}
   catch(error){this.builderError=this.schemaErrorMessage(error);this.area='renderer';this.activeTab=1;this.parseError=this.builderError;}
+ }
+ importBuilderSchema(){
+  try{
+   const parsed=JSON.parse(this.builderImportSource);
+   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Schema deve ser um objeto JSON.');
+   ajv.compile(parsed);
+   this.builderChanged(structuredClone(parsed));
+   this.builderImport=false;this.builderImportSource='';this.builderError='';
+  }catch(error){this.builderError=this.schemaErrorMessage(error);}
+ }
+ downloadBuilderSchema(){
+  const blob=new Blob([JSON.stringify(this.schema,null,2)],{type:'application/schema+json'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');link.href=url;link.download='json-schema.json';link.click();
+  URL.revokeObjectURL(url);
  }
  newBuilderSchema(){this.builderChanged({$schema:'https://json-schema.org/draft/2020-12/schema',title:'Novo schema',type:'object',properties:{},additionalProperties:false});}
  builderChanged(next:Schema){
