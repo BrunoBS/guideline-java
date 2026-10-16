@@ -9,14 +9,6 @@ import {
 
 @Component({selector:'app-field',standalone:true,imports:[CommonModule,FormsModule],template:`
 <ng-container *ngIf="resolved as s">
-  <div class="presence-row" *ngIf="!required">
-    <label class="presence-toggle">
-      <span>Incluir campo</span>
-      <input type="checkbox" [checked]="value!==undefined" (change)="setIncluded($any($event.target).checked,s)" />
-      <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
-    </label>
-  </div>
-
   <ng-container *ngIf="required || value!==undefined; else omittedState">
     <div class="schema-impossible" *ngIf="isFalseSchema(s); else renderable">Este valor não é permitido pelo schema.</div>
 
@@ -165,9 +157,15 @@ import {
         </ng-template>
       </ng-container>
     </ng-template>
+
+    <div class="array-item-actions" *ngIf="!required">
+      <button type="button" class="secondary danger" (click)="setIncluded(false,s)">Remover campo</button>
+    </div>
   </ng-container>
 
-  <ng-template #omittedState><div class="omitted-state">Campo não incluído no JSON.</div></ng-template>
+  <ng-template #omittedState>
+    <button type="button" class="secondary" (click)="setIncluded(true,s)">+ Adicionar {{fieldLabel(s)}}</button>
+  </ng-template>
 </ng-container>`})
 export class FieldComponent {
  @Input() name='';@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;@Input() issues:ValidationIssue[]=[];@Input() path='';@Output() valueChange=new EventEmitter<any>();
@@ -181,6 +179,7 @@ export class FieldComponent {
  entries(object:Record<string,any>):[string,any][]{return Object.entries(object||{});}
  trackKey(_i:number,item:[string,any]){return item[0];}trackIndex(index:number){return index;}
  primaryType=primaryType;isNullable=isNullable;isFalseSchema=isFalseSchema;isFreeSchema=isFreeSchema;hasTypeUnion=hasTypeUnion;nonNullTypes=nonNullTypes;
+ fieldLabel(s:Schema){return s.title||this.name||'campo';}
 
  viewSchema(s:Schema):Schema{return hasTypeUnion(s)?narrowedSchema(s,this.activeType(s),this.root):s;}
  activeType(s:Schema):string{
