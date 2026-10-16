@@ -148,7 +148,11 @@ import {
                 </div>
 
                 <select *ngIf="(v.enum||v.const!==undefined) && value!==null" [ngModel]="value" [disabled]="v.readOnly" (ngModelChange)="emit($event)"><option *ngFor="let option of (v.enum||[v.const])" [ngValue]="option">{{option}}</option></select>
-                <label class="boolean-control" *ngIf="!v.enum && v.const===undefined && primaryType(v)==='boolean' && value!==null"><input type="checkbox" [disabled]="v.readOnly" [ngModel]="value===true" (ngModelChange)="emit($event)"/><span>{{value===true?'Sim':'Não'}}</span></label>
+                <label class="boolean-toggle" *ngIf="!v.enum && v.const===undefined && primaryType(v)==='boolean' && value!==null">
+                  <span>{{value===true?'Ligado':'Desligado'}}</span>
+                  <input type="checkbox" [disabled]="v.readOnly" [checked]="value===true" (change)="emit($any($event.target).checked)" />
+                  <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+                </label>
                 <input *ngIf="!v.enum && v.const===undefined && (primaryType(v)==='number'||primaryType(v)==='integer') && value!==null" type="number" [step]="v.multipleOf|| (primaryType(v)==='integer'?1:'any')" [attr.min]="v.minimum ?? null" [attr.max]="v.maximum ?? null" [disabled]="v.readOnly" [value]="value ?? ''" [placeholder]="placeholder(v)" (change)="numericChanged($any($event.target),v)"/>
                 <input *ngIf="!v.enum && v.const===undefined && primaryType(v)==='string' && value!==null" [type]="inputType(v)" [ngModel]="value" [disabled]="v.readOnly" [attr.minlength]="v.minLength ?? null" [attr.maxlength]="v.maxLength ?? null" [attr.pattern]="v.pattern ?? null" [placeholder]="placeholder(v)" (ngModelChange)="emit($event)"/>
                 <div class="null-value-state" *ngIf="value===null && isNullable(s)">Valor definido como <code>null</code>.</div>
