@@ -22,7 +22,20 @@ export const isNullable=(schema:any):boolean=>typesOf(schema).includes('null');
 export const hasTypeUnion=(schema:any):boolean=>nonNullTypes(schema).length>1;
 export const isFreeSchema=(schema:any):boolean=>{
  const s=asObject(schema);
- return isTrueSchema(s)||(!isFalseSchema(s)&&Object.keys(s).filter(k=>!['title','description','examples','default','$comment'].includes(k)).length===0);
+ const unconstrainedObject=primaryType(s)==='object'
+  && !s.properties
+  && !s.patternProperties
+  && s.additionalProperties===undefined
+  && s.unevaluatedProperties===undefined
+  && !s.propertyNames
+  && !s.required
+  && !s.dependentRequired
+  && !s.dependentSchemas
+  && !s.minProperties
+  && s.maxProperties===undefined;
+ return isTrueSchema(s)
+  || unconstrainedObject
+  || (!isFalseSchema(s)&&Object.keys(s).filter(k=>!['title','description','examples','default','$comment'].includes(k)).length===0);
 };
 
 export function deref(schema:any,root:Schema,depth=0):Schema {
