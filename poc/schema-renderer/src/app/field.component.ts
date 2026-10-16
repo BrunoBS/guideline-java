@@ -75,43 +75,60 @@ import {
               </div>
 
               <div *ngFor="let item of dynamicEntries(v);trackBy:trackKey" class="array-item map-item"
-                   [style.grid-template-columns]="isDynamicFreeObject(v,item[0],item[1]) ? 'minmax(180px,1fr) minmax(140px,.45fr) auto' : null">
+                   [style.grid-template-columns]="isDynamicJsonStructure(v,item[0],item[1]) ? 'minmax(180px,1fr) minmax(140px,.45fr) auto' : null">
                 <div class="map-key">
                   <label>Chave</label>
                   <input type="text" [value]="item[0]" [disabled]="v.readOnly" (change)="renameDynamicKey(v,item[0],$any($event.target).value)" />
                   <p class="error" *ngIf="keyIssue(v,item[0])">{{keyIssue(v,item[0])}}</p>
                 </div>
+
                 <div class="map-type">
                   <label>Tipo</label>
-                  <select *ngIf="dynamicTypeOptions(v,item[0]).length > 1; else staticDynamicType" [ngModel]="dynamicActiveType(v,item[0],item[1])" [disabled]="v.readOnly" (ngModelChange)="changeDynamicType(v,item[0],$event)">
+                  <select *ngIf="dynamicTypeOptions(v,item[0]).length > 1; else staticDynamicType"
+                          [ngModel]="dynamicActiveType(v,item[0],item[1])"
+                          [disabled]="v.readOnly || item[1]===null"
+                          (ngModelChange)="changeDynamicType(v,item[0],$event)">
                     <option *ngFor="let type of dynamicTypeOptions(v,item[0])" [ngValue]="type">{{typeLabel(type)}}</option>
                   </select>
-                  <ng-template #staticDynamicType><div class="map-type-static">{{typeLabel(dynamicActiveType(v,item[0],item[1]))}}</div></ng-template>
+                  <ng-template #staticDynamicType>
+                    <div class="map-type-static">{{typeLabel(dynamicActiveType(v,item[0],item[1]))}}</div>
+                  </ng-template>
+                  <label *ngIf="dynamicAllowsNull(v,item[0])" class="nullable-toggle" style="position:relative;right:auto;top:auto;margin-top:8px" title="Definir como nulo">
+                    <span>Definir como nulo</span>
+                    <input type="checkbox" [checked]="item[1]===null" [disabled]="v.readOnly" (change)="setDynamicNull(v,item[0],$any($event.target).checked)" />
+                    <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+                  </label>
                 </div>
 
-                <div class="map-value" *ngIf="!isDynamicFreeObject(v,item[0],item[1])">
-                  <app-field [name]="'Valor'" [schema]="dynamicValueSchema(v,item[0],item[1])" [root]="root" [value]="item[1]" [required]="true" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateMapValue(item[0],$event)"></app-field>
+                <div class="map-value" *ngIf="!isDynamicJsonStructure(v,item[0],item[1])">
+                  <div class="null-value-state" *ngIf="item[1]===null; else dynamicTypedValue">Valor definido como <code>null</code>.</div>
+                  <ng-template #dynamicTypedValue>
+                    <app-field [name]="'Valor'" [schema]="dynamicValueSchema(v,item[0],item[1])" [root]="root" [value]="item[1]" [required]="true" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateMapValue(item[0],$event)"></app-field>
+                  </ng-template>
                 </div>
 
                 <div class="map-action"><button type="button" class="secondary danger" [disabled]="v.readOnly || !canRemoveProperty(v)" (click)="removeDynamicKey(v,item[0])">Remover</button></div>
 
-                <div *ngIf="isDynamicFreeObject(v,item[0],item[1])" style="grid-column:1/-1;margin-top:4px">
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px">
-                    <label style="margin:0">Valor (JSON)</label>
-                  </div>
-
-                  <textarea class="json-value-editor"
-                            style="min-height:150px"
-                            [class.invalid-json-editor]="!!dynamicJsonError(item[0])"
-                            [value]="dynamicJsonText(item[0],item[1])"
-                            [disabled]="v.readOnly"
-                            (input)="dynamicJsonChanged(item[0],$any($event.target).value)"
-                            placeholder='{\n  "chave": "valor"\n}'></textarea>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px">
-                    <span class="success" *ngIf="!dynamicJsonError(item[0])">✓ JSON válido</span>
-                    <span class="error" *ngIf="dynamicJsonError(item[0])">{{dynamicJsonError(item[0])}}</span>
-                    <button type="button" class="secondary" style="margin:0" [disabled]="v.readOnly" (click)="formatDynamicJson(item[0],item[1])">Formatar JSON</button>
-                  </div>
+                <div *ngIf="isDynamicJsonStructure(v,item[0],item[1])" style="grid-column:1/-1;margin-top:4px">
+                  <ng-container *ngIf="item[1]!==null; else dynamicNullState">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px">
+                      <label style="margin:0">Valor (JSON)</label>
+                      <span class="muted">{{dynamicActiveType(v,item[0],item[1])==='array'?'Informe uma lista JSON.':'Informe um objeto JSON.'}}</span>
+                    </div>
+                    <textarea class="json-value-editor"
+                              style="min-height:150px"
+                              [class.invalid-json-editor]="!!dynamicJsonError(item[0])"
+                              [value]="dynamicJsonText(v,item[0],item[1])"
+                              [disabled]="v.readOnly"
+                              (input)="dynamicJsonChanged(v,item[0],$any($event.target).value)"
+                              [placeholder]="dynamicActiveType(v,item[0],item[1])==='array'?'[\n  \"valor\"\n]':'{\n  \"chave\": \"valor\"\n}'"></textarea>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px">
+                      <span class="success" *ngIf="!dynamicJsonError(item[0])">✓ JSON válido</span>
+                      <span class="error" *ngIf="dynamicJsonError(item[0])">{{dynamicJsonError(item[0])}}</span>
+                      <button type="button" class="secondary" style="margin:0" [disabled]="v.readOnly" (click)="formatDynamicJson(v,item[0],item[1])">Formatar JSON</button>
+                    </div>
+                  </ng-container>
+                  <ng-template #dynamicNullState><div class="null-value-state">Valor definido como <code>null</code>.</div></ng-template>
                 </div>
               </div>
 
@@ -202,7 +219,7 @@ export class FieldComponent {
  private dynamicChosenTypes:Record<string,string>={};
  private dynamicJsonDraftValues:Record<string,string>={};
  private dynamicJsonErrors:Record<string,string>={};
- private readonly jsonTypes=['string','integer','number','boolean','object','array','null'];
+ private readonly jsonTypes=['string','integer','number','boolean','object','array'];
 
  get resolved(){return effective(this.schema,this.value,this.root);}
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}
@@ -239,11 +256,18 @@ export class FieldComponent {
  dynamicPropertiesDescription(s:Schema){if(s.patternProperties&&s.additionalProperties===false)return 'Atributos extras devem corresponder aos padrões definidos em patternProperties.';if(s.unevaluatedProperties!==undefined)return 'Atributos extras seguem as regras de patternProperties/additionalProperties e unevaluatedProperties.';if(s.patternProperties)return 'Atributos extras podem usar patternProperties e additionalProperties.';return 'Atributos extras permitidos por additionalProperties.';}
  dynamicEntries(s:Schema):[string,any][]{const fixed=new Set(Object.keys(s.properties||{}));return Object.entries(this.objectValue).filter(([key])=>!fixed.has(key));}
  dynamicSchema(s:Schema,key:string){return additionalSchemaForKey(s,key,this.root);}
+ private declaredDynamicTypes(schema:Schema):string[]{return Array.isArray(schema.type)?schema.type:(typeof schema.type==='string'?[schema.type]:[]);}
  dynamicTypeOptions(s:Schema,key:string):string[]{
-  const schema=this.dynamicSchema(s,key);
+  const schema=this.dynamicSchema(s,key),declared=this.declaredDynamicTypes(schema);
+  if(declared.length)return declared.filter(type=>type!=='null');
   if(isFreeSchema(schema))return [...this.jsonTypes];
-  const declared=Array.isArray(schema.type)?schema.type:(typeof schema.type==='string'?[schema.type]:[]);
-  return declared.length?declared:[primaryType(schema)].filter(type=>type&&type!=='null');
+  const inferred=primaryType(schema);
+  return inferred&&inferred!=='null'?[inferred]:[];
+ }
+ dynamicAllowsNull(s:Schema,key:string):boolean{
+  const schema=this.dynamicSchema(s,key),declared=this.declaredDynamicTypes(schema);
+  if(declared.length)return declared.includes('null');
+  return isFreeSchema(schema);
  }
  dynamicActiveType(s:Schema,key:string,value:any):string{
   const options=this.dynamicTypeOptions(s,key),chosen=this.dynamicChosenTypes[key];
@@ -251,53 +275,71 @@ export class FieldComponent {
   const current=runtimeType(value);
   if(options.includes(current))return current;
   if(current==='integer'&&options.includes('number')&&!options.includes('integer'))return 'number';
-  return options[0]||primaryType(this.dynamicSchema(s,key));
+  return options[0]||(value===null?'null':primaryType(this.dynamicSchema(s,key)));
  }
  dynamicValueSchema(s:Schema,key:string,value:any):Schema{
   const base=this.dynamicSchema(s,key),type=this.dynamicActiveType(s,key,value);
-  if(isFreeSchema(base))return {type};
+  if(value===null)return {type:'null'};
+  const declared=this.declaredDynamicTypes(base);
+  if(!declared.length&&isFreeSchema(base))return {type};
   const options=this.dynamicTypeOptions(s,key);
   if(options.length<=1)return base;
   return {...base,type};
  }
- isDynamicFreeObject(s:Schema,key:string,value:any):boolean{
-  return this.dynamicActiveType(s,key,value)==='object'&&isFreeSchema(this.dynamicSchema(s,key));
+ private isUnconstrainedArray(schema:Schema):boolean{
+  return primaryType(schema)==='array' && schema.items===undefined && !schema.prefixItems && !schema.contains && schema.minItems===undefined && schema.maxItems===undefined && schema.uniqueItems===undefined;
+ }
+ isDynamicJsonStructure(s:Schema,key:string,value:any):boolean{
+  if(value===null)return false;
+  const type=this.dynamicActiveType(s,key,value),schema=this.dynamicValueSchema(s,key,value);
+  if(type==='object')return isFreeSchema(schema);
+  if(type==='array')return this.isUnconstrainedArray(schema);
+  return false;
  }
  changeDynamicType(s:Schema,key:string,type:string){
   const base=this.dynamicSchema(s,key);
   this.dynamicChosenTypes[key]=type;
   delete this.dynamicJsonDraftValues[key];delete this.dynamicJsonErrors[key];
-  if(type==='null'){this.updateMapValue(key,null);return;}
-  const selected:Schema=isFreeSchema(base)?{type}:{...base,type};
+  const selected:Schema=this.declaredDynamicTypes(base).length?{...base,type}:{type};
   let next:any;
-  if(type==='object'&&isFreeSchema(base))next={};
-  else if(type==='array'&&isFreeSchema(base))next=[];
+  if(type==='object'&&isFreeSchema(selected))next={};
+  else if(type==='array'&&this.isUnconstrainedArray(selected))next=[];
   else next=initial(selected,this.root);
   this.updateMapValue(key,next);
  }
- dynamicJsonText(key:string,value:any):string{
+ setDynamicNull(s:Schema,key:string,checked:boolean){
+  if(!this.dynamicAllowsNull(s,key))return;
+  delete this.dynamicJsonDraftValues[key];delete this.dynamicJsonErrors[key];
+  if(checked){this.updateMapValue(key,null);return;}
+  const options=this.dynamicTypeOptions(s,key),type=this.dynamicChosenTypes[key]&&options.includes(this.dynamicChosenTypes[key])?this.dynamicChosenTypes[key]:options[0];
+  if(!type){this.updateMapValue(key,null);return;}
+  this.dynamicChosenTypes[key]=type;
+  const base=this.dynamicSchema(s,key),selected:Schema=this.declaredDynamicTypes(base).length?{...base,type}:{type};
+  const next=type==='object'&&isFreeSchema(selected)?{}:type==='array'&&this.isUnconstrainedArray(selected)?[]:initial(selected,this.root);
+  this.updateMapValue(key,next);
+ }
+ dynamicJsonText(s:Schema,key:string,value:any):string{
   if(Object.prototype.hasOwnProperty.call(this.dynamicJsonDraftValues,key))return this.dynamicJsonDraftValues[key];
+  const type=this.dynamicActiveType(s,key,value);
+  if(type==='array')return this.jsonValue(Array.isArray(value)?value:[]);
   return this.jsonValue(value&&typeof value==='object'&&!Array.isArray(value)?value:{});
  }
  dynamicJsonError(key:string){return this.dynamicJsonErrors[key]||'';}
- dynamicJsonChanged(key:string,text:string){
-  this.dynamicJsonDraftValues[key]=text;
-  try{
-   const parsed=JSON.parse(text);
-   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('O valor deve ser um objeto JSON.');
-   this.dynamicJsonErrors[key]='';
-   this.updateMapValue(key,parsed);
-  }catch(error){this.dynamicJsonErrors[key]=error instanceof Error?error.message:'JSON inválido.';}
+ private validateDynamicStructure(s:Schema,key:string,text:string):any{
+  const parsed=JSON.parse(text),type=this.dynamicActiveType(s,key,this.objectValue[key]);
+  if(type==='array'&&!Array.isArray(parsed))throw new Error('O valor deve ser uma lista JSON.');
+  if(type==='object'&&(!parsed||typeof parsed!=='object'||Array.isArray(parsed)))throw new Error('O valor deve ser um objeto JSON.');
+  return parsed;
  }
- formatDynamicJson(key:string,value:any){
-  const source=this.dynamicJsonText(key,value);
-  try{
-   const parsed=JSON.parse(source);
-   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('O valor deve ser um objeto JSON.');
-   this.dynamicJsonDraftValues[key]=JSON.stringify(parsed,null,2);
-   this.dynamicJsonErrors[key]='';
-   this.updateMapValue(key,parsed);
-  }catch(error){this.dynamicJsonErrors[key]=error instanceof Error?error.message:'JSON inválido.';}
+ dynamicJsonChanged(s:Schema,key:string,text:string){
+  this.dynamicJsonDraftValues[key]=text;
+  try{const parsed=this.validateDynamicStructure(s,key,text);this.dynamicJsonErrors[key]='';this.updateMapValue(key,parsed);}
+  catch(error){this.dynamicJsonErrors[key]=error instanceof Error?error.message:'JSON inválido.';}
+ }
+ formatDynamicJson(s:Schema,key:string,value:any){
+  const source=this.dynamicJsonText(s,key,value);
+  try{const parsed=this.validateDynamicStructure(s,key,source);this.dynamicJsonDraftValues[key]=JSON.stringify(parsed,null,2);this.dynamicJsonErrors[key]='';this.updateMapValue(key,parsed);}
+  catch(error){this.dynamicJsonErrors[key]=error instanceof Error?error.message:'JSON inválido.';}
  }
  keyIssue(s:Schema,key:string){const propertyIssue=propertyNameIssue(s,key,this.root);if(propertyIssue)return propertyIssue;const dynamic=additionalSchemaForKey(s,key,this.root);return isFalseSchema(dynamic)?'Esta chave não é permitida pelo schema.':'';}
  updateKey(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(reconcileValue(this.schema,next,this.root));}
@@ -315,10 +357,11 @@ export class FieldComponent {
   if(!this.canAddProperty(s))return;
   let index=1,key='key';while(key in this.objectValue||key in (s.properties||{}))key=`key${++index}`;
   const child=additionalSchemaForKey(s,key,this.root),types=this.dynamicTypeOptions(s,key),type=types[0];
-  if(type)this.dynamicChosenTypes[key]=type;
   if(isFalseSchema(child)){this.emit({...this.objectValue,[key]:''});return;}
-  const selected:Schema=isFreeSchema(child)&&type?{type}:type?{...child,type}:child;
-  const next=type==='object'&&isFreeSchema(child)?{}:type==='array'&&isFreeSchema(child)?[]:initial(selected,this.root);
+  if(!type&&this.dynamicAllowsNull(s,key)){this.emit({...this.objectValue,[key]:null});return;}
+  if(type)this.dynamicChosenTypes[key]=type;
+  const selected:Schema=this.declaredDynamicTypes(child).length&&type?{...child,type}:type?{type}:child;
+  const next=type==='object'&&isFreeSchema(selected)?{}:type==='array'&&this.isUnconstrainedArray(selected)?[]:initial(selected,this.root);
   this.emit({...this.objectValue,[key]:next});
  }
  canAddProperty(s:Schema){return s.maxProperties===undefined||this.objectPropertyCount<s.maxProperties;}
