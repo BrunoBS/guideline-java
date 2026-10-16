@@ -39,6 +39,7 @@ import {
       <ng-container *ngIf="viewSchema(s) as v">
         <div class="free-value" *ngIf="isFreeSchema(v); else typedRenderer">
           <div class="field-heading"><label>{{v.title||name||'Valor livre'}} {{required?'*':''}}</label></div>
+          <div class="constraint-hint" *ngIf="v.__externalRef">Referência externa <code>{{v.__externalRef}}</code>. A POC não resolve esse recurso automaticamente; o valor permanece editável em JSON.</div>
           <textarea class="json-value-editor" [value]="jsonValue(value)" [disabled]="v.readOnly" (change)="freeChanged($any($event.target))" placeholder='Ex.: "texto", 123, true, null, {}, []'></textarea>
           <div class="muted">Valor livre em JSON.</div>
           <p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
@@ -197,8 +198,8 @@ export class FieldComponent {
  emit(value:any){this.valueChange.emit(value);}
 
  hasProperties(s:Schema){return Object.keys(s.properties||{}).length>0;}
- hasDynamicProperties(s:Schema){return !!s.patternProperties||s.additionalProperties===true||(s.additionalProperties&&typeof s.additionalProperties==='object');}
- dynamicPropertiesDescription(s:Schema){if(s.patternProperties&&s.additionalProperties===false)return 'Atributos extras devem corresponder aos padrões definidos em patternProperties.';if(s.patternProperties)return 'Atributos extras podem usar patternProperties e additionalProperties.';return 'Atributos extras permitidos por additionalProperties.';}
+ hasDynamicProperties(s:Schema){return !!s.patternProperties||s.additionalProperties===true||(s.additionalProperties&&typeof s.additionalProperties==='object')||s.unevaluatedProperties===true||(s.unevaluatedProperties&&typeof s.unevaluatedProperties==='object');}
+ dynamicPropertiesDescription(s:Schema){if(s.patternProperties&&s.additionalProperties===false)return 'Atributos extras devem corresponder aos padrões definidos em patternProperties.';if(s.unevaluatedProperties!==undefined)return 'Atributos extras seguem as regras de patternProperties/additionalProperties e unevaluatedProperties.';if(s.patternProperties)return 'Atributos extras podem usar patternProperties e additionalProperties.';return 'Atributos extras permitidos por additionalProperties.';}
  dynamicEntries(s:Schema):[string,any][]{const fixed=new Set(Object.keys(s.properties||{}));return Object.entries(this.objectValue).filter(([key])=>!fixed.has(key));}
  dynamicSchema(s:Schema,key:string){return additionalSchemaForKey(s,key,this.root);}
  keyIssue(s:Schema,key:string){const propertyIssue=propertyNameIssue(s,key,this.root);if(propertyIssue)return propertyIssue;const dynamic=additionalSchemaForKey(s,key,this.root);return isFalseSchema(dynamic)?'Esta chave não é permitida pelo schema.':'';}
