@@ -12,12 +12,14 @@ import {Schema,deref,effective,initial} from './schema-engine';
   </fieldset>
   <ng-template #nonObject>
     <fieldset *ngIf="s.type==='array'; else scalar">
-      <legend>{{s.title||name||'Lista'}}</legend>
+      <legend>{{s.title||name||'Lista'}} ({{arrayValue.length}}<ng-container *ngIf="s.maxItems!==undefined"> / {{s.maxItems}}</ng-container>)</legend><p class="muted" *ngIf="s.description">{{s.description}}</p>
       <div *ngFor="let v of arrayValue;index as i;trackBy:trackIndex">
         <app-field [name]="'Item '+(i+1)" [schema]="s.items||{}" [root]="root" [value]="v" (valueChange)="updateItem(i,$event)"></app-field>
-        <button type="button" (click)="remove(i)">Remover</button>
+        <button type="button" [disabled]="arrayValue.length <= (s.minItems||0)" (click)="remove(i)">Remover</button>
       </div>
-      <button type="button" (click)="add(s.items||{})">Adicionar item</button>
+      <button type="button" [disabled]="s.maxItems!==undefined && arrayValue.length>=s.maxItems" (click)="add(s.items||{})">+ Adicionar item</button>
+<p class="error" *ngIf="s.minItems!==undefined && arrayValue.length<s.minItems">Mínimo de {{s.minItems}} itens.</p>
+<p class="error" *ngIf="s.uniqueItems && hasDuplicates()">Os itens devem ser únicos.</p>
     </fieldset>
     <ng-template #scalar>
       <label>{{s.title||name||'Valor'}} {{required?'*':''}}</label>
@@ -45,5 +47,6 @@ export class FieldComponent {
  updateKey(k:string,v:any){this.emit({...this.objectValue,[k]:v});}
  updateItem(i:number,v:any){const a=[...this.arrayValue];a[i]=v;this.emit(a);}
  add(s:Schema){this.emit([...this.arrayValue,initial(deref(s,this.root),this.root)]);}
+ hasDuplicates(){const a=this.arrayValue;return new Set(a.map(v=>JSON.stringify(v))).size!==a.length;}
  remove(i:number){this.emit(this.arrayValue.filter((_,j)=>j!==i));}
 }
