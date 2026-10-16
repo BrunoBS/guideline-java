@@ -45,7 +45,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <button type="button" *ngIf="selectedPath!==''" (click)="removeSelected()">Excluir campo</button>
    </div>
    <label *ngIf="selectedPath!=='' && !selectedPath.endsWith('/items')">Nome da propriedade
-    <input [ngModel]="selectedName" (ngModelChange)="renameSelected($event)"/>
+    <input [ngModel]="selectedName" (change)="renameSelected($any($event.target).value)"/>
    </label>
    <label>Título<input [ngModel]="node.title||''" (ngModelChange)="setAttribute('title',$event)"/></label>
    <label>Descrição<input [ngModel]="node.description||''" (ngModelChange)="setAttribute('description',$event)"/></label>
@@ -151,8 +151,6 @@ export class SchemaBuilderComponent implements OnChanges {
  private commit(edit:(root:Schema)=>void){
   const next=structuredClone(this.schema);
   edit(next);
-  this.schema=next;
-  this.rebuild();
   this.schemaChange.emit(next);
  }
  private current(root:Schema){return this.getNodeAt(root,this.selectedPath);}
