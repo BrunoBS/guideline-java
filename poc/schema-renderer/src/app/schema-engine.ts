@@ -1,6 +1,7 @@
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 export type Schema = Record<string, any>;
+export type ValidationIssue = {path:string;message:string};
 export const typesOf=(s:Schema):string[]=>Array.isArray(s.type)?s.type:typeof s.type==='string'?[s.type]:[];
 export const primaryType=(s:Schema):string=>typesOf(s).find(t=>t!=='null')||'null';
 export const isNullable=(s:Schema):boolean=>typesOf(s).includes('null');
@@ -93,13 +94,30 @@ export function initial(schema:Schema,root:Schema,depth=0):any {
  if(primaryType(s)==='integer'||primaryType(s)==='number')return isNullable(s)?null:0;
  return isNullable(s)?null:'';
 }
+function escapePointer(value:string):string{return value.replace(/~/g,'~0').replace(/\//g,'~1');}
+function issuePath(error:any):string {
+ let path=error.instancePath||'';
+ if(error.keyword==='required'&&error.params?.missingProperty)path=`${path}/${escapePointer(String(error.params.missingProperty))}`;
+ return path||'/';
+}
+function uniqueIssues(issues:ValidationIssue[]):ValidationIssue[]{
+ return issues.filter((issue,index,all)=>all.findIndex(other=>other.path===issue.path&&other.message===issue.message)===index);
+}
+export function validationIssues(schema:Schema,value:any):ValidationIssue[] {
+ try {
+  const ok=ajv.validate(schema,value);if(ok)return [];
+  const errors=ajv.errors||[];
+  const oneOf=errors.find(e=>e.keyword==='oneOf');
+  if(oneOf){
+   const details=errors.filter(e=>e.keyword!=='oneOf'&&e.keyword!=='type'&&e.keyword!=='false schema');
+   return uniqueIssues([
+    {path:issuePath(oneOf),message:'O valor não corresponde a exatamente uma alternativa do schema.'},
+    ...details.map(e=>({path:issuePath(e),message:e.message||'inválido'}))
+   ]);
+  }
+  return uniqueIssues(errors.map(e=>({path:issuePath(e),message:e.message||'inválido'})));
+ }catch(e){return [{path:'/',message:String(e)}];}
+}
 export function validate(schema:Schema,value:any):string[] {
-  try {const ok=ajv.validate(schema,value);if(ok)return [];
-    const errors=ajv.errors||[];
-    const oneOf=errors.find(e=>e.keyword==='oneOf');
-    if(oneOf){
-      const details=errors.filter(e=>e.keyword!=='oneOf' && e.keyword!=='type' && e.keyword!=='false schema');
-      return ['O valor não corresponde a exatamente uma alternativa do schema.',...details.map(e=>`${e.instancePath||'/'}: ${e.message||'inválido'}`)].filter((v,i,a)=>a.indexOf(v)===i);
-    }
-    return errors.map(e=>`${e.instancePath||'/'}: ${e.message||'inválido'}`);}catch(e){return [String(e)];}
+ return validationIssues(schema,value).map(issue=>`${issue.path}: ${issue.message}`);
 }
