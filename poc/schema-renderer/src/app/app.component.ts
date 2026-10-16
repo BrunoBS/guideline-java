@@ -2,6 +2,7 @@ import {Component} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {FieldComponent} from './field.component';
+import {SchemaBuilderComponent} from './schema-builder.component';
 import {Schema,ValidationIssue,ajv,initial,reconcileValue,validationIssues} from './schema-engine';
 import {allSchemaExamples,allSchemas} from './schema-examples';
 import {parameterKeyRequestSchema} from './parameter-key-request.schema';
@@ -9,7 +10,7 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
 @Component({
  selector:'app-root',
  standalone:true,
- imports:[CommonModule,FormsModule,FieldComponent],
+ imports:[CommonModule,FormsModule,FieldComponent,SchemaBuilderComponent],
  styles:[`
   .example-picker{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .example-picker>label{display:grid;grid-template-columns:auto minmax(320px,560px);align-items:center;gap:10px;margin:0}
@@ -28,6 +29,7 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
     <button type="button" [class.active]="activeTab===2" (click)="activeTab=2"><span>2</span> Formulário</button>
     <button type="button" [class.active]="activeTab===3" (click)="activeTab=3"><span>3</span> Modo desenvolvedor</button>
     <button type="button" [class.active]="activeTab===4" (click)="activeTab=4"><span>4</span> Resposta</button>
+    <button type="button" [class.active]="activeTab===5" (click)="openBuilder()"><span>5</span> Schema Builder</button>
   </nav>
 
   <section class="panel tab-panel" *ngIf="activeTab===1">
@@ -87,6 +89,13 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
     <div class="validation-summary" *ngIf="!valueError && errors.length"><h4>Validação contra o schema</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
   </section>
 
+  <section class="panel tab-panel" *ngIf="activeTab===5">
+    <div class="section-heading"><div><h3>Visual Schema Builder</h3><p>Crie e edite propriedades visualmente. As alterações atualizam o JSON Schema e o formulário.</p></div></div>
+    <p class="error callout" *ngIf="builderError">{{builderError}}</p>
+    <div class="developer-actions"><button type="button" class="secondary" (click)="newBuilderSchema()">Novo schema</button></div>
+    <app-schema-builder [schema]="schema" (schemaChange)="builderChanged($event)"></app-schema-builder>
+  </section>
+
   <section class="panel tab-panel" *ngIf="activeTab===4">
     <div class="section-heading"><div><h3>Resposta</h3><p>JSON final produzido pelo formulário e pelo modo desenvolvedor.</p></div><span class="status valid" *ngIf="!valueError && !errors.length">✓ Válido</span><span class="status invalid" *ngIf="valueError || errors.length">Inválido</span></div>
     <pre class="response-json" *ngIf="!valueError">{{value|json}}</pre><p class="error" *ngIf="valueError">Resposta indisponível enquanto o JSON do modo desenvolvedor estiver inválido.</p>
@@ -95,6 +104,7 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
 })
 export class AppComponent {
  activeTab=1;
+ builderError='';
  schema:Schema=allSchemas['simple'];
  source=JSON.stringify(this.schema,null,2);
  value:any={};
@@ -115,6 +125,19 @@ export class AppComponent {
    ||'Selecione um exemplo para ver o objetivo do schema e os pontos que devem ser validados.';
  }
 
+ openBuilder(){
+  try{const parsed=this.parseSchemaSource();this.schema=structuredClone(parsed);this.builderError='';this.activeTab=5;}
+  catch(error){this.builderError=this.schemaErrorMessage(error);this.activeTab=1;this.parseError=this.builderError;}
+ }
+ newBuilderSchema(){this.builderChanged({$schema:'https://json-schema.org/draft/2020-12/schema',title:'Novo schema',type:'object',properties:{},additionalProperties:false});}
+ builderChanged(next:Schema){
+  try{
+   ajv.compile(next);
+   this.schema=next;this.source=JSON.stringify(next,null,2);this.selectedExample='';
+   this.value=reconcileValue(next,this.value,next);
+   this.parseError='';this.builderError='';this.schemaValidated=true;this.valueError='';this.developerValidated=false;this.sync(true);
+  }catch(error){this.builderError=this.schemaErrorMessage(error);}
+ }
  loadExample(id:string){
   this.selectedExample=id;
   const next=id==='parameterKeyRequest'?parameterKeyRequestSchema:allSchemas[id];
