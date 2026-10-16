@@ -165,13 +165,7 @@ function collect(schema:any,value:any,root:Schema,depth=0):Schema {
 }
 
 export function effective(schema:any,value:any,root:Schema):Schema {
- const base=collect(schema,value,root);
- if(isFalseSchema(base)||isTrueSchema(base))return base;
- const properties:Record<string,any>={};
- for(const [key,child] of Object.entries(base.properties||{})){
-  properties[key]=effective(child,value?.[key],root);
- }
- return {...base,...(Object.keys(properties).length?{properties}:{})};
+ return collect(schema,value,root);
 }
 
 export function runtimeType(value:any):string {
