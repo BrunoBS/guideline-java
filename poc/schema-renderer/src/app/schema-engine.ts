@@ -1,6 +1,9 @@
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 export type Schema = Record<string, any>;
+export const typesOf=(s:Schema):string[]=>Array.isArray(s.type)?s.type:typeof s.type==='string'?[s.type]:[];
+export const primaryType=(s:Schema):string=>typesOf(s).find(t=>t!=='null')||'null';
+export const isNullable=(s:Schema):boolean=>typesOf(s).includes('null');
 export const ajv = new Ajv2020({allErrors:true,strict:false});
 addFormats(ajv);
 export function deref(schema: Schema, root: Schema, depth=0): Schema {
@@ -62,11 +65,11 @@ export function initial(schema:Schema,root:Schema,depth=0):any {
   if(s.default!==undefined)return structuredClone(s.default);
   if(s.const!==undefined)return s.const;
   if(s.enum?.length)return s.enum[0];
-  if(s.type==='object'||s.properties){const obj:any={};for(const [key,child] of Object.entries(s.properties||{})) {const c=child as Schema;if((s.required||[]).includes(key)||c.default!==undefined||c.const!==undefined)obj[key]=initial(c,root,depth+1);}return obj;}
-  if(s.type==='array')return [];
-  if(s.type==='boolean')return false;
-  if(s.type==='integer'||s.type==='number')return 0;
-  return '';
+  if(primaryType(s)==='object'||s.properties){const obj:any={};for(const [key,child] of Object.entries(s.properties||{})) {const c=child as Schema;if((s.required||[]).includes(key)||c.default!==undefined||c.const!==undefined)obj[key]=initial(c,root,depth+1);}return obj;}
+  if(primaryType(s)==='array')return [];
+  if(primaryType(s)==='boolean')return isNullable(s)?null:false;
+  if(primaryType(s)==='integer'||primaryType(s)==='number')return isNullable(s)?null:0;
+  return isNullable(s)?null:'';
 }
 export function validate(schema:Schema,value:any):string[] {
   try {const ok=ajv.validate(schema,value);if(ok)return [];
