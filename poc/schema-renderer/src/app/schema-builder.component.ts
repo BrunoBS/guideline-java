@@ -66,19 +66,13 @@ export class SchemaBuilderComponent implements OnChanges {
  ngOnChanges(_changes:SimpleChanges){this.rebuild();}
  private segments(path:string){return path.split('/').slice(1).map(x=>x.replace(/~1/g,'/').replace(/~0/g,'~'));}
  private escape(key:string){return key.replace(/~/g,'~0').replace(/\//g,'~1');}
- private getNode(root:Schema,path:string):Schema|undefined {
-  let current:any=root;
-  for(const part of this.segments(path)){
-   current=part==='items'?current?.items:current?.properties?.[part];
-   if(!current||typeof current!=='object'||Array.isArray(current))return undefined;
-  }
-  return current;
- }
+ private getNode(root:Schema,path:string):Schema|undefined {return this.getNodeAt(root,path);}
  get selected(){return this.getNode(this.schema,this.selectedPath);}
  get selectedName(){return this.segments(this.selectedPath).at(-1)||'';}
  get selectedRequired(){
   const parts=this.segments(this.selectedPath),name=parts.pop();
-  const parent=this.getNode(this.schema,'/'+parts.map(p=>this.escape(p)).join('/'));
+  if(parts.pop()!=='properties')return false;
+  const parent=this.getNodeAt(this.schema,'/'+parts.map(p=>this.escape(p)).join('/'));
   return !!name&&!!parent?.required?.includes(name);
  }
  typeLabel(node:Schema){return Array.isArray(node.type)?node.type.join('|'):node.type||'livre';}
@@ -166,7 +160,8 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  removeSelected(){
   if(!this.selectedPath)return;
-  const parts=this.segments(this.selectedPath),key=parts.pop()!,kind=parts.pop()!;
+  const parts=this.segments(this.selectedPath),key=parts.pop()!;
+  const kind=key==='items'?'items':parts.pop()!;
   const parentPath=parts.length?'/'+parts.map(p=>this.escape(p)).join('/'):'';
   this.commit(root=>{
    const parent=this.getNodeAt(root,parentPath);
