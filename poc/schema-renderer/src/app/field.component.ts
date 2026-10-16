@@ -28,7 +28,7 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
         <option *ngFor="let option of (s.enum||[s.const])" [ngValue]="option">{{option}}</option>
       </select>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean' && value!==null" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
-      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="text" [attr.inputmode]="primaryType(s)==='integer'?'numeric':'decimal'" [value]="numericDraft !== null ? numericDraft : (value ?? '')" (input)="numericInput($any($event.target),s)" (blur)="commitNumeric(s)"/>
+      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="text" [attr.inputmode]="primaryType(s)==='integer'?'numeric':'decimal'" [value]="value ?? ''" (change)="numericChanged($any($event.target),s)"/>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer' && value!==null" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
       <div class="muted" *ngIf="s.description">{{s.description}}</div>
     </ng-template>
@@ -38,28 +38,15 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
 export class FieldComponent {
  @Input() name='';@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;
  @Output() valueChange=new EventEmitter<any>();
- numericDraft:string|null=null;
- numericInput(input:HTMLInputElement,s:Schema){
-  const raw=input.value;
+ numericChanged(input:HTMLInputElement,s:Schema){
+  const raw=input.value.trim().replace(',', '.');
+  if(raw===''){this.emit(isNullable(s)?null:undefined);return;}
   const integer=primaryType(s)==='integer';
-  const allowed=integer ? /^[+-]?\\d*$/ : /^[+-]?(?:\\d*(?:[.,]\\d*)?)$/;
-  if(!allowed.test(raw)){
-   input.value=this.numericDraft ?? String(this.value ?? '');
-   return;
-  }
-  // Do not update the parent while typing: parent reconciliation can rebuild
-  // the conditional schema and overwrite the focused input on every keystroke.
-  this.numericDraft=raw;
- }
- commitNumeric(s:Schema){
-  if(this.numericDraft===null)return;
-  const raw=this.numericDraft.trim().replace(',', '.');
-  if(!raw){this.numericDraft=null;this.emit(isNullable(s)?null:undefined);return;}
-  if(!/^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/.test(raw))return;
-  const parsed=Number(raw);
-  if(!Number.isFinite(parsed)||(primaryType(s)==='integer'&&!Number.isInteger(parsed)))return;
-  this.numericDraft=null;
-  this.emit(parsed);
+  const valid=integer ? /^[+-]?\\d+$/ : /^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/;
+  if(!valid.test(raw)){input.value=String(this.value??'');return;}
+  const n=Number(raw);
+  if(!Number.isFinite(n)||(integer&&!Number.isInteger(n))){input.value=String(this.value??'');return;}
+  this.emit(n);
  }
  hasProperties(s:Schema){return Object.keys(s.properties||{}).length>0;}
  get resolved(){return effective(this.schema,this.value,this.root);}
@@ -73,7 +60,7 @@ export class FieldComponent {
  trackKey(_i:number,v:[string,Schema]){return v[0];}
  trackIndex(i:number){return i;}
  primaryType=primaryType;isNullable=isNullable;
- setNull(checked:boolean,s:Schema){this.numericDraft=null;if(checked)this.emit(null);else this.emit(initial({...s,type:primaryType(s),default:undefined},this.root));}
+ setNull(checked:boolean,s:Schema){if(checked)this.emit(null);else this.emit(initial({...s,type:primaryType(s),default:undefined},this.root));}
  emit(v:any){this.valueChange.emit(v);}
  updateKey(k:string,v:any){
   const next={...this.objectValue,[k]:v};
