@@ -203,7 +203,7 @@ import {
                 <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
               </label>
               <input *ngIf="!v.enum && v.const===undefined && (primaryType(v)==='number'||primaryType(v)==='integer') && !isNullState()" type="number" [step]="v.multipleOf|| (primaryType(v)==='integer'?1:'any')" [attr.min]="v.minimum ?? null" [attr.max]="v.maximum ?? null" [disabled]="v.readOnly" [value]="value ?? ''" [placeholder]="placeholder(v)" (change)="numericChanged($any($event.target),v)"/>
-              <input *ngIf="!v.enum && v.const===undefined && primaryType(v)==='string' && !isNullState()" [type]="inputType(v)" [ngModel]="value" [disabled]="v.readOnly" [attr.minlength]="v.minLength ?? null" [attr.maxlength]="v.maxLength ?? null" [attr.pattern]="v.pattern ?? null" [placeholder]="placeholder(v)" (ngModelChange)="emit($event)"/>
+              <input *ngIf="!v.enum && v.const===undefined && primaryType(v)==='string' && !isNullState()" [type]="inputType(v)" [ngModel]="formattedInputValue(v)" [disabled]="v.readOnly" [attr.minlength]="v.minLength ?? null" [attr.maxlength]="v.maxLength ?? null" [attr.pattern]="v.pattern ?? null" [placeholder]="placeholder(v)" (ngModelChange)="formattedInputChanged(v,$event)"/>
               <div class="null-value-state" *ngIf="isNullState() && showNullToggle(s)">{{nullStateLabel(s)}}</div>
               <div class="annotation-row" *ngIf="v.readOnly || v.writeOnly"><span *ngIf="v.readOnly">Somente leitura</span><span *ngIf="v.writeOnly">Somente escrita</span></div>
               <div class="muted" *ngIf="v.description">{{v.description}}</div><p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
@@ -420,6 +420,30 @@ export class FieldComponent {
  matchesContains(s:Schema,item:any){return !!s.contains&&matches(s.contains,item,this.root);}
 
  numericChanged(input:HTMLInputElement,s:Schema){const raw=input.value.trim();if(raw===''){this.emit(isNullable(s)?null:(!this.required?undefined:undefined));return;}const number=Number(raw);if(!Number.isFinite(number)){input.value=String(this.value??'');return;}if(primaryType(s)==='integer'&&!Number.isInteger(number)){input.value=String(this.value??'');return;}this.emit(number);}
+ formattedInputValue(s:Schema):string {
+  if(typeof this.value!=='string')return '';
+  if(s.format==='date-time'){
+   const match=this.value.match(/^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2})(?::\\d{2}(?:\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})$/);
+   if(match){
+    const date=new Date(this.value);
+    if(!Number.isNaN(date.getTime())){
+     const pad=(n:number)=>String(n).padStart(2,'0');
+     return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+   }
+   return this.value;
+  }
+  if(s.format==='time')return this.value.replace(/^(\\d{2}:\\d{2}):\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?$/,'$1');
+  return this.value;
+ }
+ formattedInputChanged(s:Schema,value:string){
+  if(s.format==='date-time' && /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2})?$/.test(value)){
+   const date=new Date(value);
+   if(!Number.isNaN(date.getTime())){this.emit(date.toISOString());return;}
+  }
+  if(s.format==='time' && /^\\d{2}:\\d{2}$/.test(value)){this.emit(value+':00');return;}
+  this.emit(value);
+ }
  inputType(s:Schema){switch(s.format){case 'password':return 'password';case 'email':return 'email';case 'date':return 'date';case 'date-time':return 'datetime-local';case 'time':return 'time';case 'uri':case 'url':return 'url';default:return 'text';}}
  placeholder(s:Schema){const example=Array.isArray(s.examples)?s.examples[0]:s.example;return example===undefined?'':typeof example==='string'?example:JSON.stringify(example);}
  jsonValue(value:any){try{return JSON.stringify(value,null,2)??'';}catch{return String(value??'');}}
