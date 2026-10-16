@@ -6,7 +6,7 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
 <ng-container *ngIf="resolved as s">
   <fieldset *ngIf="primaryType(s)==='object'||(s.properties && hasProperties(s)); else nonObject">
     <legend>{{s.title||name||'Objeto'}}</legend>
-    <div *ngFor="let item of entries(s.properties||{});trackBy:trackKey" class="field">
+    <div *ngFor="let item of visibleEntries(s);trackBy:trackKey" class="field">
       <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue?.[item[0]]" [required]="(s.required||[]).includes(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
     </div>
   </fieldset>
@@ -28,7 +28,7 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
         <option *ngFor="let option of (s.enum||[s.const])" [ngValue]="option">{{option}}</option>
       </select>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean'" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
-      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer')" type="text" inputmode="decimal" [value]="numericDraft !== null ? numericDraft : (value ?? '')" (input)="numericDraft=$any($event.target).value" (blur)="commitNumeric(s)"/>
+      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer')" type="text" inputmode="decimal" [value]="numericDraft !== null ? numericDraft : (value ?? '')" (input)="numericInput($any($event.target).value,s)" (blur)="commitNumeric(s)"/>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer'" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
       <div class="muted" *ngIf="s.description">{{s.description}}</div>
     </ng-template>
@@ -39,6 +39,14 @@ export class FieldComponent {
  @Input() name='';@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;
  @Output() valueChange=new EventEmitter<any>();
  numericDraft:string|null=null;
+ numericInput(raw:string,s:Schema){
+  this.numericDraft=raw;
+  const normalized=raw.trim().replace(',', '.');
+  if(!/^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/.test(normalized))return;
+  const n=Number(normalized);
+  if(!Number.isFinite(n)||(primaryType(s)==='integer'&&!Number.isInteger(n)))return;
+  this.emit(n);
+ }
  commitNumeric(s:Schema){
   if(this.numericDraft===null)return;
   const raw=this.numericDraft.trim().replace(',', '.');
@@ -53,6 +61,10 @@ export class FieldComponent {
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}
  get arrayValue():any[]{return Array.isArray(this.value)?this.value:[];}
  entries(o:Record<string,Schema>):[string,Schema][]{return Object.entries(o);}
+ visibleEntries(s:Schema):[string,Schema][]{
+  const updating=this.name==='' && Number.isInteger(this.objectValue['version']) && this.objectValue['version']!==null;
+  return this.entries(s.properties||{}).filter(([key])=>!updating || (key!=='key' && key!=='microserviceIdentifier'));
+ }
  trackKey(_i:number,v:[string,Schema]){return v[0];}
  trackIndex(i:number){return i;}
  primaryType=primaryType;isNullable=isNullable;
@@ -60,6 +72,9 @@ export class FieldComponent {
  emit(v:any){this.valueChange.emit(v);}
  updateKey(k:string,v:any){
   const next={...this.objectValue,[k]:v};
+  if(k==='version' && typeof v==='number' && Number.isInteger(v)){
+   delete next.key;delete next.microserviceIdentifier;
+  }
   // Changing a discriminator can switch the shape of sibling fields.
   // Reconcile only incompatible values; preserve valid user input.
   const resolved=effective(this.schema,next,this.root);
