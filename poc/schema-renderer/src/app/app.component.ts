@@ -2,7 +2,7 @@ import {Component} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {FieldComponent} from './field.component';
-import {Schema,ValidationIssue,effective,initial,validationIssues} from './schema-engine';
+import {Schema,ValidationIssue,ajv,effective,initial,validationIssues} from './schema-engine';
 
 const draft='https://json-schema.org/draft/2020-12/schema';
 
@@ -172,12 +172,12 @@ const schemaExamples:SchemaExample[]=[
  {id:'tuple',label:'9. Tuple com prefixItems',description:'Testa posições fixas: string, inteiro e booleano. items=false deve impedir um quarto item.'},
  {id:'tupleWithTail',label:'10. Tuple + items adicionais',description:'Testa prefixItems seguido de items homogêneos. As duas primeiras posições têm tipos próprios e as posições seguintes devem ser strings.'},
  {id:'nestedObject',label:'11. Objeto aninhado',description:'Testa formulário recursivo. Owner é objeto obrigatório; owner.nome é obrigatório e owner.email deve respeitar formato email.'},
- {id:'additionalProperties',label:'12. additionalProperties tipado',description:'Testa objeto híbrido com propriedade conhecida e campos extras. Todo valor adicional deve obrigatoriamente ser string.'},
- {id:'additionalPropertiesTrue',label:'13. additionalProperties: true',description:'Testa campos adicionais totalmente livres. O seletor Tipo deve oferecer todos os tipos JSON: Texto, Inteiro, Número, Booleano, Objeto, Lista e Nulo.'},
+ {id:'additionalProperties',label:'12. additionalProperties tipado',description:'Testa objeto híbrido com propriedade conhecida e campos extras. O tipo definido em additionalProperties deve ficar fixo e não pode ser trocado pelo usuário.'},
+ {id:'additionalPropertiesTrue',label:'13. additionalProperties: true',description:'Testa campos adicionais livres. O seletor Tipo deve oferecer Texto, Inteiro, Número, Booleano, Objeto e Lista; null é controlado separadamente por “Definir como nulo”.'},
  {id:'additionalPropertiesEmpty',label:'14. additionalProperties: {}',description:'Testa schema vazio para propriedades adicionais. Deve ter o mesmo comportamento de valor livre de additionalProperties:true.'},
- {id:'dynamicTypes',label:'15. additionalProperties com union',description:'Testa union explícita para campos dinâmicos. O seletor deve respeitar exatamente string, integer, number, boolean, null, object e array.'},
+ {id:'dynamicTypes',label:'15. additionalProperties com union',description:'Testa union explícita para campos dinâmicos. O seletor mostra os tipos não nulos permitidos; null deve aparecer como toggle separado.'},
  {id:'freeObject',label:'16. Objeto livre',description:'Testa type:object sem properties. Deve disponibilizar editor JSON para objeto livre, validar sintaxe e permitir formatação.'},
- {id:'freeArray',label:'17. Array livre',description:'Testa type:array sem items. Valide como o renderer permite adicionar valores sem contrato interno e se o JSON final permanece válido.'},
+ {id:'freeArray',label:'17. Array livre',description:'Testa type:array sem items. O editor deve aceitar apenas uma lista JSON e rejeitar objetos ou valores escalares.'},
  {id:'patternProperties',label:'18. patternProperties + propertyNames',description:'Testa chaves dinâmicas por regex e validação do nome da propriedade. Somente chaves minúsculas no padrão geral e prefixadas por x- são aceitas; valores devem ser string.'},
  {id:'conditional',label:'19. if / then / else',description:'Testa condicional reativa. EMAIL exige email válido; SMS exige telefone. Ao trocar tipo, o campo da branch anterior deve desaparecer do JSON.'},
  {id:'oneOf',label:'20. oneOf com discriminator',description:'Testa alternativas exclusivas HTTP/Kafka. Só os campos da alternativa selecionada devem aparecer; erros e valores da outra branch não podem vazar.'},
@@ -190,7 +190,7 @@ const schemaExamples:SchemaExample[]=[
  {id:'contains',label:'27. contains + min/maxContains',description:'Testa regra de conteúdo em array. A lista deve possuir entre 1 e 2 números maiores ou iguais a 10; os itens correspondentes podem ser destacados.'},
  {id:'unevaluatedProperties',label:'28. unevaluatedProperties',description:'Testa fechamento após composição allOf. Nome e Ativo são avaliados pelas branches; qualquer outra propriedade deve ser rejeitada/removida.'},
  {id:'annotations',label:'29. default / examples / readOnly / writeOnly',description:'Testa annotations. ID deve iniciar com default e ser somente leitura; Status deve iniciar ACTIVE; examples ajudam como placeholder; Segredo é writeOnly.'},
- {id:'directUnion',label:'30. Union direta de tipos',description:'Testa type como array diretamente no campo raiz. O seletor Tipo deve alternar entre Texto, Inteiro, Número, Booleano e Nulo com controle adequado.'}
+ {id:'directUnion',label:'30. Union direta de tipos',description:'Testa type como array diretamente no campo raiz. Tipos editáveis ficam no seletor e null deve ser tratado separadamente como estado do valor.'}
 ];
 
 @Component({
@@ -208,7 +208,7 @@ const schemaExamples:SchemaExample[]=[
   @media(max-width:700px){.example-picker>label{grid-template-columns:1fr;width:100%}.example-picker>label select{width:100%}.schema-example-tooltip{left:auto;right:0;transform:none}.schema-example-tooltip:before{left:auto;right:8px;transform:none}}
  `],
  template:`
-<header class="app-header"><h2>POC · Universal JSON Schema Renderer</h2><small>Draft 2020-12 · Angular · Ajv</small></header>
+<header class="app-header"><h2>POC - JSON Schema Renderer</h2><small>Draft 2020-12</small></header>
 <main class="workspace">
   <nav class="tabs" aria-label="Etapas da POC">
     <button type="button" [class.active]="activeTab===1" (click)="activeTab=1"><span>1</span> JSON Schema</button>
@@ -217,7 +217,11 @@ const schemaExamples:SchemaExample[]=[
     <button type="button" [class.active]="activeTab===4" (click)="activeTab=4"><span>4</span> Resposta</button>
   </nav>
   <section class="panel tab-panel" *ngIf="activeTab===1">
-    <div class="section-heading"><div><h3>JSON Schema</h3><p>Defina o contrato que controla a renderização e a validação do formulário.</p></div></div>
+    <div class="section-heading">
+      <div><h3>JSON Schema</h3><p>Defina o contrato que controla a renderização e a validação do formulário.</p></div>
+      <span class="status valid" *ngIf="schemaValidated && !parseError">✓ JSON Schema válido</span>
+      <span class="status invalid" *ngIf="parseError">JSON Schema inválido</span>
+    </div>
     <div class="preset-actions example-picker">
       <label>
         <span>Exemplo</span>
@@ -231,8 +235,16 @@ const schemaExamples:SchemaExample[]=[
         <span class="schema-example-tooltip" role="tooltip">{{selectedExampleDescription}}</span>
       </span>
     </div>
-    <textarea class="editor" [(ngModel)]="source" aria-label="Editor JSON Schema"></textarea>
-    <div class="opposite-actions"><span></span><button type="button" (click)="apply()">Renderizar schema</button></div>
+    <textarea class="editor" [ngModel]="source" (ngModelChange)="schemaSourceChanged($event)" aria-label="Editor JSON Schema"></textarea>
+    <div class="opposite-actions developer-actions">
+      <span class="status valid" *ngIf="schemaValidated && !parseError">✓ Sintaxe JSON e estrutura do schema válidas</span>
+      <span></span>
+      <div>
+        <button type="button" class="secondary" (click)="validateSchemaJson()">Validar JSON</button>
+        <button type="button" class="secondary" (click)="formatSchemaJson()">Formatar JSON</button>
+        <button type="button" (click)="apply()">Renderizar schema</button>
+      </div>
+    </div>
     <p class="error callout" *ngIf="parseError">{{parseError}}</p>
   </section>
   <section class="panel tab-panel" *ngIf="activeTab===2">
@@ -277,6 +289,7 @@ export class AppComponent {
  parseError='';
  valueError='';
  developerValidated=false;
+ schemaValidated=false;
  selectedExample='simple';
  schemaExamples=schemaExamples;
 
@@ -297,28 +310,46 @@ export class AppComponent {
   this.parseError='';
   this.valueError='';
   this.developerValidated=false;
+  this.schemaValidated=false;
   this.sync(true);
+ }
+
+ schemaSourceChanged(text:string){this.source=text;this.parseError='';this.schemaValidated=false;}
+ validateSchemaJson(){
+  try{this.parseSchemaSource();this.parseError='';this.schemaValidated=true;}
+  catch(error){this.parseError=this.schemaErrorMessage(error);this.schemaValidated=false;}
+ }
+ formatSchemaJson(){
+  try{const parsed=this.parseSchemaSource();this.source=JSON.stringify(parsed,null,2);this.parseError='';this.schemaValidated=true;}
+  catch(error){this.parseError=this.schemaErrorMessage(error);this.schemaValidated=false;}
  }
 
  apply(){
   try{
-   const s=JSON.parse(this.source);
-   if(!s||typeof s!=='object'||Array.isArray(s))throw Error('Schema deve ser um objeto JSON');
+   const s=this.parseSchemaSource();
    this.schema=s;
    this.selectedExample='';
    this.value=initial(s,s);
    this.parseError='';
    this.valueError='';
    this.developerValidated=false;
+   this.schemaValidated=true;
    this.sync(true);
    this.activeTab=2;
-  }catch(e){this.parseError=String(e);}
+  }catch(error){this.parseError=this.schemaErrorMessage(error);this.schemaValidated=false;}
  }
 
  changed(v:any){this.value=v;this.valueError='';this.developerValidated=false;this.sync(true);}
  developerJsonChanged(text:string){this.developerSource=text;this.developerValidated=false;try{this.value=JSON.parse(text);this.valueError='';this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);}}
  validateDeveloperJson(){try{this.value=JSON.parse(this.developerSource);this.valueError='';this.developerValidated=true;this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
  formatDeveloperJson(){try{const parsed=JSON.parse(this.developerSource);this.developerSource=JSON.stringify(parsed,null,2);this.value=parsed;this.valueError='';this.developerValidated=true;this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
+ private parseSchemaSource():Schema{
+  const parsed=JSON.parse(this.source);
+  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Schema deve ser um objeto JSON.');
+  ajv.compile(parsed);
+  return parsed;
+ }
+ private schemaErrorMessage(error:any){return `JSON Schema inválido: ${error?.message||String(error)}`;}
  private jsonErrorMessage(error:any){return `JSON inválido: ${error?.message||String(error)}`;}
  private sync(updateDeveloperSource:boolean){
   if(updateDeveloperSource)this.developerSource=JSON.stringify(this.value,null,2);
