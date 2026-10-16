@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 import {
  effective,initial,primaryType,validate,nonNullTypes,hasTypeUnion,narrowedSchema,
- arrayItemSchema,additionalSchemaForKey,propertyNameIssue,reconcileValue,isFalseSchema
+ arrayItemSchema,additionalSchemaForKey,propertyNameIssue,reconcileValue,isFalseSchema,isFreeSchema
 } from './schema-engine';
 
 const schema:any={
@@ -159,4 +159,23 @@ test('not constraints remain enforced',()=>{
  const s:any={type:'string',not:{const:'FORBIDDEN'}};
  assert.deepEqual(validate(s,'OK'),[]);
  assert.notDeepEqual(validate(s,'FORBIDDEN'),[]);
+});
+
+test('unevaluatedProperties false removes fields not evaluated by the effective schema',()=>{
+ const s:any={type:'object',properties:{name:{type:'string'}},unevaluatedProperties:false};
+ assert.deepEqual(reconcileValue(s,{name:'app',extra:'x'},s),{name:'app'});
+ assert.equal(isFalseSchema(additionalSchemaForKey(s,'extra',s)),true);
+});
+
+test('unevaluatedProperties schema is used for dynamic values',()=>{
+ const s:any={type:'object',properties:{name:{type:'string'}},unevaluatedProperties:{type:'integer'}};
+ assert.equal(primaryType(additionalSchemaForKey(s,'priority',s)),'integer');
+ assert.deepEqual(reconcileValue(s,{name:'app',priority:2},s),{name:'app',priority:2});
+});
+
+test('external refs are exposed as free editable schemas instead of failing silently',()=>{
+ const s:any={$ref:'https://example.com/schemas/config.json'};
+ const resolved=effective(s,{a:1},s);
+ assert.equal(resolved.__externalRef,'https://example.com/schemas/config.json');
+ assert.equal(isFreeSchema(resolved),true);
 });
