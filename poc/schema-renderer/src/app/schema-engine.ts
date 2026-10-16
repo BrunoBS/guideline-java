@@ -6,6 +6,8 @@ export type ValidationIssue = {path:string;message:string};
 
 export const ajv = new Ajv2020({allErrors:true,strict:false,multipleOfPrecision:12});
 addFormats(ajv);
+// Extensão de apresentação: não impõe restrição adicional ao valor string.
+ajv.addFormat('password',{type:'string',validate:(_value:string)=>true});
 
 export const isBooleanSchema=(schema:any):boolean=>schema===true||schema===false;
 export const isFalseSchema=(schema:any):boolean=>schema===false||schema?.__booleanSchema===false;
