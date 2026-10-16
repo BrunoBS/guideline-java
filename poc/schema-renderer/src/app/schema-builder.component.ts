@@ -9,6 +9,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  standalone:true,
  imports:[CommonModule,FormsModule],
  styles:[`
+ .builder.simplified{grid-template-columns:minmax(330px,1fr) minmax(320px,1fr)}
+ .builder.simplified .palette{grid-column:1;grid-row:2;position:static}
+ .builder.simplified .canvas{grid-column:1;grid-row:1;min-height:340px}
+ .builder.simplified .inspector{grid-column:2;grid-row:1 / span 2}
+ @media(max-width:760px){.builder.simplified{grid-template-columns:1fr}.builder.simplified .palette,.builder.simplified .canvas,.builder.simplified .inspector{grid-column:1;grid-row:auto}}
  .builder{display:grid;grid-template-columns:minmax(180px,.72fr) minmax(300px,1.4fr) minmax(280px,1.12fr);gap:16px;align-items:start}
  .palette,.canvas{border:1px solid #d9dfe9;border-radius:12px;padding:18px;background:#fff;min-width:0}
  .palette{position:sticky;top:12px}
@@ -66,8 +71,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  @media(max-width:760px){.builder{grid-template-columns:1fr}.tree,.inspector{padding:14px}.rule-grid{grid-template-columns:1fr}}
  `],
  template:`
- <div class="builder">
-  <aside class="palette">
+ <div class="builder simplified">
+  <aside class="palette" *ngIf="showAddMenu">
    <strong>Adicionar componentes</strong>
    <p class="builder-help">Escolha um tipo para adicionar ao formulário ou ao objeto selecionado.</p>
    <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
@@ -81,19 +86,19 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </div>
   </aside>
   <section class="canvas">
-   <div class="canvas-header"><div><strong>Formulário visual</strong><p>Selecione um campo para editar suas propriedades.</p></div><span class="builder-help">{{canvasFields.length}} campos</span></div>
+   <div class="canvas-header"><div><strong>Campos do schema</strong><p>Selecione um card para editar seu contrato.</p></div><span class="builder-help">{{canvasFields.length}} campos</span></div>
    <div class="canvas-fields">
     <button type="button" class="canvas-field" *ngFor="let field of canvasFields" [class.active]="selectedPath===field.path" (click)="select(field.path)">
      <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
      <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
-     <span class="canvas-field-placeholder">{{field.schema.type==='boolean'?'☐ Ativar':field.schema.type==='array'?'Lista de itens':field.schema.type==='object'?'Grupo de campos':'Informe '+(field.schema.title||field.label)}}</span>
+     <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
     </button>
    </div>
    <div class="canvas-empty" *ngIf="!canvasFields.length">Seu formulário está vazio. Adicione um componente pelo painel à esquerda.</div>
-   <button type="button" class="canvas-add" (click)="addTypedProperty('string')">＋ Adicionar campo de texto</button>
+   <button type="button" class="canvas-add" (click)="showAddMenu=!showAddMenu">＋ Adicionar campo</button>
   </section>
-  <div class="inspector" *ngIf="selected as node">
-   <strong>Propriedades {{selectedPath===''?'do schema':'do campo'}}</strong>
+  <div class="inspector" *ngIf="selectedPath && selected as node">
+   <div class="canvas-header"><strong>Editar campo</strong><button type="button" (click)="select('')">Fechar</button></div>
    <div class="builder-actions">
     <button type="button" *ngIf="node.type==='object'" (click)="addProperty()">+ Propriedade</button>
     <button type="button" *ngIf="node.type==='array'" (click)="addItems()">+ Definir items</button>
@@ -212,6 +217,7 @@ export class SchemaBuilderComponent implements OnChanges {
  conditionalKinds=['if','then','else'];
  formats=['email','uri','uuid','date','date-time','time','hostname','ipv4','ipv6','password','regex'];
  rows:NodeRow[]=[];
+ showAddMenu=false;
  showStructure=false;
  palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
  get canvasFields(){return this.rows.filter(row=>row.path.startsWith('/properties/')&&row.depth===1);}
