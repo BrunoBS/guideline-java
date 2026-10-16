@@ -420,7 +420,7 @@ export class FieldComponent {
  matchesContains(s:Schema,item:any){return !!s.contains&&matches(s.contains,item,this.root);}
 
  numericChanged(input:HTMLInputElement,s:Schema){const raw=input.value.trim();if(raw===''){this.emit(isNullable(s)?null:(!this.required?undefined:undefined));return;}const number=Number(raw);if(!Number.isFinite(number)){input.value=String(this.value??'');return;}if(primaryType(s)==='integer'&&!Number.isInteger(number)){input.value=String(this.value??'');return;}this.emit(number);}
- inputType(s:Schema){switch(s.format){case 'email':return 'email';case 'date':return 'date';case 'date-time':return 'datetime-local';case 'time':return 'time';case 'uri':case 'url':return 'url';default:return 'text';}}
+ inputType(s:Schema){switch(s.format){case 'password':return 'password';case 'email':return 'email';case 'date':return 'date';case 'date-time':return 'datetime-local';case 'time':return 'time';case 'uri':case 'url':return 'url';default:return 'text';}}
  placeholder(s:Schema){const example=Array.isArray(s.examples)?s.examples[0]:s.example;return example===undefined?'':typeof example==='string'?example:JSON.stringify(example);}
  jsonValue(value:any){try{return JSON.stringify(value,null,2)??'';}catch{return String(value??'');}}
  freeChanged(input:HTMLTextAreaElement){try{this.emit(JSON.parse(input.value));input.setCustomValidity('');}catch{input.setCustomValidity('JSON inválido');input.reportValidity();}}
