@@ -60,12 +60,19 @@ import {Schema,ValidationIssue,deref,effective,initial,primaryType,isNullable,re
     </fieldset>
     <ng-template #scalar>
       <div class="control" [class.invalid-control]="isInvalid(path)">
-        <label>{{s.title||name||'Valor'}} {{required?'*':''}}</label>
-        <label *ngIf="isNullable(s)" style="display:block;font-weight:normal"><input type="checkbox" style="width:auto" [ngModel]="value===null" (ngModelChange)="setNull($event,s)"/> Valor nulo (null)</label>
+        <div class="field-heading">
+          <label>{{s.title||name||'Valor'}} {{required?'*':''}}</label>
+          <label *ngIf="isNullable(s)" class="nullable-toggle" [attr.title]="value===null?'Ativar valor':'Definir como null'">
+            <span>{{value===null?'Desligado':'Ligado'}}</span>
+            <input type="checkbox" [checked]="value!==null" (change)="setNull(!$any($event.target).checked,s)" />
+            <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+          </label>
+        </div>
         <select *ngIf="(s.enum||s.const!==undefined) && value!==null" [ngModel]="value" (ngModelChange)="emit($event)"><option *ngFor="let option of (s.enum||[s.const])" [ngValue]="option">{{option}}</option></select>
         <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean' && value!==null" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
         <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="text" [attr.inputmode]="primaryType(s)==='integer'?'numeric':'decimal'" [value]="value ?? ''" (input)="filterNumericInput($any($event.target),s)" (change)="numericChanged($any($event.target),s)"/>
         <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer' && value!==null" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
+        <div class="null-value-state" *ngIf="value===null && isNullable(s)">Valor definido como <code>null</code>.</div>
         <div class="muted" *ngIf="s.description">{{s.description}}</div><p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
       </div>
     </ng-template>
