@@ -6,9 +6,28 @@ import {Schema,ValidationIssue,deref,effective,initial,primaryType,isNullable,re
 <ng-container *ngIf="resolved as s">
   <fieldset *ngIf="primaryType(s)==='object'||(s.properties && hasProperties(s)); else nonObject">
     <legend>{{s.title||name||'Objeto'}}</legend>
-    <div *ngFor="let item of visibleEntries(s);trackBy:trackKey" class="field">
-      <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue?.[item[0]]" [required]="(s.required||[]).includes(item[0])" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
-    </div>
+
+    <ng-container *ngIf="hasDictionary(s); else regularObject">
+      <p class="muted" *ngIf="s.description">{{s.description}}</p>
+      <div *ngFor="let item of dictionaryEntries();trackBy:trackKey" class="array-item map-item">
+        <div class="map-key">
+          <label>Chave</label>
+          <input type="text" [value]="item[0]" (change)="renameMapKey(item[0],$any($event.target).value)" />
+        </div>
+        <div class="map-value">
+          <app-field [name]="'Valor'" [schema]="dictionarySchema(s)" [root]="root" [value]="item[1]" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateMapValue(item[0],$event)"></app-field>
+        </div>
+        <div class="array-item-actions"><button type="button" class="secondary danger" (click)="removeMapKey(item[0])">Remover</button></div>
+      </div>
+      <div class="array-footer-actions"><span></span><button type="button" (click)="addMapEntry(s)">+ Adicionar variável</button></div>
+      <p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
+    </ng-container>
+
+    <ng-template #regularObject>
+      <div *ngFor="let item of visibleEntries(s);trackBy:trackKey" class="field">
+        <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue?.[item[0]]" [required]="(s.required||[]).includes(item[0])" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
+      </div>
+    </ng-template>
   </fieldset>
   <ng-template #nonObject>
     <fieldset *ngIf="primaryType(s)==='array'; else scalar" [class.invalid-fieldset]="isInvalid(path)">
@@ -38,12 +57,19 @@ export class FieldComponent {
  filterNumericInput(input:HTMLInputElement,s:Schema){const integer=primaryType(s)==='integer',before=input.value;const filtered=integer?before.replace(/[^0-9+-]/g,'').replace(/(?!^)[+-]/g,''):before.replace(/[^0-9.,+-]/g,'').replace(/(?!^)[+-]/g,'');if(before!==filtered)input.value=filtered;}
  numericChanged(input:HTMLInputElement,s:Schema){const raw=input.value.trim().replace(',', '.');if(raw===''){this.emit(isNullable(s)?null:undefined);return;}const integer=primaryType(s)==='integer';const valid=integer?/^[+-]?\d+$/:/^[+-]?(?:\d+\.?\d*|\.\d+)$/;if(!valid.test(raw)){input.value=String(this.value??'');return;}const n=Number(raw);if(!Number.isFinite(n)||(integer&&!Number.isInteger(n))){input.value=String(this.value??'');return;}this.emit(n);}
  hasProperties(s:Schema){return Object.keys(s.properties||{}).length>0;}
+ hasDictionary(s:Schema){return primaryType(s)==='object'&&!this.hasProperties(s)&&s.additionalProperties!==undefined&&s.additionalProperties!==true&&s.additionalProperties!==false&&typeof s.additionalProperties==='object';}
+ dictionarySchema(s:Schema):Schema{return deref(s.additionalProperties||{},this.root);}
+ dictionaryEntries():[string,any][]{return Object.entries(this.objectValue);}
  get resolved(){return this.previewOneOf(effective(this.schema,this.value,this.root));}
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}get arrayValue():any[]{return Array.isArray(this.value)?this.value:[];}
  entries(o:Record<string,Schema>):[string,Schema][]{return Object.entries(o);}visibleEntries(s:Schema):[string,Schema][]{const updating=this.name===''&&Number.isInteger(this.objectValue['version'])&&this.objectValue['version']!==null;return this.entries(s.properties||{}).filter(([key])=>!updating||(key!=='key'&&key!=='microserviceIdentifier'));}
  childPath(key:string){return `${this.path}/${this.escapePointer(key)}`;}indexPath(index:number){return `${this.path}/${index}`;}isInvalid(path:string){return this.issues.some(issue=>issue.path===this.normalizedPath(path));}firstError(path:string){return this.issues.find(issue=>issue.path===this.normalizedPath(path))?.message||'';}private normalizedPath(path:string){return path||'/';}private escapePointer(value:string){return value.replace(/~/g,'~0').replace(/\//g,'~1');}
- trackKey(_i:number,v:[string,Schema]){return v[0];}trackIndex(i:number){return i;}primaryType=primaryType;isNullable=isNullable;setNull(checked:boolean,s:Schema){if(checked)this.emit(null);else this.emit(initial({...s,type:primaryType(s),default:undefined},this.root));}emit(v:any){this.valueChange.emit(v);}
+ trackKey(_i:number,v:[string,any]){return v[0];}trackIndex(i:number){return i;}primaryType=primaryType;isNullable=isNullable;setNull(checked:boolean,s:Schema){if(checked)this.emit(null);else this.emit(initial({...s,type:primaryType(s),default:undefined},this.root));}emit(v:any){this.valueChange.emit(v);}
  updateKey(k:string,v:any){const next={...this.objectValue,[k]:v};if(k==='version'&&typeof v==='number'&&Number.isInteger(v)){delete next.key;delete next.microserviceIdentifier;}this.emit(reconcileValue(this.schema,next,this.root));}
+ updateMapValue(key:string,v:any){this.emit({...this.objectValue,[key]:v});}
+ renameMapKey(oldKey:string,newKey:string){const key=newKey.trim();if(!key||key===oldKey)return;if(key in this.objectValue)return;const next:Record<string,any>={};for(const [current,value] of Object.entries(this.objectValue))next[current===oldKey?key:current]=value;this.emit(next);}
+ removeMapKey(key:string){const next={...this.objectValue};delete next[key];this.emit(next);}
+ addMapEntry(s:Schema){let index=1,key='key';while(key in this.objectValue)key=`key${++index}`;this.emit({...this.objectValue,[key]:initial(this.dictionarySchema(s),this.root)});}
  updateItem(i:number,v:any){const a=[...this.arrayValue];a[i]=v;this.emit(a);}add(s:Schema){this.emit([...this.arrayValue,initial(deref(s,this.root),this.root)]);}hasDuplicates(){const a=this.arrayValue;return new Set(a.map(v=>JSON.stringify(v))).size!==a.length;}remove(i:number){this.emit(this.arrayValue.filter((_,j)=>j!==i));}
  private previewOneOf(resolved:Schema):Schema{
   if(!Array.isArray(this.schema?.oneOf))return resolved;
