@@ -4,7 +4,7 @@ import {FormsModule} from '@angular/forms';
 import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-engine';
 @Component({selector:'app-field',standalone:true,imports:[CommonModule,FormsModule],template:`
 <ng-container *ngIf="resolved as s">
-  <fieldset *ngIf="primaryType(s)==='object'||s.properties; else nonObject">
+  <fieldset *ngIf="primaryType(s)==='object'||(s.properties && Object.keys(s.properties).length>0); else nonObject">
     <legend>{{s.title||name||'Objeto'}}</legend>
     <div *ngFor="let item of entries(s.properties||{});trackBy:trackKey" class="field">
       <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue?.[item[0]]" [required]="(s.required||[]).includes(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
@@ -24,7 +24,7 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
     <ng-template #scalar>
       <label>{{s.title||name||'Valor'}} {{required?'*':''}}</label>
       <label *ngIf="isNullable(s)" style="display:block;font-weight:normal"><input type="checkbox" style="width:auto" [ngModel]="value===null" (ngModelChange)="setNull($event,s)"/> Valor nulo (null)</label>
-      <select *ngIf="(s.enum||s.const!==undefined) && value!==null" [ngModel]="value" (ngModelChange)="emit($event)">
+      <select *ngIf="(s.enum||s.const!==undefined) " [ngModel]="value" (ngModelChange)="emit($event)">
         <option *ngFor="let option of (s.enum||[s.const])" [ngValue]="option">{{option}}</option>
       </select>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean' && value!==null" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
