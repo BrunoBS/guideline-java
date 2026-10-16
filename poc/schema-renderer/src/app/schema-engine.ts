@@ -24,13 +24,8 @@ function merge(a:Schema,b:Schema):Schema {
  for(const [key,v] of Object.entries(b.properties||{}))props[key]=merge(props[key]||{},v as Schema);
  if(Object.keys(props).length)out.properties=props;
  if(a.required||b.required)out.required=[...new Set([...(a.required||[]),...(b.required||[])])];
- // Composition is evaluated by collect(); do not re-apply already merged clauses.
- delete out.allOf;
- delete out.if;
- delete out.then;
- delete out.else;
- delete out.oneOf;
- delete out.anyOf;
+ // Preserve nested composition keywords: children must evaluate them against their own values.
+ if(a.allOf||b.allOf)out.allOf=[...(a.allOf||[]),...(b.allOf||[])];
  // UI types are based on the base contract, not on the selected oneOf
  // alternative's null-only constraint.
  if(Array.isArray(a.type)&&typeof b.type==='string'&&a.type.includes(b.type))out.type=a.type;
@@ -58,6 +53,8 @@ function collect(schema:Schema,value:any,root:Schema,depth=0):Schema {
  if(depth>20)return {};
  const s=deref(schema,root);
  let out:Schema={...s};
+ // Remove composition keywords only at the level being evaluated, never from nested properties.
+ delete out.allOf;delete out.if;delete out.then;delete out.else;delete out.oneOf;delete out.anyOf;
  // Merge applicable constraints without recursively resolving properties yet.
  for(const part of s.allOf||[])out=merge(out,collect(part,value,root,depth+1));
  if(s.if)out=merge(out,collect(matches(s.if,value,root)?s.then||{}:s.else||{},value,root,depth+1));
@@ -67,6 +64,7 @@ function collect(schema:Schema,value:any,root:Schema,depth=0):Schema {
   if(chosen)out=merge(out,collect(chosen,value,root,depth+1));
   // Without a discriminator, retain all base properties as editable.
  }
+ delete out.allOf;delete out.if;delete out.then;delete out.else;delete out.oneOf;delete out.anyOf;
  return out;
 }
 export function effective(schema:Schema,value:any,root:Schema):Schema {
