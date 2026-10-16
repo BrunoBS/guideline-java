@@ -24,12 +24,12 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
     <ng-template #scalar>
       <label>{{s.title||name||'Valor'}} {{required?'*':''}}</label>
       <label *ngIf="isNullable(s)" style="display:block;font-weight:normal"><input type="checkbox" style="width:auto" [ngModel]="value===null" (ngModelChange)="setNull($event,s)"/> Valor nulo (null)</label>
-      <select *ngIf="(s.enum||s.const!==undefined) " [ngModel]="value" (ngModelChange)="emit($event)">
+      <select *ngIf="(s.enum||s.const!==undefined) && value!==null" [ngModel]="value" (ngModelChange)="emit($event)">
         <option *ngFor="let option of (s.enum||[s.const])" [ngValue]="option">{{option}}</option>
       </select>
-      <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean'" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
-      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer')" type="text" inputmode="decimal" [value]="numericDraft !== null ? numericDraft : (value ?? '')" (input)="numericInput($any($event.target).value,s)" (blur)="commitNumeric(s)"/>
-      <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer'" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
+      <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean' && value!==null" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
+      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="text" inputmode="decimal" [value]="numericDraft !== null ? numericDraft : (value ?? '')" (input)="numericInput($any($event.target).value,s)" (blur)="commitNumeric(s)"/>
+      <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer' && value!==null" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
       <div class="muted" *ngIf="s.description">{{s.description}}</div>
     </ng-template>
   </ng-template>
@@ -42,7 +42,7 @@ export class FieldComponent {
  numericInput(raw:string,s:Schema){
   this.numericDraft=raw;
   const normalized=raw.trim().replace(',', '.');
-  if(!/^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/.test(normalized))return;
+  if(!/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(normalized))return;
   const n=Number(normalized);
   if(!Number.isFinite(n)||(primaryType(s)==='integer'&&!Number.isInteger(n)))return;
   this.emit(n);
@@ -51,7 +51,7 @@ export class FieldComponent {
   if(this.numericDraft===null)return;
   const raw=this.numericDraft.trim().replace(',', '.');
   if(!raw){this.numericDraft=null;this.emit(isNullable(s)?null:undefined);return;}
-  if(!/^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/.test(raw))return;
+  if(!/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(raw))return;
   const parsed=Number(raw);
   if(!Number.isFinite(parsed)||(primaryType(s)==='integer'&&!Number.isInteger(parsed)))return;
   this.numericDraft=null;this.emit(parsed);
@@ -68,7 +68,7 @@ export class FieldComponent {
  trackKey(_i:number,v:[string,Schema]){return v[0];}
  trackIndex(i:number){return i;}
  primaryType=primaryType;isNullable=isNullable;
- setNull(checked:boolean,s:Schema){if(checked)this.emit(null);else this.emit(initial({...s,type:primaryType(s),default:undefined},this.root));}
+ setNull(checked:boolean,s:Schema){this.numericDraft=null;if(checked)this.emit(null);else this.emit(initial({...s,type:primaryType(s),default:undefined},this.root));}
  emit(v:any){this.valueChange.emit(v);}
  updateKey(k:string,v:any){
   const next={...this.objectValue,[k]:v};
