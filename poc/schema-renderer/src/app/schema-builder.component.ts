@@ -20,6 +20,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder-actions button{padding:8px 12px;cursor:pointer}
  .builder-help{font-size:12px;color:#586477}
  .builder-error{color:#b42318}
+ .composition-actions{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+ .composition-row{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #edf0f5}
+ .composition-row button{cursor:pointer}
  .rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
  .rule-grid label{min-width:0}
  .rule-heading{margin:20px 0 12px;border-top:1px solid #e0e5ef;padding-top:14px}
@@ -91,6 +94,22 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <label *ngIf="node.type!=='object'&&node.type!=='array'">Enum (um valor JSON por linha)
     <textarea [ngModel]="enumText(node)" (change)="setEnum($any($event.target).value)" placeholder="Exemplo:&#10;&quot;ATIVO&quot;&#10;&quot;INATIVO&quot;"></textarea>
    </label>
+   <h4 class="rule-heading">Composições visuais</h4>
+   <div *ngFor="let kind of compositionKinds">
+    <strong>{{kind}}</strong>
+    <div class="composition-actions"><button type="button" (click)="addComposition(kind)">+ Alternativa</button></div>
+    <div *ngFor="let branch of node[kind];let i=index" class="composition-row">
+     <button type="button" class="tree-row" (click)="select(selectedPath+'/'+kind+'/'+i)">Editar {{kind}} #{{i+1}}</button>
+     <button type="button" (click)="removeComposition(kind,i)">Excluir</button>
+    </div>
+   </div>
+   <h4 class="rule-heading">Condicionais</h4>
+   <div class="composition-actions">
+    <button type="button" *ngFor="let kind of conditionalKinds" (click)="toggleConditional(kind)">{{node[kind]===undefined?'Adicionar':'Remover'}} {{kind}}</button>
+   </div>
+   <div class="composition-actions">
+    <button type="button" *ngFor="let kind of conditionalKinds" [disabled]="node[kind]===undefined" (click)="select(selectedPath+'/'+kind)">Editar {{kind}}</button>
+   </div>
    <h4 class="rule-heading">Regras avançadas</h4>
    <p class="builder-help">Edite as regras JSON deste nó para usar if/then/else, allOf, oneOf, anyOf, not, $defs, $ref, patternProperties e dependências. O restante do nó será preservado.</p>
    <label>Regras avançadas (JSON)
@@ -107,6 +126,8 @@ export class SchemaBuilderComponent implements OnChanges {
  selectedPath='';
  error='';
  types=['string','integer','number','boolean','object','array','null'];
+ compositionKinds=['oneOf','anyOf','allOf'];
+ conditionalKinds=['if','then','else'];
  formats=['email','uri','uuid','date','date-time','time','hostname','ipv4','ipv6','password','regex'];
  rows:NodeRow[]=[];
  ngOnChanges(_changes:SimpleChanges){this.rebuild();}
@@ -132,6 +153,8 @@ export class SchemaBuilderComponent implements OnChanges {
     if(child&&typeof child==='object'&&!Array.isArray(child))walk(child as Schema,path+'/properties/'+this.escape(key),key,depth+1,(node.required||[]).includes(key));
    }
    if(node.type==='array'&&node.items&&typeof node.items==='object'&&!Array.isArray(node.items))walk(node.items,path+'/items','items',depth+1);
+   for(const kind of this.compositionKinds)if(Array.isArray(node[kind]))node[kind].forEach((child:any,index:number)=>{if(child&&typeof child==='object'&&!Array.isArray(child))walk(child,path+'/'+kind+'/'+index,kind+' #'+(index+1),depth+1);});
+   for(const kind of this.conditionalKinds)if(node[kind]&&typeof node[kind]==='object'&&!Array.isArray(node[kind]))walk(node[kind],path+'/'+kind,kind,depth+1);
   };
   walk(this.schema,'','Schema',0);
   this.rows=rows;
@@ -144,6 +167,8 @@ export class SchemaBuilderComponent implements OnChanges {
   for(let i=0;i<parts.length;i++){
    if(parts[i]==='properties'){node=node?.properties?.[parts[++i]];}
    else if(parts[i]==='items'){node=node?.items;}
+   else if(this.compositionKinds.includes(parts[i])){node=node?.[parts[i]]?.[Number(parts[++i])];}
+   else if(this.conditionalKinds.includes(parts[i])){node=node?.[parts[i]];}
    else return undefined;
   }
   return node&&typeof node==='object'&&!Array.isArray(node)?node:undefined;
@@ -215,6 +240,32 @@ export class SchemaBuilderComponent implements OnChanges {
     Object.assign(node,parsed);
    });
   }catch(e){this.error='Regras avançadas inválidas: '+(e instanceof Error?e.message:String(e));}
+ }
+ addComposition(kind:string){
+  this.error='';
+  this.commit(root=>{
+   const node=this.current(root)!;
+   if(!Array.isArray(node[kind]))node[kind]=[];
+   node[kind].push({type:'object',properties:{}});
+   this.selectedPath+='/'+kind+'/'+(node[kind].length-1);
+  });
+ }
+ removeComposition(kind:string,index:number){
+  this.error='';
+  this.commit(root=>{
+   const node=this.current(root)!;
+   if(!Array.isArray(node[kind])||index<0||index>=node[kind].length)return;
+   node[kind].splice(index,1);
+   if(!node[kind].length)delete node[kind];
+  });
+ }
+ toggleConditional(kind:string){
+  this.error='';
+  this.commit(root=>{
+   const node=this.current(root)!;
+   if(node[kind]===undefined){node[kind]={type:'object',properties:{}};this.selectedPath+='/'+kind;}
+   else delete node[kind];
+  });
  }
  setType(type:string){this.commit(root=>{this.current(root)!.type=type;});}
  setRequired(checked:boolean){
