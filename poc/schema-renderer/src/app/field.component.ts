@@ -28,7 +28,7 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
         <option *ngFor="let option of (s.enum||[s.const])" [ngValue]="option">{{option}}</option>
       </select>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean'" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
-      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer')" type="number" [step]="primaryType(s)==='integer'?1:'any'" [ngModel]="value" (ngModelChange)="emit($event===''?null:+$event)"/>
+      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer')" type="text" inputmode="decimal" [value]="numericDraft !== null ? numericDraft : (value ?? '')" (input)="numericDraft=$any($event.target).value" (blur)="commitNumeric(s)"/>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer'" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
       <div class="muted" *ngIf="s.description">{{s.description}}</div>
     </ng-template>
@@ -38,6 +38,16 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
 export class FieldComponent {
  @Input() name='';@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;
  @Output() valueChange=new EventEmitter<any>();
+ numericDraft:string|null=null;
+ commitNumeric(s:Schema){
+  if(this.numericDraft===null)return;
+  const raw=this.numericDraft.trim().replace(',', '.');
+  if(!raw){this.numericDraft=null;this.emit(isNullable(s)?null:undefined);return;}
+  if(!/^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/.test(raw))return;
+  const parsed=Number(raw);
+  if(!Number.isFinite(parsed)||(primaryType(s)==='integer'&&!Number.isInteger(parsed)))return;
+  this.numericDraft=null;this.emit(parsed);
+ }
  hasProperties(s:Schema){return Object.keys(s.properties||{}).length>0;}
  get resolved(){return effective(this.schema,this.value,this.root);}
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}
