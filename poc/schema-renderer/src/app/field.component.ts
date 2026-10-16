@@ -28,7 +28,7 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
         <option *ngFor="let option of (s.enum||[s.const])" [ngValue]="option">{{option}}</option>
       </select>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean' && value!==null" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
-      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="text" [attr.inputmode]="primaryType(s)==='integer'?'numeric':'decimal'" [value]="value ?? ''" (change)="numericChanged($any($event.target),s)"/>
+      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="text" [attr.inputmode]="primaryType(s)==='integer'?'numeric':'decimal'" [value]="value ?? ''" (input)="filterNumericInput($any($event.target),s)" (change)="numericChanged($any($event.target),s)"/>
       <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer' && value!==null" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
       <div class="muted" *ngIf="s.description">{{s.description}}</div>
     </ng-template>
@@ -38,6 +38,15 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
 export class FieldComponent {
  @Input() name='';@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;
  @Output() valueChange=new EventEmitter<any>();
+ filterNumericInput(input:HTMLInputElement,s:Schema){
+  const integer=primaryType(s)==='integer';
+  const before=input.value;
+  const filtered=integer
+   ? before.replace(/[^0-9+-]/g,'').replace(/(?!^)[+-]/g,'')
+   : before.replace(/[^0-9.,+-]/g,'').replace(/(?!^)[+-]/g,'');
+  if(before!==filtered)input.value=filtered;
+ }
+
  numericChanged(input:HTMLInputElement,s:Schema){
   const raw=input.value.trim().replace(',', '.');
   if(raw===''){this.emit(isNullable(s)?null:undefined);return;}
