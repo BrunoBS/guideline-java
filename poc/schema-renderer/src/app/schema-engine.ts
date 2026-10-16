@@ -50,6 +50,9 @@ function chooseBranch(options:Schema[],value:any,root:Schema):Schema|undefined {
   if(ranked[0]?.errors===0 && ranked[1]?.errors!==0)return ranked[0].s;
   if(ranked[0]?.score>0 && ranked[0].score>ranked[1].score)return ranked[0].s;
   if(ranked[0]?.errors<ranked[1]?.errors)return ranked[0].s;
+  // Prefer the create branch only when the object has not yet selected an operation.
+  const create=options.find(s=>Array.isArray(s.required)&&s.required.includes('key')&&s.required.includes('microserviceIdentifier'));
+  if(create && value?.version===undefined && value?.key===undefined && value?.microserviceIdentifier===undefined)return create;
   return undefined;
 }
 function ambiguousFields(options:Schema[],value:any,root:Schema):Schema {
@@ -89,7 +92,7 @@ export function initial(schema:Schema,root:Schema,depth=0):any {
   if(s.const!==undefined)return s.const;
   if(s.enum?.length)return s.enum[0];
   if(primaryType(s)==='object'||s.properties){const obj:any={};for(const [key,child] of Object.entries(s.properties||{})) {const c=child as Schema;if((s.required||[]).includes(key)||c.default!==undefined||c.const!==undefined)obj[key]=initial(c,root,depth+1);}return obj;}
-  if(primaryType(s)==='array')return [];
+  if(primaryType(s)==='array')return Array.from({length:s.minItems||0},()=>initial(s.items||{},root,depth+1));
   if(primaryType(s)==='boolean')return isNullable(s)?null:false;
   if(primaryType(s)==='integer'||primaryType(s)==='number')return isNullable(s)?null:0;
   return isNullable(s)?null:'';
