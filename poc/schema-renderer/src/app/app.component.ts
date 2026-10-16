@@ -61,8 +61,10 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
     <p class="error callout" *ngIf="parseError">{{parseError}}</p>
   </section>
 
+  <p class="error callout" *ngIf="valueError && activeTab!==3">O JSON do modo desenvolvedor está inválido: {{valueError}}. Corrija-o ou descarte a edição antes de considerar o formulário válido.</p>
+
   <section class="panel tab-panel" *ngIf="activeTab===2">
-    <div class="section-heading"><div><h3>Formulário dinâmico</h3><p>Os controles abaixo são derivados exclusivamente do JSON Schema.</p></div><span class="status valid" *ngIf="!errors.length">✓ Válido</span><span class="status invalid" *ngIf="errors.length">{{errors.length}} erro(s)</span></div>
+    <div class="section-heading"><div><h3>Formulário dinâmico</h3><p>Os controles abaixo são derivados exclusivamente do JSON Schema.</p></div><span class="status valid" *ngIf="!valueError && !errors.length">✓ Válido</span><span class="status invalid" *ngIf="!valueError && errors.length">{{errors.length}} erro(s)</span></div>
     <app-field *ngIf="schema" [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
     <div class="validation-summary" *ngIf="errors.length"><h4>Mensagens de erro</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
   </section>
@@ -86,8 +88,8 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
   </section>
 
   <section class="panel tab-panel" *ngIf="activeTab===4">
-    <div class="section-heading"><div><h3>Resposta</h3><p>JSON final produzido pelo formulário e pelo modo desenvolvedor.</p></div><span class="status valid" *ngIf="!errors.length">✓ Válido</span><span class="status invalid" *ngIf="errors.length">Inválido</span></div>
-    <pre class="response-json">{{value|json}}</pre>
+    <div class="section-heading"><div><h3>Resposta</h3><p>JSON final produzido pelo formulário e pelo modo desenvolvedor.</p></div><span class="status valid" *ngIf="!valueError && !errors.length">✓ Válido</span><span class="status invalid" *ngIf="valueError || errors.length">Inválido</span></div>
+    <pre class="response-json" *ngIf="!valueError">{{value|json}}</pre><p class="error" *ngIf="valueError">Resposta indisponível enquanto o JSON do modo desenvolvedor estiver inválido.</p>
   </section>
 </main>`
 })
@@ -139,12 +141,13 @@ export class AppComponent {
  }
 
  changed(v:any){
+  if(this.valueError)return;
   this.value=reconcileValue(this.schema,v,this.schema);
   this.valueError='';
   this.developerValidated=false;
   this.sync(true);
  }
- developerJsonChanged(text:string){this.developerSource=text;this.developerValidated=false;try{this.value=JSON.parse(text);this.valueError='';this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);}}
+ developerJsonChanged(text:string){this.developerSource=text;this.developerValidated=false;try{this.value=JSON.parse(text);this.valueError='';this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
  validateDeveloperJson(){try{this.value=JSON.parse(this.developerSource);this.valueError='';this.developerValidated=true;this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
  formatDeveloperJson(){try{const parsed=JSON.parse(this.developerSource);this.developerSource=JSON.stringify(parsed,null,2);this.value=parsed;this.valueError='';this.developerValidated=true;this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
 
