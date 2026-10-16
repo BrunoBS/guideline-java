@@ -25,6 +25,41 @@ export const isFreeSchema=(schema:any):boolean=>{
  return isTrueSchema(s)||(!isFalseSchema(s)&&Object.keys(s).filter(k=>!['title','description','examples','default','$comment'].includes(k)).length===0);
 };
 
+function addNullType(schema:any):any {
+ if(schema===true||schema===false||!schema||typeof schema!=='object')return schema;
+ if(schema.const!==undefined||Array.isArray(schema.enum))return schema;
+ if(Array.isArray(schema.type))return schema.type.includes('null')?schema:{...schema,type:[...schema.type,'null']};
+ if(typeof schema.type==='string')return schema.type==='null'?schema:{...schema,type:[schema.type,'null']};
+ return {...schema,anyOf:[...(schema.anyOf||[]),{type:'null'}]};
+}
+
+function optionalNullSchema(schema:any):any {
+ if(schema===true||schema===false||!schema||typeof schema!=='object')return schema;
+ const out:any={...schema};
+ const required=new Set<string>(schema.required||[]);
+ if(schema.properties){
+  out.properties={};
+  for(const [key,child] of Object.entries(schema.properties)){
+   const normalized=optionalNullSchema(child);
+   out.properties[key]=required.has(key)?normalized:addNullType(normalized);
+  }
+ }
+ for(const keyword of ['allOf','oneOf','anyOf','prefixItems'])if(Array.isArray(schema[keyword]))out[keyword]=schema[keyword].map((item:any)=>optionalNullSchema(item));
+ for(const keyword of ['items','contains','not','if','then','else','additionalProperties','unevaluatedProperties','propertyNames']){
+  if(schema[keyword]&&typeof schema[keyword]==='object')out[keyword]=optionalNullSchema(schema[keyword]);
+ }
+ if(schema.patternProperties){
+  out.patternProperties=Object.fromEntries(Object.entries(schema.patternProperties).map(([key,value])=>[key,optionalNullSchema(value)]));
+ }
+ if(schema.dependentSchemas){
+  out.dependentSchemas=Object.fromEntries(Object.entries(schema.dependentSchemas).map(([key,value])=>[key,optionalNullSchema(value)]));
+ }
+ if(schema.$defs){
+  out.$defs=Object.fromEntries(Object.entries(schema.$defs).map(([key,value])=>[key,optionalNullSchema(value)]));
+ }
+ return out;
+}
+
 export function deref(schema:any,root:Schema,depth=0):Schema {
  if(schema===true||schema===false)return asObject(schema);
  if(depth>20)return {type:'object',title:'Referência recursiva',description:'Profundidade máxima de referência atingida.'};
@@ -42,7 +77,8 @@ export function deref(schema:any,root:Schema,depth=0):Schema {
 }
 
 function compileSchema(schema:any,root:Schema){
- const raw=schema===true||schema===false?schema:{...schema,$defs:{...(root.$defs||{}),...(schema?.$defs||{})}};
+ const normalized=optionalNullSchema(schema);
+ const raw=normalized===true||normalized===false?normalized:{...normalized,$defs:{...(optionalNullSchema(root.$defs||{})),...(normalized?.$defs||{})}};
  return ajv.compile(raw);
 }
 
@@ -97,33 +133,22 @@ function collect(schema:any,value:any,root:Schema,depth=0):Schema {
  if(isFalseSchema(s)||isTrueSchema(s))return s;
  let out:Schema={...s};
  delete out.allOf;delete out.if;delete out.then;delete out.else;delete out.oneOf;delete out.anyOf;
-
  for(const part of s.allOf||[])out=merge(out,collect(part,value,root,depth+1));
  if(s.if)out=merge(out,collect(matches(s.if,value,root)?s.then||{}:s.else||{},value,root,depth+1));
-
  if(Array.isArray(s.oneOf)){
   const chosen=chooseOneOf(s.oneOf,value,root);
-  if(chosen)out=merge(out,collect(chosen,value,root,depth+1));
-  else out.__oneOfOptions=s.oneOf;
+  if(chosen)out=merge(out,collect(chosen,value,root,depth+1));else out.__oneOfOptions=s.oneOf;
  }
-
  if(Array.isArray(s.anyOf)){
   const valid=s.anyOf.filter((option:any)=>matches(option,value,root));
-  if(valid.length){for(const option of valid)out=merge(out,collect(option,value,root,depth+1));}
-  else out.__anyOfOptions=s.anyOf;
+  if(valid.length){for(const option of valid)out=merge(out,collect(option,value,root,depth+1));}else out.__anyOfOptions=s.anyOf;
  }
-
  if(value&&typeof value==='object'&&!Array.isArray(value)){
   const required=[...(out.required||[])];
-  for(const [trigger,dependencies] of Object.entries(s.dependentRequired||{})){
-   if(Object.prototype.hasOwnProperty.call(value,trigger))required.push(...(dependencies as string[]));
-  }
+  for(const [trigger,dependencies] of Object.entries(s.dependentRequired||{}))if(Object.prototype.hasOwnProperty.call(value,trigger))required.push(...(dependencies as string[]));
   if(required.length)out.required=[...new Set(required)];
-  for(const [trigger,dependent] of Object.entries(s.dependentSchemas||{})){
-   if(Object.prototype.hasOwnProperty.call(value,trigger))out=merge(out,collect(dependent,value,root,depth+1));
-  }
+  for(const [trigger,dependent] of Object.entries(s.dependentSchemas||{}))if(Object.prototype.hasOwnProperty.call(value,trigger))out=merge(out,collect(dependent,value,root,depth+1));
  }
-
  delete out.allOf;delete out.if;delete out.then;delete out.else;delete out.oneOf;delete out.anyOf;
  return out;
 }
@@ -137,33 +162,11 @@ export function effective(schema:any,value:any,root:Schema):Schema {
 }
 
 export function runtimeType(value:any):string {
- if(value===null)return 'null';
- if(Array.isArray(value))return 'array';
- if(typeof value==='number')return Number.isInteger(value)?'integer':'number';
- if(typeof value==='object')return 'object';
- return typeof value;
+ if(value===null)return 'null';if(Array.isArray(value))return 'array';if(typeof value==='number')return Number.isInteger(value)?'integer':'number';if(typeof value==='object')return 'object';return typeof value;
 }
-
-export function narrowedSchema(schema:any,type:string,root:Schema):Schema {
- const s=deref(schema,root);
- return {...s,type};
-}
-
-export function schemaAlternatives(schema:any,root:Schema):Schema[] {
- const s=deref(schema,root);
- const compositions=[...(s.oneOf||[]),...(s.anyOf||[])];
- if(compositions.length)return compositions.map((option:any)=>deref(option,root));
- return nonNullTypes(s).map(type=>({...s,type}));
-}
-
-export function schemaLabel(schema:any,index:number,root:Schema):string {
- const s=deref(schema,root);
- if(s.title)return s.title;
- if(s.const!==undefined)return String(s.const);
- if(Array.isArray(s.enum)&&s.enum.length<=4)return s.enum.join(' / ');
- const types=nonNullTypes(s);
- return types.length?types.join(' | '):`Alternativa ${index+1}`;
-}
+export function narrowedSchema(schema:any,type:string,root:Schema):Schema {return {...deref(schema,root),type};}
+export function schemaAlternatives(schema:any,root:Schema):Schema[]{const s=deref(schema,root);const compositions=[...(s.oneOf||[]),...(s.anyOf||[])];return compositions.length?compositions.map((option:any)=>deref(option,root)):nonNullTypes(s).map(type=>({...s,type}));}
+export function schemaLabel(schema:any,index:number,root:Schema):string {const s=deref(schema,root);if(s.title)return s.title;if(s.const!==undefined)return String(s.const);if(Array.isArray(s.enum)&&s.enum.length<=4)return s.enum.join(' / ');const types=nonNullTypes(s);return types.length?types.join(' | '):`Alternativa ${index+1}`;}
 
 export function initial(schema:any,root:Schema,depth=0):any {
  if(depth>20)return null;
@@ -179,17 +182,12 @@ export function initial(schema:any,root:Schema,depth=0):any {
  if(primaryType(s)==='object'||(primaryType(s)==='null'&&Object.keys(s.properties||{}).length>0)){
   const obj:any={};
   for(const [key,raw] of Object.entries(s.properties||{})){
-   const child=effective(raw as Schema,undefined,root);
-   const required=(s.required||[]).includes(key);
-   if(required||child.default!==undefined||child.const!==undefined)obj[key]=initial(child,root,depth+1);
-   else if(isNullable(child))obj[key]=null;
+   const child=effective(raw as Schema,undefined,root),required=(s.required||[]).includes(key);
+   if(required||child.default!==undefined||child.const!==undefined)obj[key]=initial(child,root,depth+1);else obj[key]=null;
   }
   return obj;
  }
- if(primaryType(s)==='array'){
-  const count=s.minItems||0;
-  return Array.from({length:count},(_,index)=>initial(arrayItemSchema(s,index,root),root,depth+1));
- }
+ if(primaryType(s)==='array')return Array.from({length:s.minItems||0},(_,index)=>initial(arrayItemSchema(s,index,root),root,depth+1));
  if(primaryType(s)==='boolean')return isNullable(s)?null:false;
  if(primaryType(s)==='integer'||primaryType(s)==='number')return isNullable(s)?null:0;
  if(primaryType(s)==='null')return null;
@@ -197,103 +195,33 @@ export function initial(schema:any,root:Schema,depth=0):any {
 }
 
 function compatibleValue(schema:any,value:any):boolean {
- const s=asObject(schema);
- if(value===null)return isNullable(s)||primaryType(s)==='null';
- const allowed=nonNullTypes(s);
- if(allowed.length>1)return allowed.includes(runtimeType(value))||(runtimeType(value)==='integer'&&allowed.includes('number'));
- const kind=primaryType(s);
- if(kind==='object')return typeof value==='object'&&!Array.isArray(value);
- if(kind==='array')return Array.isArray(value);
- if(kind==='integer')return typeof value==='number'&&Number.isInteger(value);
- if(kind==='number')return typeof value==='number'&&Number.isFinite(value);
- if(kind==='boolean')return typeof value==='boolean';
- if(kind==='string')return typeof value==='string';
- if(kind==='null')return value===null;
- return true;
+ const s=asObject(schema);if(value===null)return isNullable(s)||primaryType(s)==='null';const allowed=nonNullTypes(s);if(allowed.length>1)return allowed.includes(runtimeType(value))||(runtimeType(value)==='integer'&&allowed.includes('number'));const kind=primaryType(s);if(kind==='object')return typeof value==='object'&&!Array.isArray(value);if(kind==='array')return Array.isArray(value);if(kind==='integer')return typeof value==='number'&&Number.isInteger(value);if(kind==='number')return typeof value==='number'&&Number.isFinite(value);if(kind==='boolean')return typeof value==='boolean';if(kind==='string')return typeof value==='string';if(kind==='null')return value===null;return true;
 }
-
-export function arrayItemSchema(schema:any,index:number,root:Schema):Schema {
- const s=deref(schema,root);
- if(Array.isArray(s.prefixItems)&&index<s.prefixItems.length)return deref(s.prefixItems[index],root);
- if(s.items===false)return {__booleanSchema:false};
- if(s.items===true||s.items===undefined)return {__booleanSchema:true};
- return deref(s.items,root);
-}
-
+export function arrayItemSchema(schema:any,index:number,root:Schema):Schema {const s=deref(schema,root);if(Array.isArray(s.prefixItems)&&index<s.prefixItems.length)return deref(s.prefixItems[index],root);if(s.items===false)return {__booleanSchema:false};if(s.items===true||s.items===undefined)return {__booleanSchema:true};return deref(s.items,root);}
 export function additionalSchemaForKey(schema:any,key:string,root:Schema):Schema {
- const s=deref(schema,root);
- if(s.properties?.[key]!==undefined)return deref(s.properties[key],root);
- const matchesPatterns=Object.entries(s.patternProperties||{}).filter(([pattern])=>{
-  try{return new RegExp(pattern).test(key);}catch{return false;}
- }).map(([,rule])=>deref(rule,root));
- let result:Schema={};
- for(const rule of matchesPatterns)result=merge(result,rule);
- if(matchesPatterns.length)return result;
- if(s.additionalProperties===false)return {__booleanSchema:false};
- if(s.additionalProperties===true)return {__booleanSchema:true};
- if(s.additionalProperties&&typeof s.additionalProperties==='object')return deref(s.additionalProperties,root);
- if(s.unevaluatedProperties===false)return {__booleanSchema:false};
- if(s.unevaluatedProperties===true)return {__booleanSchema:true};
- if(s.unevaluatedProperties&&typeof s.unevaluatedProperties==='object')return deref(s.unevaluatedProperties,root);
- return {__booleanSchema:true};
+ const s=deref(schema,root);if(s.properties?.[key]!==undefined)return deref(s.properties[key],root);const matchesPatterns=Object.entries(s.patternProperties||{}).filter(([pattern])=>{try{return new RegExp(pattern).test(key);}catch{return false;}}).map(([,rule])=>deref(rule,root));let result:Schema={};for(const rule of matchesPatterns)result=merge(result,rule);if(matchesPatterns.length)return result;if(s.additionalProperties===false)return {__booleanSchema:false};if(s.additionalProperties===true)return {__booleanSchema:true};if(s.additionalProperties&&typeof s.additionalProperties==='object')return deref(s.additionalProperties,root);if(s.unevaluatedProperties===false)return {__booleanSchema:false};if(s.unevaluatedProperties===true)return {__booleanSchema:true};if(s.unevaluatedProperties&&typeof s.unevaluatedProperties==='object')return deref(s.unevaluatedProperties,root);return {__booleanSchema:true};
 }
-
-export function propertyNameIssue(schema:any,key:string,root:Schema):string {
- const s=deref(schema,root);
- if(!s.propertyNames)return '';
- try{
-  const validator=compileSchema(s.propertyNames,root);
-  if(validator(key))return '';
-  return validator.errors?.[0]?.message||'Nome de propriedade inválido.';
- }catch{return 'Não foi possível validar o nome da propriedade.';}
-}
+export function propertyNameIssue(schema:any,key:string,root:Schema):string {const s=deref(schema,root);if(!s.propertyNames)return '';try{const validator=compileSchema(s.propertyNames,root);if(validator(key))return '';return validator.errors?.[0]?.message||'Nome de propriedade inválido.';}catch{return 'Não foi possível validar o nome da propriedade.';}}
 
 export function reconcileValue(schema:any,value:any,root:Schema,depth=0):any {
- if(depth>30)return value;
- const s=effective(schema,value,root);
- if(value===undefined)return value;
- if(isFalseSchema(s))return undefined;
- if(isTrueSchema(s))return value;
- if(!compatibleValue(s,value))return initial(s,root,depth+1);
+ if(depth>30)return value;const s=effective(schema,value,root);if(value===undefined)return value;if(isFalseSchema(s))return undefined;if(isTrueSchema(s))return value;if(!compatibleValue(s,value))return initial(s,root,depth+1);
  if(primaryType(s)==='object'&&value!==null){
-  const next:Record<string,any>={...value};
+  const next:Record<string,any>={...value};const required=new Set<string>(s.required||[]);
   for(const key of Object.keys(next)){
-   const child=additionalSchemaForKey(s,key,root);
-   if(isFalseSchema(child)){delete next[key];continue;}
+   const child=additionalSchemaForKey(s,key,root);if(isFalseSchema(child)){delete next[key];continue;}
+   if(next[key]===null&&key in (s.properties||{})&&!required.has(key))continue;
    next[key]=reconcileValue(child,next[key],root,depth+1);
   }
   return next;
  }
- if(primaryType(s)==='array'&&Array.isArray(value)){
-  const max=s.maxItems===undefined?value.length:Math.min(value.length,s.maxItems);
-  return value.slice(0,max).map((item,index)=>reconcileValue(arrayItemSchema(s,index,root),item,root,depth+1));
- }
+ if(primaryType(s)==='array'&&Array.isArray(value)){const max=s.maxItems===undefined?value.length:Math.min(value.length,s.maxItems);return value.slice(0,max).map((item,index)=>reconcileValue(arrayItemSchema(s,index,root),item,root,depth+1));}
  return value;
 }
 
 function escapePointer(value:string):string{return value.replace(/~/g,'~0').replace(/\//g,'~1');}
-function issuePath(error:any):string {
- let path=error.instancePath||'';
- if(error.keyword==='required'&&error.params?.missingProperty)path=`${path}/${escapePointer(String(error.params.missingProperty))}`;
- if(error.keyword==='propertyNames'&&error.params?.propertyName)path=`${path}/${escapePointer(String(error.params.propertyName))}`;
- return path||'/';
-}
-function uniqueIssues(issues:ValidationIssue[]):ValidationIssue[]{
- return issues.filter((issue,index,all)=>all.findIndex(other=>other.path===issue.path&&other.message===issue.message)===index);
-}
-
+function issuePath(error:any):string {let path=error.instancePath||'';if(error.keyword==='required'&&error.params?.missingProperty)path=`${path}/${escapePointer(String(error.params.missingProperty))}`;if(error.keyword==='propertyNames'&&error.params?.propertyName)path=`${path}/${escapePointer(String(error.params.propertyName))}`;return path||'/';}
+function uniqueIssues(issues:ValidationIssue[]):ValidationIssue[]{return issues.filter((issue,index,all)=>all.findIndex(other=>other.path===issue.path&&other.message===issue.message)===index);}
 export function validationIssues(schema:any,value:any):ValidationIssue[] {
- try{
-  const validator=ajv.compile(schema);
-  const ok=validator(value);if(ok)return [];
-  const errors=validator.errors||[];
-  const oneOf=errors.find(error=>error.keyword==='oneOf');
-  if(oneOf){
-   const details=errors.filter(error=>error.keyword!=='oneOf'&&error.keyword!=='type'&&error.keyword!=='false schema');
-   return uniqueIssues([{path:issuePath(oneOf),message:'O valor não corresponde a exatamente uma alternativa do schema.'},...details.map(error=>({path:issuePath(error),message:error.message||'inválido'}))]);
-  }
-  return uniqueIssues(errors.map(error=>({path:issuePath(error),message:error.message||'inválido'})));
- }catch(error){return [{path:'/',message:String(error)}];}
+ try{const validator=ajv.compile(optionalNullSchema(schema));const ok=validator(value);if(ok)return [];const errors=validator.errors||[];const oneOf=errors.find(error=>error.keyword==='oneOf');if(oneOf){const details=errors.filter(error=>error.keyword!=='oneOf'&&error.keyword!=='type'&&error.keyword!=='false schema');return uniqueIssues([{path:issuePath(oneOf),message:'O valor não corresponde a exatamente uma alternativa do schema.'},...details.map(error=>({path:issuePath(error),message:error.message||'inválido'}))]);}return uniqueIssues(errors.map(error=>({path:issuePath(error),message:error.message||'inválido'})));}catch(error){return [{path:'/',message:String(error)}];}
 }
-
 export function validate(schema:any,value:any):string[]{return validationIssues(schema,value).map(issue=>`${issue.path}: ${issue.message}`);}
