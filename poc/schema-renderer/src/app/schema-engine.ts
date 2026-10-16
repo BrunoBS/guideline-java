@@ -114,8 +114,15 @@ function branchScore(schema:any,value:any,root:Schema):number {
   if(current===undefined)continue;
   if(rule.const!==undefined)score+=current===rule.const?100:-100;
   if(Array.isArray(rule.enum))score+=rule.enum.includes(current)?30:-30;
-  if(isFalseSchema(rule))score-=100;
+  if(isFalseSchema(rule)){score-=15;continue;}
+  const allowed=typesOf(rule);
+  if(allowed.length){
+   const currentType=runtimeType(current);
+   const compatible=allowed.includes(currentType)||(currentType==='integer'&&allowed.includes('number'));
+   score+=compatible?60:-60;
+  }
  }
+ for(const key of s.required||[])score+=value&&Object.prototype.hasOwnProperty.call(value,key)?10:-10;
  const kind=runtimeType(value);
  if(nonNullTypes(s).includes(kind))score+=10;
  return score;
