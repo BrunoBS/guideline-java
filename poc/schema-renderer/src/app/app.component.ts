@@ -2,7 +2,7 @@ import {Component} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {FieldComponent} from './field.component';
-import {Schema,ValidationIssue,initial,validationIssues} from './schema-engine';
+import {Schema,ValidationIssue,effective,initial,validationIssues} from './schema-engine';
 const publisher:Schema={
  '$schema':'https://json-schema.org/draft/2020-12/schema',title:'Publisher',type:'object',required:['code','settings'],properties:{
  code:{title:'Tipo',type:'string',enum:['HTTP','KAFKA','APPCONFIG']},
@@ -67,5 +67,10 @@ export class AppComponent {
  validateDeveloperJson(){try{this.value=JSON.parse(this.developerSource);this.valueError='';this.developerValidated=true;this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
  formatDeveloperJson(){try{const parsed=JSON.parse(this.developerSource);this.developerSource=JSON.stringify(parsed,null,2);this.value=parsed;this.valueError='';this.developerValidated=true;this.sync(false);}catch(e){this.valueError=this.jsonErrorMessage(e);this.developerValidated=false;}}
  private jsonErrorMessage(error:any){return `JSON inválido: ${error?.message||String(error)}`;}
- private sync(updateDeveloperSource:boolean){if(updateDeveloperSource)this.developerSource=JSON.stringify(this.value,null,2);this.issues=validationIssues(this.schema,this.value);this.errors=this.issues.map(issue=>`${issue.path}: ${issue.message}`);}
+ private sync(updateDeveloperSource:boolean){
+  if(updateDeveloperSource)this.developerSource=JSON.stringify(this.value,null,2);
+  const activeSchema=effective(this.schema,this.value,this.schema);
+  this.issues=validationIssues(activeSchema,this.value);
+  this.errors=this.issues.map(issue=>`${issue.path}: ${issue.message}`);
+ }
 }
