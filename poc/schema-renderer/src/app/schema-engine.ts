@@ -25,10 +25,7 @@ function merge(a:Schema,b:Schema):Schema {
  for(const [key,v] of Object.entries(b.properties||{}))props[key]=merge(props[key]||{},v as Schema);
  if(Object.keys(props).length)out.properties=props;
  if(a.required||b.required)out.required=[...new Set([...(a.required||[]),...(b.required||[])])];
- // Preserve nested composition keywords: children must evaluate them against their own values.
  if(a.allOf||b.allOf)out.allOf=[...(a.allOf||[]),...(b.allOf||[])];
- // UI types are based on the base contract, not on the selected oneOf
- // alternative's null-only constraint.
  if(Array.isArray(a.type)&&typeof b.type==='string'&&a.type.includes(b.type))out.type=a.type;
  return out;
 }
@@ -47,23 +44,19 @@ function chooseBranch(options:Schema[],value:any,root:Schema):Schema|undefined {
  if(valid.length===1)return valid[0];
  const scored=options.map(s=>({s,score:branchScore(s,value,root)})).sort((a,b)=>b.score-a.score);
  if(scored[0]?.score>0&&scored[0].score>(scored[1]?.score??-Infinity))return scored[0].s;
- // Incomplete values must not lock the form into an arbitrary oneOf branch.
  return undefined;
 }
 function collect(schema:Schema,value:any,root:Schema,depth=0):Schema {
  if(depth>20)return {};
  const s=deref(schema,root);
  let out:Schema={...s};
- // Remove composition keywords only at the level being evaluated, never from nested properties.
  delete out.allOf;delete out.if;delete out.then;delete out.else;delete out.oneOf;delete out.anyOf;
- // Merge applicable constraints without recursively resolving properties yet.
  for(const part of s.allOf||[])out=merge(out,collect(part,value,root,depth+1));
  if(s.if)out=merge(out,collect(matches(s.if,value,root)?s.then||{}:s.else||{},value,root,depth+1));
  const options=s.oneOf||s.anyOf;
  if(Array.isArray(options)){
   const chosen=chooseBranch(options,value,root);
   if(chosen)out=merge(out,collect(chosen,value,root,depth+1));
-  // Without a discriminator, retain all base properties as editable.
  }
  delete out.allOf;delete out.if;delete out.then;delete out.else;delete out.oneOf;delete out.anyOf;
  return out;
@@ -93,6 +86,38 @@ export function initial(schema:Schema,root:Schema,depth=0):any {
  if(primaryType(s)==='boolean')return isNullable(s)?null:false;
  if(primaryType(s)==='integer'||primaryType(s)==='number')return isNullable(s)?null:0;
  return isNullable(s)?null:'';
+}
+function compatibleValue(schema:Schema,value:any):boolean {
+ const kind=primaryType(schema);
+ if(value===null)return isNullable(schema)||kind==='null';
+ if(kind==='object')return typeof value==='object'&&!Array.isArray(value);
+ if(kind==='array')return Array.isArray(value);
+ if(kind==='integer')return typeof value==='number'&&Number.isInteger(value);
+ if(kind==='number')return typeof value==='number'&&Number.isFinite(value);
+ if(kind==='boolean')return typeof value==='boolean';
+ if(kind==='string')return typeof value==='string';
+ return true;
+}
+export function reconcileValue(schema:Schema,value:any,root:Schema,depth=0):any {
+ if(depth>20)return value;
+ const s=effective(schema,value,root);
+ if(value===undefined)return value;
+ if(!compatibleValue(s,value))return initial(s,root,depth+1);
+ if(primaryType(s)==='object'&&value!==null){
+  const props=s.properties||{};
+  const next:Record<string,any>={...value};
+  if(s.additionalProperties===false){
+   for(const key of Object.keys(next))if(!(key in props))delete next[key];
+  }
+  for(const [key,child] of Object.entries(props)){
+   if(key in next)next[key]=reconcileValue(child as Schema,next[key],root,depth+1);
+  }
+  return next;
+ }
+ if(primaryType(s)==='array'&&Array.isArray(value)){
+  return value.map(item=>reconcileValue(s.items||{},item,root,depth+1));
+ }
+ return value;
 }
 function escapePointer(value:string):string{return value.replace(/~/g,'~0').replace(/\//g,'~1');}
 function issuePath(error:any):string {
