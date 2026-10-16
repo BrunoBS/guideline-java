@@ -2,7 +2,7 @@ import {Component,Input,Output,EventEmitter} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {
- Schema,ValidationIssue,deref,effective,initial,primaryType,isNullable,reconcileValue,
+ Schema,ValidationIssue,deref,effective,initial,primaryType,isNullable,
  nonNullTypes,hasTypeUnion,narrowedSchema,runtimeType,isFalseSchema,isFreeSchema,
  arrayItemSchema,additionalSchemaForKey,propertyNameIssue,matches,merge,schemaLabel
 } from './schema-engine';
@@ -138,7 +138,6 @@ import {
               <div class="array-footer-actions"><span class="muted" *ngIf="v.minProperties!==undefined">Mínimo de {{v.minProperties}} propriedades.</span><button type="button" [disabled]="v.readOnly || !canAddProperty(v)" (click)="addDynamicProperty(v)">+ Adicionar campo</button></div>
             </section>
 
-            <div class="constraint-hint" *ngIf="v.not">Existe uma restrição <code>not</code>; combinações proibidas serão indicadas pela validação.</div>
             <p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
           </ng-container>
           <ng-template #nullObjectState><div class="null-value-state">{{nullStateLabel(s)}}</div></ng-template>
@@ -207,7 +206,6 @@ import {
               <input *ngIf="!v.enum && v.const===undefined && primaryType(v)==='string' && !isNullState()" [type]="inputType(v)" [ngModel]="value" [disabled]="v.readOnly" [attr.minlength]="v.minLength ?? null" [attr.maxlength]="v.maxLength ?? null" [attr.pattern]="v.pattern ?? null" [placeholder]="placeholder(v)" (ngModelChange)="emit($event)"/>
               <div class="null-value-state" *ngIf="isNullState() && showNullToggle(s)">{{nullStateLabel(s)}}</div>
               <div class="annotation-row" *ngIf="v.readOnly || v.writeOnly"><span *ngIf="v.readOnly">Somente leitura</span><span *ngIf="v.writeOnly">Somente escrita</span></div>
-              <div class="constraint-hint" *ngIf="v.not">Existe uma restrição <code>not</code> aplicada a este valor.</div>
               <div class="muted" *ngIf="v.description">{{v.description}}</div><p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
             </div>
           </ng-template>
@@ -362,8 +360,8 @@ export class FieldComponent {
  dynamicJsonPlaceholder(s:Schema,key:string,value:any){return this.dynamicActiveType(s,key,value)==='array'?'[\n  "valor"\n]':'{\n  "chave": "valor"\n}';}
  freeValuePlaceholder(){return 'Ex.: "texto", 123, true, null, objeto JSON ou lista JSON';}
  keyIssue(s:Schema,key:string){const propertyIssue=propertyNameIssue(s,key,this.root);if(propertyIssue)return propertyIssue;const dynamic=additionalSchemaForKey(s,key,this.root);return isFalseSchema(dynamic)?'Esta chave não é permitida pelo schema.':'';}
- updateKey(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(reconcileValue(this.schema,next,this.root));}
- updateMapValue(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(reconcileValue(this.schema,next,this.root));}
+ updateKey(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(next);}
+ updateMapValue(key:string,value:any){const next={...this.objectValue};if(value===undefined)delete next[key];else next[key]=value;this.emit(next);}
  renameDynamicKey(s:Schema,oldKey:string,newKey:string){
   const key=newKey.trim();if(!key||key===oldKey||key in this.objectValue||key in (s.properties||{}))return;
   const next:Record<string,any>={};for(const [current,value] of Object.entries(this.objectValue))next[current===oldKey?key:current]=value;
@@ -396,7 +394,7 @@ export class FieldComponent {
  hasTuple(s:Schema){return Array.isArray(s.prefixItems)&&s.prefixItems.length>0;}
  canAddArrayItem(s:Schema){if(s.maxItems!==undefined&&this.arrayValue.length>=s.maxItems)return false;return !isFalseSchema(arrayItemSchema(s,this.arrayValue.length,this.root));}
  addArrayItem(s:Schema){if(!this.canAddArrayItem(s))return;this.emit([...this.arrayValue,initial(arrayItemSchema(s,this.arrayValue.length,this.root),this.root)]);}
- updateItem(index:number,value:any){const next=[...this.arrayValue];next[index]=value;this.emit(reconcileValue(this.schema,next,this.root));}
+ updateItem(index:number,value:any){const next=[...this.arrayValue];next[index]=value;this.emit(next);}
  remove(index:number){this.emit(this.arrayValue.filter((_,current)=>current!==index));}
  move(index:number,direction:number){const target=index+direction;if(target<0||target>=this.arrayValue.length)return;const next=[...this.arrayValue];[next[index],next[target]]=[next[target],next[index]];this.emit(next);}
  hasDuplicates(){return new Set(this.arrayValue.map(value=>JSON.stringify(value))).size!==this.arrayValue.length;}
