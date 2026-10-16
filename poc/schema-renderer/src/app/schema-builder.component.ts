@@ -110,6 +110,36 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="composition-actions">
     <button type="button" *ngFor="let kind of conditionalKinds" [disabled]="node[kind]===undefined" (click)="select(selectedPath+'/'+kind)">Editar {{kind}}</button>
    </div>
+   <h4 class="rule-heading">Definições reutilizáveis</h4>
+   <div class="composition-actions"><button type="button" (click)="addNamedSchema('$defs')">+ Definição ($defs)</button></div>
+   <div *ngFor="let entry of entries(node['$defs'])" class="composition-row">
+    <button type="button" class="tree-row" (click)="select(selectedPath+'/$defs/'+escapePath(entry[0]))">{{entry[0]}}</button>
+    <button type="button" (click)="removeNamedSchema('$defs',entry[0])">Excluir</button>
+   </div>
+   <label>Referência ($ref)
+    <select [ngModel]="node['$ref']||''" (ngModelChange)="setReference($event)">
+     <option value="">Sem referência</option>
+     <option *ngFor="let name of definitionNames" [value]="'#/$defs/'+escapePath(name)">{{name}}</option>
+     <option *ngIf="node['$ref'] && !isLocalDefinitionRef(node['$ref'])" [value]="node['$ref']">{{node['$ref']}} (externa ou personalizada)</option>
+    </select>
+   </label>
+   <p class="builder-help">Referências externas existentes são preservadas. Para criá-las, use o editor avançado.</p>
+   <h4 class="rule-heading" *ngIf="node.type==='object'">Propriedades dinâmicas</h4>
+   <ng-container *ngIf="node.type==='object'">
+    <div class="composition-actions"><button type="button" (click)="addNamedSchema('patternProperties')">+ Padrão de chave</button></div>
+    <div *ngFor="let entry of entries(node.patternProperties)" class="composition-row">
+     <button type="button" class="tree-row" (click)="select(selectedPath+'/patternProperties/'+escapePath(entry[0]))">{{entry[0]}}</button>
+     <button type="button" (click)="removeNamedSchema('patternProperties',entry[0])">Excluir</button>
+    </div>
+    <label>Schema de propriedades adicionais
+     <select [ngModel]="additionalMode(node)" (ngModelChange)="setAdditionalMode($event)">
+      <option value="allow">Permitir qualquer valor</option>
+      <option value="deny">Não permitir</option>
+      <option value="schema">Validar por schema</option>
+     </select>
+    </label>
+    <button type="button" *ngIf="additionalMode(node)==='schema'" (click)="select(selectedPath+'/additionalProperties')">Editar schema adicional</button>
+   </ng-container>
    <h4 class="rule-heading">Regras avançadas</h4>
    <p class="builder-help">Edite as regras JSON deste nó para usar if/then/else, allOf, oneOf, anyOf, not, $defs, $ref, patternProperties e dependências. O restante do nó será preservado.</p>
    <label>Regras avançadas (JSON)
@@ -130,6 +160,46 @@ export class SchemaBuilderComponent implements OnChanges {
  conditionalKinds=['if','then','else'];
  formats=['email','uri','uuid','date','date-time','time','hostname','ipv4','ipv6','password','regex'];
  rows:NodeRow[]=[];
+ entries(value:any):[string,any][]{return value&&typeof value==='object'&&!Array.isArray(value)?Object.entries(value):[];}
+ escapePath(value:string){return this.escape(value);}
+ get definitionNames(){return Object.keys(this.schema?.['$defs']||{});}
+ isLocalDefinitionRef(ref:string){return this.definitionNames.some(name=>ref==='#/$defs/'+this.escape(name));}
+ additionalMode(node:Schema){return node.additionalProperties===false?'deny':node.additionalProperties&&typeof node.additionalProperties==='object'?'schema':'allow';}
+ setAdditionalMode(mode:string){
+  this.commit(root=>{
+   const node=this.current(root)!;
+   if(mode==='deny')node.additionalProperties=false;
+   else if(mode==='schema')node.additionalProperties={type:'string'};
+   else node.additionalProperties=true;
+  });
+ }
+ setReference(ref:string){this.commit(root=>{const node=this.current(root)!;if(ref)node['$ref']=ref;else delete node['$ref'];});}
+ addNamedSchema(kind:'$defs'|'patternProperties'){
+  const name=kind==='$defs'?'Definicao':'^campo_';
+  const proposed=globalThis.prompt?.('Nome '+(kind==='$defs'?'da definição':'do padrão regex'),name);
+  if(proposed===null||proposed===undefined)return;
+  const key=proposed.trim();
+  if(!key){this.error='Informe um nome.';return;}
+  if(kind==='patternProperties'){try{new RegExp(key);}catch{this.error='Padrão regex inválido.';return;}}
+  const node=this.selected!;
+  if(node[kind]&&Object.prototype.hasOwnProperty.call(node[kind],key)){this.error='Nome já utilizado.';return;}
+  this.error='';
+  this.commit(root=>{
+   const target=this.current(root)!;target[kind]??={};target[kind][key]={type:'string'};
+   this.selectedPath+='/'+kind+'/'+this.escape(key);
+  });
+ }
+ removeNamedSchema(kind:'$defs'|'patternProperties',key:string){
+  this.error='';
+  if(kind==='$defs'){
+   const reference='#/$defs/'+this.escape(key);
+   if(JSON.stringify(this.schema).includes(JSON.stringify(reference))){this.error='A definição possui referências. Remova os vínculos primeiro.';return;}
+  }
+  this.commit(root=>{
+   const node=this.current(root)!;delete node[kind]?.[key];
+   if(node[kind]&&!Object.keys(node[kind]).length)delete node[kind];
+  });
+ }
  ngOnChanges(_changes:SimpleChanges){this.rebuild();}
  private segments(path:string){return path.split('/').slice(1).map(x=>x.replace(/~1/g,'/').replace(/~0/g,'~'));}
  private escape(key:string){return key.replace(/~/g,'~0').replace(/\//g,'~1');}
@@ -155,6 +225,8 @@ export class SchemaBuilderComponent implements OnChanges {
    if(node.type==='array'&&node.items&&typeof node.items==='object'&&!Array.isArray(node.items))walk(node.items,path+'/items','items',depth+1);
    for(const kind of this.compositionKinds)if(Array.isArray(node[kind]))node[kind].forEach((child:any,index:number)=>{if(child&&typeof child==='object'&&!Array.isArray(child))walk(child,path+'/'+kind+'/'+index,kind+' #'+(index+1),depth+1);});
    for(const kind of this.conditionalKinds)if(node[kind]&&typeof node[kind]==='object'&&!Array.isArray(node[kind]))walk(node[kind],path+'/'+kind,kind,depth+1);
+   for(const kind of ['$defs','patternProperties'])for(const [key,child] of this.entries(node[kind]))if(child&&typeof child==='object'&&!Array.isArray(child))walk(child,path+'/'+kind+'/'+this.escape(key),key,depth+1);
+   if(node.additionalProperties&&typeof node.additionalProperties==='object'&&!Array.isArray(node.additionalProperties))walk(node.additionalProperties,path+'/additionalProperties','additionalProperties',depth+1);
   };
   walk(this.schema,'','Schema',0);
   this.rows=rows;
@@ -169,6 +241,8 @@ export class SchemaBuilderComponent implements OnChanges {
    else if(parts[i]==='items'){node=node?.items;}
    else if(this.compositionKinds.includes(parts[i])){node=node?.[parts[i]]?.[Number(parts[++i])];}
    else if(this.conditionalKinds.includes(parts[i])){node=node?.[parts[i]];}
+   else if(parts[i]==='$defs'||parts[i]==='patternProperties'){node=node?.[parts[i]]?.[parts[++i]];}
+   else if(parts[i]==='additionalProperties'){node=node?.additionalProperties;}
    else return undefined;
   }
   return node&&typeof node==='object'&&!Array.isArray(node)?node:undefined;
@@ -304,7 +378,9 @@ export class SchemaBuilderComponent implements OnChanges {
   let kind='';let key=last;
   if(parts.at(-1)==='properties'){parts.pop();kind='properties';}
   else if(parts.at(-1)&&this.compositionKinds.includes(parts.at(-1)!)){kind=parts.pop()!;}
+  else if(parts.at(-1)==='$defs'||parts.at(-1)==='patternProperties'){kind=parts.pop()!;}
   else if(last==='items')kind='items';
+  else if(last==='additionalProperties')kind='additionalProperties';
   else if(this.conditionalKinds.includes(last))kind='conditional';
   else {this.error='Não é possível excluir este nó.';return;}
   parentPath=parts.length?'/'+parts.map(p=>this.escape(p)).join('/'):'';
@@ -317,6 +393,8 @@ export class SchemaBuilderComponent implements OnChanges {
     if(parent.required){parent.required=parent.required.filter((x:string)=>x!==key);if(!parent.required.length)delete parent.required;}
    }else if(kind==='items')delete parent.items;
    else if(kind==='conditional')delete parent[key];
+   else if(kind==='additionalProperties')parent.additionalProperties=true;
+   else if(kind==='$defs'||kind==='patternProperties'){delete parent[kind]?.[key];if(parent[kind]&&!Object.keys(parent[kind]).length)delete parent[kind];}
    else if(Array.isArray(parent[kind])){
     parent[kind].splice(Number(key),1);
     if(!parent[kind].length)delete parent[kind];
