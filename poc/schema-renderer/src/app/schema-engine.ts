@@ -114,7 +114,7 @@ function branchScore(schema:any,value:any,root:Schema):number {
   if(current===undefined)continue;
   if(rule.const!==undefined)score+=current===rule.const?100:-100;
   if(Array.isArray(rule.enum))score+=rule.enum.includes(current)?30:-30;
-  if(rule===false||isFalseSchema(rule))score-=100;
+  if(isFalseSchema(rule))score-=100;
  }
  const kind=runtimeType(value);
  if(nonNullTypes(s).includes(kind))score+=10;
@@ -158,8 +158,6 @@ function collect(schema:any,value:any,root:Schema,depth=0):Schema {
 }
 
 export function effective(schema:any,value:any,root:Schema):Schema {
- // Resolve apenas o nível atual. Os schemas filhos permanecem declarativos para
- // que seus próprios if/then/allOf sejam recalculados quando irmãos mudarem.
  return collect(schema,value,root);
 }
 
