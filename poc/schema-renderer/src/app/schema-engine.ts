@@ -24,7 +24,13 @@ function merge(a:Schema,b:Schema):Schema {
  for(const [key,v] of Object.entries(b.properties||{}))props[key]=merge(props[key]||{},v as Schema);
  if(Object.keys(props).length)out.properties=props;
  if(a.required||b.required)out.required=[...new Set([...(a.required||[]),...(b.required||[])])];
- if(a.allOf||b.allOf)out.allOf=[...(a.allOf||[]),...(b.allOf||[])];
+ // Composition is evaluated by collect(); do not re-apply already merged clauses.
+ delete out.allOf;
+ delete out.if;
+ delete out.then;
+ delete out.else;
+ delete out.oneOf;
+ delete out.anyOf;
  // UI types are based on the base contract, not on the selected oneOf
  // alternative's null-only constraint.
  if(Array.isArray(a.type)&&typeof b.type==='string'&&a.type.includes(b.type))out.type=a.type;
@@ -76,7 +82,7 @@ export function initial(schema:Schema,root:Schema,depth=0):any {
  if(s.default!==undefined)return structuredClone(s.default);
  if(s.const!==undefined)return s.const;
  if(s.enum?.length)return s.enum[0];
- if(primaryType(s)==='object'||Object.keys(s.properties||{}).length){
+ if(primaryType(s)==='object'||(primaryType(s)==='null'&&Object.keys(s.properties||{}).length>0)){
   const obj:any={};
   for(const [key,raw] of Object.entries(s.properties||{})){
    const child=raw as Schema;
