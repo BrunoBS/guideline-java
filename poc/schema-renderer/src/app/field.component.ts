@@ -229,9 +229,9 @@ export class FieldComponent {
  entries(object:Record<string,any>):[string,any][]{return Object.entries(object||{});}
  trackKey(_i:number,item:[string,any]){return item[0];}trackIndex(index:number){return index;}
  primaryType=primaryType;isNullable=isNullable;isFalseSchema=isFalseSchema;isFreeSchema=isFreeSchema;hasTypeUnion=hasTypeUnion;nonNullTypes=nonNullTypes;
- showNullToggle(s:Schema){return isNullable(s)||!this.required;}
+ showNullToggle(s:Schema){const source=this.nullToggleSource(s);return isNullable(source)||!this.required;}
  isNullState(){return this.value===null||(!this.required&&this.value===undefined);}
- nullStateLabel(s:Schema){return isNullable(s)?'Valor definido como null.':'Campo opcional sem valor.';}
+ nullStateLabel(s:Schema){return isNullable(this.nullToggleSource(s))?'Valor definido como null.':'Campo opcional sem valor.';}
 
  viewSchema(s:Schema):Schema{return hasTypeUnion(s)?narrowedSchema(s,this.activeType(s),this.root):s;}
  activeType(s:Schema):string{
@@ -247,7 +247,7 @@ export class FieldComponent {
  alternativeLabel(option:Schema,index:number){return schemaLabel(option,index,this.root);}
  selectAlternative(index:number){const options=this.compositionOptions();const option=options[Number(index)];if(!option)return;const raw:any={...(this.schema||{})};delete raw.oneOf;delete raw.anyOf;const composed=merge(raw,option);this.chosenType=undefined;this.emit(initial(composed,this.root));}
 
- setNull(checked:boolean,s:Schema){if(checked)this.emit(isNullable(s)?null:undefined);else this.emit(this.nonNullInitial(this.nullToggleSource(s)));}
+ setNull(checked:boolean,s:Schema){const source=this.nullToggleSource(s);if(checked)this.emit(isNullable(source)?null:undefined);else this.emit(this.nonNullInitial(source));}
  private nullToggleSource(s:Schema):Schema{
   const base=this.baseSchemaAtPath();
   return base&&nonNullTypes(base).length?base:s;
