@@ -27,9 +27,9 @@ import {Schema,deref,effective,initial,primaryType,isNullable} from './schema-en
       <select *ngIf="(s.enum||s.const!==undefined) " [ngModel]="value" (ngModelChange)="emit($event)">
         <option *ngFor="let option of (s.enum||[s.const])" [ngValue]="option">{{option}}</option>
       </select>
-      <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean' && value!==null" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
-      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer') && value!==null" type="number" [step]="primaryType(s)==='integer'?1:'any'" [ngModel]="value" (ngModelChange)="emit($event===''?null:+$event)"/>
-      <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer' && value!==null" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
+      <input *ngIf="!s.enum && s.const===undefined && primaryType(s)==='boolean'" type="checkbox" style="width:auto" [ngModel]="value===true" (ngModelChange)="emit($event)"/>
+      <input *ngIf="!s.enum && s.const===undefined && (primaryType(s)==='number'||primaryType(s)==='integer')" type="number" [step]="primaryType(s)==='integer'?1:'any'" [ngModel]="value" (ngModelChange)="emit($event===''?null:+$event)"/>
+      <input *ngIf="!s.enum && s.const===undefined && primaryType(s)!=='boolean' && primaryType(s)!=='number' && primaryType(s)!=='integer'" [type]="s.format==='email'?'email':s.format==='date'?'date':'text'" [ngModel]="value" (ngModelChange)="emit($event)"/>
       <div class="muted" *ngIf="s.description">{{s.description}}</div>
     </ng-template>
   </ng-template>
@@ -47,7 +47,22 @@ export class FieldComponent {
  primaryType=primaryType;isNullable=isNullable;
  setNull(checked:boolean,s:Schema){if(checked)this.emit(null);else this.emit(initial({...s,type:primaryType(s),default:undefined},this.root));}
  emit(v:any){this.valueChange.emit(v);}
- updateKey(k:string,v:any){this.emit({...this.objectValue,[k]:v});}
+ updateKey(k:string,v:any){
+  const next={...this.objectValue,[k]:v};
+  // Changing a discriminator can switch the shape of sibling fields.
+  // Reconcile only incompatible values; preserve valid user input.
+  const resolved=effective(this.schema,next,this.root);
+  for(const [name,rule] of Object.entries(resolved.properties||{})){
+   if(!(name in next))continue;
+   const kind=primaryType(rule as Schema),current=next[name];
+   if(kind==='array'&&!Array.isArray(current))next[name]=initial(rule as Schema,this.root);
+   else if(kind==='integer' && current!==null && (typeof current!=='number'||!Number.isInteger(current)))next[name]=initial(rule as Schema,this.root);
+   else if(kind==='number' && current!==null && typeof current!=='number')next[name]=initial(rule as Schema,this.root);
+   else if(kind==='object' && (current===null||typeof current!=='object'||Array.isArray(current)))next[name]=initial(rule as Schema,this.root);
+   else if(kind==='string' && current!==null && typeof current!=='string')next[name]=initial(rule as Schema,this.root);
+  }
+  this.emit(next);
+ }
  updateItem(i:number,v:any){const a=[...this.arrayValue];a[i]=v;this.emit(a);}
  add(s:Schema){this.emit([...this.arrayValue,initial(deref(s,this.root),this.root)]);}
  hasDuplicates(){const a=this.arrayValue;return new Set(a.map(v=>JSON.stringify(v))).size!==a.length;}
