@@ -175,6 +175,17 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified .visual-group-inspector .visual-group-add-button{flex:1 1 230px;width:auto!important}
  .builder.simplified .visual-group-inspector .visual-group-delete-button{appearance:none!important;background:transparent!important;color:#b42318!important;border:1px solid #e4c6c6!important;border-radius:9px!important;box-shadow:none!important;padding:12px 14px!important;font-weight:600!important;min-height:44px!important;cursor:pointer!important}
  .builder.simplified .visual-group-inspector .visual-group-delete-button:hover{background:#fff3f2!important}
+
+ .builder.simplified .schema-group .schema-group-select{appearance:none!important;background:transparent!important;color:#243b59!important;border:0!important;box-shadow:none!important;border-radius:8px!important;min-height:44px!important;padding:8px 10px!important;text-align:left!important;font-weight:650!important}
+ .builder.simplified .schema-group .schema-group-select small{color:#64748b!important}
+ .builder.simplified .schema-group .schema-group-select:hover{background:#eaf1fb!important}
+ .builder.simplified .schema-group .schema-group-toggle{appearance:none!important;background:transparent!important;color:#243b59!important;border:0!important;box-shadow:none!important}
+ .group-add-picker{grid-column:1/-1;border:1px solid #cbd8ea;border-radius:12px;padding:16px;background:#fff;margin:0 0 14px}
+ .group-add-picker-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+ .group-add-picker-header button{background:transparent!important;color:#64748b!important;border:0!important;cursor:pointer}
+ .group-add-picker-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px}
+ .builder.simplified .group-add-picker-options button{display:flex;justify-content:space-between;gap:8px;align-items:center;background:#f8fbff!important;color:#243b59!important;border:1px solid #dce4ef!important;border-radius:8px!important;padding:12px!important;cursor:pointer!important;box-shadow:none!important;font-weight:600!important}
+ .builder.simplified .group-add-picker-options button:hover{background:#edf4ff!important;border-color:#2455b5!important}
  `],
  template:`
  <div class="builder simplified">
@@ -222,7 +233,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  <div class="canvas-field-footer"><button type="button" class="canvas-field-delete" (click)="confirmDeleteField(field.path)">Excluir campo</button></div>
 </div>
 
-        <button type="button" class="schema-group-add" (click)="selectVisualGroup(group.id);showAddMenu=true">+ Adicionar campo ao grupo</button>
+        <button type="button" class="schema-group-add" (click)="openGroupAddPicker(group.id)">+ Adicionar campo ao grupo</button>
       </div>
     </section>
 <div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" [class.active]="selectedPath===field.path">
@@ -237,12 +248,18 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-empty" *ngIf="!canvasFields.length && !visualGroups.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
 
+  <div class="group-add-picker" *ngIf="mode==='construction' && groupAddPickerOpen">
+    <div class="group-add-picker-header"><strong>Adicionar campo ao grupo</strong><button type="button" (click)="groupAddPickerOpen=false">Fechar ×</button></div>
+    <div class="group-add-picker-options">
+      <button type="button" *ngFor="let item of groupFieldPalette" (click)="addFieldToSelectedGroup(item.type)"><span>{{item.icon}} {{item.label}}</span><span>+</span></button>
+    </div>
+  </div>
   <div class="inspector visual-group-inspector" *ngIf="mode==='construction' && selectedVisualGroup as group">
     <div class="editor-heading"><strong>Editar campo · Grupo</strong></div>
     <label>Título do agrupador<input [ngModel]="group.title" (ngModelChange)="updateVisualGroup(group.id,'title',$event)"/></label>
     <label>Descrição<input [ngModel]="group.description||''" (ngModelChange)="updateVisualGroup(group.id,'description',$event)"/></label>
     <p class="validation-help">Os campos estão organizados no agrupador à esquerda. Selecione um campo para editá-lo.</p>
-    <div class="visual-group-actions"><button type="button" class="visual-group-add-button" (click)="showAddMenu=true">+ Adicionar campo ao grupo</button><button type="button" class="visual-group-delete-button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
+    <div class="visual-group-actions"><button type="button" class="visual-group-add-button" (click)="openGroupAddPicker(group.id)">+ Adicionar campo ao grupo</button><button type="button" class="visual-group-delete-button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
   </div>
   <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!selectedGroupId && selected as node">
    <div class="editor-heading"><strong>Editar campo</strong></div>
@@ -385,6 +402,10 @@ export class SchemaBuilderComponent implements OnChanges {
  @Output() schemaChange=new EventEmitter<Schema>();
  selectedPath='';
  selectedGroupId='';
+ groupAddPickerOpen=false;
+ get groupFieldPalette(){return this.palette.filter(item=>item.type!=='group');}
+ openGroupAddPicker(id:string){this.selectVisualGroup(id);this.groupAddPickerOpen=true;}
+ addFieldToSelectedGroup(type:string){if(!this.selectedGroupId)return;this.addTypedProperty(type);this.groupAddPickerOpen=false;}
  collapsedGroups=new Set<string>();
  activeContainerPath='';
  containerHistory:string[]=[];
@@ -405,7 +426,7 @@ export class SchemaBuilderComponent implements OnChanges {
  showStructure=false;
  palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
  get selectedVisualGroup():any{return this.visualGroups.find((g:any)=>g.id===this.selectedGroupId);}
- selectVisualGroup(id:string){this.selectedGroupId=id;this.selectedPath='';this.editorTab='property';this.showAddMenu=false;}
+ selectVisualGroup(id:string){this.selectedGroupId=id;this.selectedPath='';this.editorTab='property';this.showAddMenu=false;this.groupAddPickerOpen=false;}
  selectGroupField(key:string){this.selectedGroupId='';this.select((this.activeContainerPath||'')+'/properties/'+this.escape(key));}
  fieldTitle(key:string){return this.getNodeAt(this.schema,(this.activeContainerPath||'')+'/properties/'+this.escape(key))?.title||key;}
  get visualGroups():any[]{return this.getNodeAt(this.schema,this.activeContainerPath)?.['x-ui']?.groups||[];}
@@ -542,7 +563,7 @@ export class SchemaBuilderComponent implements OnChanges {
   return !!name&&!!parent?.required?.includes(name);
  }
  typeLabel(node:Schema){return Array.isArray(node.type)?node.type.join('|'):node.type||'livre';}
- select(path:string){this.selectedGroupId='';this.showDeleteConfirmation=false;this.selectedPath=path;this.editorTab='property';this.error='';}
+ select(path:string){this.groupAddPickerOpen=false;this.selectedGroupId='';this.showDeleteConfirmation=false;this.selectedPath=path;this.editorTab='property';this.error='';}
  private rebuild(){
   const rows:NodeRow[]=[];
   const walk=(node:Schema,path:string,label:string,depth:number,required=false)=>{
