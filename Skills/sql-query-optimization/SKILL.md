@@ -34,3 +34,8 @@ Diagnóstico, hipóteses alternativas, plano, benchmark, impacto DML e rollback;
 DHA jpa-patterns; MySQL EXPLAIN docs.
 
 > Texto original de curadoria, não transcrição de Skill de terceiros. Verificar APIs e versões na documentação oficial antes de gerar código.
+
+## Aprofundamento obrigatório
+Antes de recomendar índices, consultar plano, distribuição de parâmetros e custo DML; comparar índice, reescrita e nenhuma alteração.
+
+Ler [playbook especializado](references/DIAGNOSTICO-MYSQL.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
