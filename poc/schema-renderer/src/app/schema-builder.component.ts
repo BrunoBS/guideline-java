@@ -291,7 +291,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   </aside>
   <section class="canvas" *ngIf="mode==='construction'">
    <div class="canvas-header">
-    <div><strong>{{activeContainerPath ? (getNodeAt(schema,activeContainerPath)?.title || activeContainerLabel) : (schema.title || 'Formulário sem título')}}</strong><p>{{activeContainerPath ? (getNodeAt(schema,activeContainerPath)?.description || '') : (schema.description || '')}}</p><button type="button" *ngIf="!activeContainerPath" class="form-settings-button" (click)="openFormEditor()">✎ Configurar formulário</button></div>
+    <div><strong>{{canvasHeaderTitle}}</strong><p>{{canvasHeaderDescription}}</p><button type="button" *ngIf="!activeContainerPath" class="form-settings-button" (click)="openFormEditor()">✎ Configurar formulário</button></div>
     <div class="builder-actions" style="margin:0">
      <button type="button" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar</button>
 
@@ -602,6 +602,8 @@ export class SchemaBuilderComponent implements OnChanges {
   const prefix=this.activeContainerPath?this.activeContainerPath+'/properties/':'/properties/';
   return this.rows.filter(row=>row.path.startsWith(prefix)&&!row.path.slice(prefix.length).includes('/'));
  }
+ get canvasHeaderTitle():string{return this.activeContainerPath?(this.getNodeAt(this.schema,this.activeContainerPath)?.title||this.activeContainerLabel):(this.schema.title||'Formulário sem título');}
+ get canvasHeaderDescription():string{return this.activeContainerPath?(this.getNodeAt(this.schema,this.activeContainerPath)?.description||''):(this.schema.description||'');}
  get activeContainerLabel(){
   if(!this.activeContainerPath)return 'Raiz do schema';
   const node=this.getNodeAt(this.schema,this.activeContainerPath);
