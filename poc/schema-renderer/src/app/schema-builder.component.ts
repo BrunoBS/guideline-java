@@ -248,7 +248,7 @@ export class SchemaBuilderComponent implements OnChanges {
  showAddMenu=false;
  showAdvanced=false;
  showStructure=false;
- palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
+ palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'},{type:'array-object',label:'Lista agrupada',icon:'☷▣'}];
  get canvasFields(){
   const prefix=this.activeContainerPath?this.activeContainerPath+'/properties/':'/properties/';
   return this.rows.filter(row=>row.path.startsWith(prefix)&&!row.path.slice(prefix.length).includes('/'));
@@ -294,7 +294,13 @@ export class SchemaBuilderComponent implements OnChanges {
    const target=this.getNodeAt(root,targetPath)!;
    target.properties??={};
    let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(target.properties,key))key='campo'+i++;
-   target.properties[key]=type==='object'?{type,properties:{},title:key}:type==='array'?{type,items:{type:'string'},title:key}:{type,title:key};
+   const objectType=type==='object'||type==='group';
+   const groupedList=type==='array-object';
+   target.properties[key]=groupedList
+    ?{type:'array',title:key,description:'Lista de objetos agrupados.',items:{type:'object',title:'Item',properties:{}}}
+    :objectType
+     ?{type:'object',title:key,description:type==='group'?'Agrupador de propriedades.':'Objeto JSON.',properties:{}}
+     :type==='array'?{type:'array',items:{type:'string'},title:key}:{type,title:key};
    this.selectedPath=targetPath+'/properties/'+this.escape(key);
   });
   this.showAddMenu=false;
