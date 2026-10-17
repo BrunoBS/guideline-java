@@ -42,3 +42,8 @@ Ler [playbook especializado](references/VIRTUAL-THREADS-JAVA25.md) antes de emit
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de interrupção e deadline
+- Testar interrupção enquanto aguarda semáforo: nenhuma permissão deve ser consumida nem interrupção engolida; quando `InterruptedException` for capturada para tratamento, restaurar a flag quando aplicável.
+- Timeout de aquisição **não** limita duração da operação; definir deadline de ponta a ponta e cancelamento cooperativo, inclusive chamada remota/JDBC.
+- Medir filas e saturação do pool JDBC; não dimensionar pool pela quantidade de virtual threads.
