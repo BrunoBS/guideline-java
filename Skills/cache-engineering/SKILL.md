@@ -42,3 +42,8 @@ Ler [playbook especializado](references/STAMPEDE-AND-CONSISTENCY.md) antes de em
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de concorrência e indisponibilidade
+- Distinguir single-flight **por processo** de coordenação distribuída; TTL jitter distribui expirações, mas não impede corrida de uma única hot key.
+- Se houver lock distribuído, especificar token de propriedade, expiração, liberação condicional e comportamento em crash; não assumir exclusividade perfeita sem fencing quando necessário.
+- Testar cache miss concorrente, queda Redis, invalidação após escrita, mudança de permissão e isolamento de workspace.
