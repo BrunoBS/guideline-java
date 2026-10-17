@@ -1,34 +1,36 @@
 ---
 name: resilience-patterns
-description: Orientações preliminares de Resiliência para revisões e implementações da Golden Platform; usar quando a tarefa abordar este tema.
+description: Guia de resiliência para implementação e revisão de APIs Java de alta escala com decisões verificáveis.
 ---
 
 # Resiliência
 
-> DRAFT — proposta para revisão, não é política aprovada.
+Status: DRAFT v0.2; engenharia independente, sem substituir políticas Golden.
 
-## Quando usar
-Ao implementar, refatorar ou revisar mudanças que envolvam resiliência.
+## Quando ativar
+Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas a resiliência.
 
-## Instruções provisórias
-Definir timeout, retry com backoff/jitter, circuit breaker, bulkhead e idempotência por integração e semântica de falha.
+## Procedimento
+1. Ler contratos, código, configuração, versões e testes relevantes; separar fatos de suposições.
+2. Definir comportamento esperado, requisitos não funcionais e possíveis regressões.
+3. Aplicar os critérios técnicos abaixo e comparar alternativas, inclusive não modificar.
+4. Planejar mudança mínima, validação, observabilidade e rollback.
+5. Produzir relatório de evidências, riscos e limitações.
 
-## Evitar
-Não repetir operações não idempotentes indiscriminadamente; respeitar DLQ e ordering.
+## Critérios técnicos
+1. Definir deadline fim a fim antes de timeout por dependência; separar falhas transitórias e permanentes.
+2. Retries limitados, backoff/jitter e orçamento total de tentativas entre camadas; evitar retry storms.
+3. Circuit breaker e bulkhead devem ser dimensionados por carga e taxa de erro; fallback apenas quando preserva semântica.
+4. Para mensagens: idempotência, DLQ, replay, ordenação e outbox; testar duplicidade e poison messages.
+5. Exigir chaos/fault injection controlado, observabilidade de tentativas, filas, erros e recuperação.
 
-## Checklist de revisão
-- [ ] Conferir documentação Golden aplicável e versão das dependências.
-- [ ] Identificar contratos públicos e compatibilidade retroativa.
-- [ ] Verificar testes, observabilidade e riscos de regressão.
-- [ ] Justificar decisões com evidência técnica.
-- [ ] Registrar conflito em `../DIVERGENCIAS.md` antes de alterar convenções.
+## Entrega obrigatória
+- Contexto, hipóteses e evidências existentes.
+- Recomendação com justificativa e alternativas rejeitadas.
+- Impacto em compatibilidade, carga, segurança e operação.
+- Plano de teste, critérios de aceitação e reversão.
 
-## Documentos a confrontar
-messaging AWS/Azure, audit outbox, observability.
+## Fontes e cautelas
+Fonte: DHA architecture/messaging; Resilience4j; references/FAILURE-MODES.md.
 
-## Referências externas candidatas
-- https://github.com/dunghoangcy-web/ai-skill-java-spring-boot
-- https://github.com/Marisha-Sahay/awesome-java-agent-skills
-- https://github.com/robsonkades/agent-skills
-
-> Fontes candidatas: ainda não incorporadas nem auditadas integralmente quanto a licença e compatibilidade.
+Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
