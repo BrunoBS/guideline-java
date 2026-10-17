@@ -42,3 +42,8 @@ Ler [playbook especializado](references/RETRY-BUDGETS.md) antes de emitir recome
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de orçamento de retries
+- Contabilizar tentativas totais entre camadas e deadline fim a fim.
+- Não repetir operação não idempotente sem estratégia comprovada.
+- Fallback não pode mascarar erro de autorização ou integridade.
