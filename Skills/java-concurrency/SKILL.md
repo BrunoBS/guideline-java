@@ -39,3 +39,6 @@ JDK 25 docs, JVM Expert performance, Awesome Java clean code (revisar afirmaçõ
 Não aplicar conselho obsoleto sobre synchronized/pinning; limitar recursos escassos, não threads virtuais.
 
 Ler [playbook especializado](references/VIRTUAL-THREADS-JAVA25.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
+
+## Contrato operacional e exemplos
+Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
