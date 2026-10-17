@@ -332,7 +332,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <nav class="editor-tabs" *ngIf="mode==='construction'" aria-label="Seções do editor"><button type="button" [class.active]="editorTab==='property'" (click)="editorTab='property'">Propriedade</button><button type="button" [class.active]="editorTab==='validation'" (click)="editorTab='validation'">Validações</button></nav>
    <div *ngIf="mode==='dev' || editorTab==='property'">
    <label *ngIf="isPropertySelected">Nome da propriedade
-    <input [ngModel]="propertyNameDraft ?? selectedName" (ngModelChange)="onPropertyNameInput($event)" (blur)="commitPropertyName()" (keydown.enter)="commitPropertyName()" [attr.aria-invalid]="propertyNameError ? 'true' : null"/>
+    <input [ngModel]="propertyNameDraft ?? selectedName" (ngModelChange)="onPropertyNameInput($event)" (blur)="validatePropertyName()" (keydown.enter)="$event.preventDefault(); validatePropertyName()" [attr.aria-invalid]="propertyNameError ? 'true' : null"/>
     <small class="builder-error" *ngIf="propertyNameError">{{propertyNameError}}</small>
    </label>
    <label>Título<input [ngModel]="node.title||''" (ngModelChange)="setAttribute('title',$event)"/></label>
@@ -820,7 +820,8 @@ export class SchemaBuilderComponent implements OnChanges {
  propertyNameDraft:string|null=null;
  propertyNameError='';
  onPropertyNameInput(name:string){this.propertyNameDraft=name;this.propertyNameError='';}
- commitPropertyName(){if(this.propertyNameDraft===null)return;const name=this.propertyNameDraft;const parts=this.segments(this.selectedPath),old=parts.pop()||'';if(parts.pop()!=='properties')return;const parentPath='/'+parts.map(p=>this.escape(p)).join('/');const parent=this.getNodeAt(this.schema,parentPath);if(!name.trim()){this.propertyNameError='Informe o nome da propriedade.';return;}if(name!==old&&Object.prototype.hasOwnProperty.call(parent?.properties||{},name)){this.propertyNameError='Já existe uma propriedade com esse nome.';return;}this.propertyNameError='';this.propertyNameDraft=null;this.renameSelected(name);}
+ validatePropertyName(){if(this.propertyNameDraft===null){this.propertyNameError='';return true;}const name=this.propertyNameDraft;const parts=this.segments(this.selectedPath),old=parts.pop()||'';if(parts.pop()!=='properties')return true;const parentPath='/'+parts.map(p=>this.escape(p)).join('/');const parent=this.getNodeAt(this.schema,parentPath);if(!name.trim()){this.propertyNameError='Informe o nome da propriedade.';return false;}if(name!==old&&Object.prototype.hasOwnProperty.call(parent?.properties||{},name)){this.propertyNameError='Já existe uma propriedade com esse nome.';return false;}this.propertyNameError='';return true;}
+ commitPropertyName(){if(this.propertyNameDraft===null)return; if(!this.validatePropertyName())return;const name=this.propertyNameDraft;this.propertyNameDraft=null;this.renameSelected(name);}
  renameSelected(name:string){
   this.error='';
   if(!name){this.error='Informe o nome da propriedade.';return;}
