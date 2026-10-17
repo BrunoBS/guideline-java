@@ -34,3 +34,6 @@ Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas
 Fonte: DHA design-patterns e architecture.
 
 Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
+
+## Exemplo e critério de decisão
+Antes de orientar implementação, ler [EXEMPLOS-E-DECISOES.md](references/EXEMPLOS-E-DECISOES.md). O exemplo é ilustrativo, **não** foi compilado; produzir código completo e testes específicos ao projeto quando solicitado. Verificar documentação oficial na versão real. Não declarar execução, performance ou compatibilidade sem evidência.
