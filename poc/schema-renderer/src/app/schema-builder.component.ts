@@ -102,6 +102,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .editor-field-type{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 16px;font-size:13px;color:#64748b}
  .editor-field-type strong{padding:4px 9px;border-radius:7px;background:#eef2f8;color:#40516a;font-size:12px}
  .editor-field-type small{flex-basis:100%;color:#94a3b8;font-size:11px}
+
+ .canvas-field-card{position:relative;border:1px solid #d6e1ee;border-radius:12px;background:#fff;overflow:hidden}
+ .canvas-field-card.active{border:2px solid #2455b5;background:#eff4ff}
+ .canvas-field-card .canvas-field{display:block;width:100%;border:0!important;border-radius:0!important;background:transparent!important;text-align:left;padding-right:50px;box-shadow:none!important}
+ .canvas-field-card .canvas-field.active{border:0!important}
+ .canvas-field-card .canvas-field-delete{position:absolute;right:12px;top:12px;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border:0;border-radius:7px;background:transparent;color:#94a3b8;font-size:22px;cursor:pointer}
+ .canvas-field-card .canvas-field-delete:hover,.canvas-field-card .canvas-field-delete:focus-visible{background:#fff0ef;color:#b42318}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
  .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
@@ -168,11 +175,14 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
    </div>
    <div class="canvas-fields">
-    <button type="button" class="canvas-field" *ngFor="let field of canvasFields" [class.active]="selectedPath===field.path" (click)="select(field.path)">
-     <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
-     <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
-     <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
-    </button>
+    <div class="canvas-field-card" *ngFor="let field of canvasFields" [class.active]="selectedPath===field.path">
+     <button type="button" class="canvas-field" (click)="select(field.path)">
+      <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
+      <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
+      <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
+     </button>
+     <button type="button" class="canvas-field-delete" [attr.aria-label]="'Excluir campo '+(field.schema.title||field.label)" title="Excluir campo" (click)="confirmDeleteField(field.path)"><span aria-hidden="true">×</span></button>
+    </div>
    </div>
    <div class="canvas-empty" *ngIf="!canvasFields.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
@@ -300,7 +310,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <p class="builder-help">Os campos não suportados visualmente são preservados. Enum deve conter valores JSON válidos, um por linha.</p>
    </ng-container>
    <p class="builder-error" *ngIf="error">{{error}}</p>
-   <div class="editor-footer" *ngIf="mode==='construction' && selectedPath"><button type="button" class="editor-delete" (click)="confirmDeleteSelected()">♲ Excluir campo</button><span>Alterações salvas automaticamente</span></div>
+   <div class="editor-footer" *ngIf="mode==='construction' && selectedPath"><span>Alterações salvas automaticamente</span></div>
    </div>
   </div>
   <div class="confirm-overlay" *ngIf="showDeleteConfirmation" (click)="cancelDelete()"><section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title" aria-describedby="confirm-delete-description" (click)="$event.stopPropagation()"><div class="confirm-icon">!</div><h3 id="confirm-delete-title">Excluir campo?</h3><p id="confirm-delete-description">O campo <strong>{{selectedName}}</strong> será removido do schema. Essa ação não pode ser desfeita.</p><div class="confirm-actions"><button type="button" class="confirm-cancel" (click)="cancelDelete()">Cancelar</button><button type="button" class="confirm-danger" (click)="deleteConfirmed()">Excluir campo</button></div></section></div>
@@ -324,6 +334,7 @@ export class SchemaBuilderComponent implements OnChanges {
  editorTab:'property'|'validation'='property';
  showDeleteConfirmation=false;
  confirmDeleteSelected(){this.showDeleteConfirmation=true;}
+ confirmDeleteField(path:string){this.select(path);this.showDeleteConfirmation=true;}
  cancelDelete(){this.showDeleteConfirmation=false;}
  deleteConfirmed(){this.showDeleteConfirmation=false;this.removeSelected();}
  showStructure=false;
