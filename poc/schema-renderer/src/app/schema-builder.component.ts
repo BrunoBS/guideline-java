@@ -90,7 +90,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </div>
   </aside>
   <section class="canvas" *ngIf="mode==='construction'">
-   <div class="canvas-header"><div><strong>Campos do schema</strong><p>Selecione um card para editar seu contrato.</p></div><span class="builder-help">{{canvasFields.length}} campos</span></div>
+   <div class="canvas-header"><div><strong>{{activeContainerPath ? "Campos do agrupador" : "Campos do schema"}}</strong><p>{{activeContainerLabel}} · Selecione um card para editar seu contrato.</p></div><span class="builder-help">{{canvasFields.length}} campos</span></div>
+   <button type="button" class="structure-toggle" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar ao agrupador anterior</button>
    <div class="canvas-fields">
     <button type="button" class="canvas-field" *ngFor="let field of canvasFields" [class.active]="selectedPath===field.path" (click)="select(field.path)">
      <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
@@ -98,14 +99,16 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
     </button>
    </div>
-   <div class="canvas-empty" *ngIf="!canvasFields.length">Seu formulário está vazio. Adicione um componente pelo painel à esquerda.</div>
+   <div class="canvas-empty" *ngIf="!canvasFields.length">{{activeContainerPath ? "Este agrupador está vazio. Adicione um campo pelo painel à esquerda." : "Seu formulário está vazio. Adicione um componente pelo painel à esquerda."}}</div>
    <button type="button" class="canvas-add" (click)="showAddMenu=!showAddMenu">＋ Adicionar campo</button>
   </section>
   <div class="inspector" *ngIf="(selectedPath || mode==='dev') && selected as node">
    <div class="canvas-header"><strong>Editar campo</strong><button type="button" (click)="select('')">Fechar</button></div>
    <div class="builder-actions">
     <button type="button" *ngIf="node.type==='object'" (click)="addProperty()">+ Propriedade</button>
+    <button type="button" *ngIf="node.type==='object' && selectedPath" (click)="openSelectedGroup()">Abrir agrupador</button>
     <button type="button" *ngIf="node.type==='array'" (click)="addItems()">+ Definir items</button>
+    <button type="button" *ngIf="node.type==='array' && arrayItemType(node)==='object'" (click)="openArrayItems()">Abrir agrupador dos itens</button>
     <button type="button" *ngIf="selectedPath!==''" (click)="removeSelected()">Excluir nó</button>
    </div>
    <label *ngIf="isPropertySelected">Nome da propriedade
@@ -146,6 +149,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <label>Mínimo de itens<input type="number" min="0" step="1" [ngModel]="node.minItems" (ngModelChange)="setNumber('minItems',$event,0,true)"/></label>
     <label>Máximo de itens<input type="number" min="0" step="1" [ngModel]="node.maxItems" (ngModelChange)="setNumber('maxItems',$event,0,true)"/></label>
    </div>
+   <label *ngIf="node.type==='array'">Tipo dos itens
+    <select [ngModel]="arrayItemType(node)" (ngModelChange)="setArrayItemType($event)">
+     <option value="string">Texto</option><option value="integer">Inteiro</option><option value="number">Decimal</option><option value="boolean">Sim / Não</option><option value="object">Objeto / agrupador</option><option value="array">Lista</option>
+    </select>
+   </label>
    <label *ngIf="node.type==='array'" class="checkline"><input type="checkbox" [ngModel]="!!node.uniqueItems" (ngModelChange)="setBoolean('uniqueItems',$event)"/> Itens únicos</label>
    <div class="rule-grid" *ngIf="node.type==='object'">
     <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
@@ -219,6 +227,8 @@ export class SchemaBuilderComponent implements OnChanges {
  @Input() mode:'construction'|'dev'='construction';
  @Output() schemaChange=new EventEmitter<Schema>();
  selectedPath='';
+ activeContainerPath='';
+ containerHistory:string[]=[];
  error='';
  types=['string','integer','number','boolean','object','array','null'];
  compositionKinds=['oneOf','anyOf','allOf'];
@@ -229,9 +239,43 @@ export class SchemaBuilderComponent implements OnChanges {
  showAdvanced=false;
  showStructure=false;
  palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
- get canvasFields(){return this.rows.filter(row=>row.path.startsWith('/properties/')&&row.depth===1);}
+ get canvasFields(){
+  const prefix=this.activeContainerPath?this.activeContainerPath+'/properties/':'/properties/';
+  return this.rows.filter(row=>row.path.startsWith(prefix)&&!row.path.slice(prefix.length).includes('/'));
+ }
+ get activeContainerLabel(){
+  if(!this.activeContainerPath)return 'Raiz do schema';
+  const node=this.getNodeAt(this.schema,this.activeContainerPath);
+  return node?.title||this.segments(this.activeContainerPath).at(-1)||'Agrupador';
+ }
+ openContainer(path:string){
+  const node=this.getNodeAt(this.schema,path);
+  if(node?.type!=='object'){this.error='Só é possível abrir um agrupador do tipo objeto.';return;}
+  this.containerHistory.push(this.activeContainerPath);
+  this.activeContainerPath=path;
+  this.error='';
+ }
+ openSelectedGroup(){this.openContainer(this.selectedPath);}
+ openArrayItems(){
+  if(this.selected?.type!=='array'||this.arrayItemType(this.selected)!=='object')return;
+  this.openContainer(this.selectedPath+'/items');
+ }
+ goToParentContainer(){this.activeContainerPath=this.containerHistory.pop()||'';}
+ arrayItemType(node:Schema):string{
+  const item=node.items;
+  if(item===true||item===undefined)return 'string';
+  if(item===false)return 'null';
+  return Array.isArray(item.type)?item.type[0]||'string':item.type||'string';
+ }
+ setArrayItemType(type:string){
+  this.commit(root=>{
+   const node=this.current(root)!;
+   const existing=node.items&&typeof node.items==='object'&&!Array.isArray(node.items)?node.items:{};
+   node.items=type==='object'?{...existing,type,properties:existing.properties||{},title:existing.title||'Item'}:{...existing,type};
+  });
+ }
  addTypedProperty(type:string){
-  const targetPath=this.selected?.type==='object'?this.selectedPath:'';
+  const targetPath=this.activeContainerPath;
   const node=this.getNodeAt(this.schema,targetPath);
   if(!node||node.type!=='object'){this.error='Selecione um objeto para adicionar campos.';return;}
   this.error='';
@@ -323,6 +367,7 @@ export class SchemaBuilderComponent implements OnChanges {
   walk(this.schema,'','Schema',0);
   this.rows=rows;
   if(!this.getNode(this.schema,this.selectedPath))this.selectedPath='';
+  if(this.activeContainerPath&&this.getNodeAt(this.schema,this.activeContainerPath)?.type!=='object'){this.activeContainerPath='';this.containerHistory=[];}
  }
  private getNodeAt(root:Schema,path:string):Schema|undefined {
   if(!path||path==='/')return root;
