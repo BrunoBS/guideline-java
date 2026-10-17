@@ -39,3 +39,6 @@ DHA jpa-patterns; MySQL EXPLAIN docs.
 Antes de recomendar índices, consultar plano, distribuição de parâmetros e custo DML; comparar índice, reescrita e nenhuma alteração.
 
 Ler [playbook especializado](references/DIAGNOSTICO-MYSQL.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
+
+## Contrato operacional e exemplos
+Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
