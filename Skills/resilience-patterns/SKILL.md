@@ -34,3 +34,8 @@ Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas
 Fonte: DHA architecture/messaging; Resilience4j; references/FAILURE-MODES.md.
 
 Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
+
+## Aprofundamento obrigatório
+Calcular amplificação de retries, deadline fim a fim e idempotência; verificar cancelamento real do I/O.
+
+Ler [playbook especializado](references/RETRY-BUDGETS.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
