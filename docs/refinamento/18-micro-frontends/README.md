@@ -98,9 +98,9 @@ O navegador não se comunica diretamente com microserviços. O BFF não deve rep
 ## 4. Matriz de responsabilidades
 | Componente | Responsabilidades | Não deve fazer |
 |---|---|---|
-| Shell | Host, login/logout, rotas, layouts, breadcrumbs, contexto genérico, design system, sino de notificações, fallback de erro, carregamento de remotes, telemetria frontend | Regras de conta, ambiente, aplicação ou feature |
+| Shell | Host, login/logout, rotas, layouts, breadcrumbs, contexto genérico, integração com Design System corporativo, **padronização de mensagens de erro e internacionalização**, sino de notificações, fallback de erro, carregamento de remotes, telemetria frontend | Regras de conta, ambiente, aplicação ou feature |
 | Workspace MFE | Seleção de tipo de conta, contas, autorização visual, onboarding, dashboards, ambientes, aplicações, entrada no catálogo de features | Guardar token, impor autorização definitiva, implementar features de outros domínios |
-| MFEs de feature | UI e fluxos de seu domínio, formulários, validação client-side, navegação local | Sessão própria ou dependência direta de outro remote |
+| MFEs de feature | UI e fluxos de seu domínio, contratos e chamadas ao BFF do próprio domínio, formulários, validação client-side, navegação local; consomem i18n, mensagens e HTTP comuns | Sessão própria ou dependência direta de outro remote |
 | BFF | Sessão, cookies, CSRF, APIs públicas/privadas, proxy, composição de respostas, tratamento de falhas, rate limit, correlação, telemetria, cache apropriado | Persistir regras de negócio próprias ou substituir autorização do serviço |
 | Serviço de autorização | Verificar identidade, grupos, recurso, ação e escopo | Confiar apenas na UI |
 | API de serviço | Autorizar novamente e executar contrato do domínio; usar cache autorizado | Aceitar contexto não validado como prova de acesso |
@@ -115,9 +115,11 @@ O navegador não se comunica diretamente com microserviços. O BFF não deve rep
 - `core/navigation`: header, menu global, breadcrumbs, estados de loading e empty state.
 - `core/notifications`: sino, contagem, lista, leitura, navegação para destino autorizado.
 - `core/observability`: traces de navegação, erros, métricas Web Vitals, correlation ID.
-- `shared/design-system`: tokens, componentes, acessibilidade, temas e responsividade.
+- `shared/corporate-ui-adapters`: integração com pacotes oficiais do Design System corporativo; não recriar biblioteca de componentes.
 - `public/home`: banners, carrosséis e cards públicos dinâmicos.
-- `shared/api-client`: cliente HTTP com credenciais same-origin, timeout, retry seletivo e erros normalizados.
+- `shared/api-client`: infraestrutura HTTP comum, base URL same-origin, CSRF, correlação, contexto quando aplicável, timeout, retry seletivo e erros normalizados. **Não contém os endpoints de negócio dos MFEs.**
+- `core/i18n`: locale, idioma padrão pt-BR, fallback en, tradução de mensagens transversais, formatação de datas/números, carregamento de catálogos por domínio e mudança de idioma.
+- `core/feedback`: serviço global de mensagens de erro/sucesso/aviso, toast, modal, estados de indisponibilidade e tratamento de exceções HTTP e de carregamento de remotes.
 
 ### 5.2 Contexto de navegação
 ```json
@@ -288,7 +290,7 @@ sequenceDiagram
 ```
 
 ## 12. Design System e experiência
-**Decisão definida: adotar o Design System corporativo oficial, sem criar um Design System próprio.** Consumir seus tokens de cor, tipografia, espaçamento, radius, sombras, densidade, ícones, grid e breakpoints e seus componentes disponíveis (botão, input, select, modal, toast, badge, card, tabela, paginação, breadcrumb, skeleton, empty/error state, navegação e acessibilidade). Componentes não disponíveis devem seguir o processo de extensão e governança corporativa, não forks locais independentes. Alvo WCAG 2.2 AA, foco visível, teclado, contraste, semântica, labels, suporte a zoom e leitores de tela. Inspirar-se na experiência visual corporativa sem copiar ativos proprietários não licenciados. Shell entrega layout e tema; MFEs consomem biblioteca versionada, evitando CSS global que vaze entre remotes. Formulários dinâmicos JSON Schema usam renderer com adaptadores do Design System, mantendo validação definitiva no backend. Estratégia de internacionalização PT-BR/EN e timezone por usuário deve ser refinada.
+**Decisão definida: adotar o Design System corporativo oficial, sem criar um Design System próprio.** Consumir seus tokens de cor, tipografia, espaçamento, radius, sombras, densidade, ícones, grid e breakpoints e seus componentes disponíveis (botão, input, select, modal, toast, badge, card, tabela, paginação, breadcrumb, skeleton, empty/error state, navegação e acessibilidade). Componentes não disponíveis devem seguir o processo de extensão e governança corporativa, não forks locais independentes. Alvo WCAG 2.2 AA, foco visível, teclado, contraste, semântica, labels, suporte a zoom e leitores de tela. Inspirar-se na experiência visual corporativa sem copiar ativos proprietários não licenciados. Shell entrega layout e tema; MFEs consomem biblioteca versionada, evitando CSS global que vaze entre remotes. Formulários dinâmicos JSON Schema usam renderer com adaptadores do Design System, mantendo validação definitiva no backend. **Shell governa internacionalização e mensagens transversais**, com pt-BR como padrão inicial, suporte a en, fallback e formatação consistente. Cada MFE mantém traduções específicas do seu domínio e as registra no mecanismo comum; o Shell não deve conhecer textos de negócio. Timezone segue preferência do usuário quando disponível, com fallback definido.
 
 ## 13. Observabilidade e SRE
 - Instrumentar frontend com Web Vitals (LCP, INP, CLS), tempo de bootstrap do Shell, tempo de carregamento do remote, erro de chunk, falha de navegação, latência de BFF e falha de autenticação.
@@ -336,7 +338,7 @@ Dependências: Shell/DS/contratos antecedem Workspace; Workspace depende do BFF 
 
 ## 17. Pontos abertos para refinamento
 - Versões exatas de Angular, Native Federation, Node, TypeScript e política de suporte.
-- Monorepo de MFEs versus múltiplos repositórios; processo de publicação/manifest.
+- Monorepo Nx é a **estratégia favorita documentada na seção 19**; validar POC de builds e deploys independentes, manifesto e compatibilidade antes da ADR definitiva.
 - Confirmar pacote, versão, documentação, acesso e política de atualização do **Design System corporativo já definido como obrigatório**.
 - Política de cookie SameSite conforme domínios efetivos, CSRF, refresh/idle/absolute timeout, SSO/logout global.
 - Modelo de autenticação do MCP, delegação de usuário, autorização de tools e aprovação de mutações.
@@ -464,9 +466,117 @@ flowchart TD
 **Primeira etapa:** um monorepo, contratos bem delimitados e owners por domínio. **Segunda etapa:** times independentes permanecem no mesmo repositório com aprovação de código, pipelines e releases próprias. **Terceira etapa (opcional):** extrair um MFE para repositório próprio quando houver necessidade real de isolamento de acesso, compliance, política de release ou tooling incompatível. A extração deve preservar o contrato do Shell, o manifesto federado e a API do BFF, evitando mudança na experiência do usuário.
 
 ### 19.7 Recomendação registrada
-**Preferir a Estratégia A — monorepo `portal-manager-frontend` com Nx, Angular e Native Federation**, com `apps/` para Shell e MFEs e `libs/` para Design System e contratos. **Não** incluir BFF/MCP como apps frontend. A opção multirepositório permanece válida e documentada para futura decisão organizacional. Critérios de revisão: número de times, requisitos de permissão, duração de builds, frequência de alterações transversais, maturidade das pipelines e necessidade de stacks distintas.
+**Preferir a Estratégia A — monorepo `portal-manager-frontend` com Nx, Angular e Native Federation**, com `apps/` para Shell e MFEs e `libs/` para adaptadores do Design System corporativo, infraestrutura e contratos. **Não** incluir BFF/MCP como apps frontend. A opção multirepositório permanece válida e documentada para futura decisão organizacional. Critérios de revisão: número de times, requisitos de permissão, duração de builds, frequência de alterações transversais, maturidade das pipelines e necessidade de stacks distintas.
 
 **Status da decisão:** favorita para implementação inicial; formalizar ADR após POC de Federation, build seletivo e deploy independente.
 
 ### 19.8 Decisão complementar — Design System corporativo
 **Definido:** Shell, Workspace e todos os MFEs utilizarão o Design System corporativo oficial como fonte de verdade para identidade visual, componentes e acessibilidade. Não será criado um Design System próprio do Portal Manager. A pasta `libs/corporate-ui-adapters` (se necessária) conterá apenas wrappers técnicos, integração com Angular, composição de componentes e adaptações aprovadas; não substituirá nem duplicará o catálogo corporativo. Confirmar os pacotes oficiais, distribuição, versão suportada, tokens disponíveis e diretrizes de contribuição antes da implementação.
+
+## 20. Decisões recomendadas — pendências de prioridade alta e média
+
+Esta seção consolida a orientação técnica para implementação. **Definido** indica alinhamento já confirmado; **recomendado** exige validação em POC, segurança corporativa ou ADR; **em aberto** exige decisão de contrato/configuração. Não confundir recomendação com implementação concluída.
+
+### 20.1 Alta prioridade — escolhas arquiteturais
+| Tema | Orientação | Status e critérios de aceite |
+|---|---|---|
+| Repositórios | Monorepo Nx com apps Angular independentes, CODEOWNERS, boundaries e pipelines/deploy por remote; multirepo preservado como alternativa | **Favorito**; POC de build afetado, publicação e rollback independentes |
+| Design System | Consumir **Design System corporativo oficial**, sem DS próprio; adaptadores somente quando necessários | **Definido**; identificar pacotes, versões, documentação e integração Angular |
+| Shell–MFE | API de contexto **frontend**, tipada, versionada e provida pelo Shell; eventos de alteração, navegação e lifecycle | **Recomendado**; testar mudança de conta/ambiente, limpeza de dependentes e remotes |
+| Federation | Manifesto de remotes por ambiente, compatibilidade explícita, lazy loading, fallback e rollback; CSP/origens permitidas e cadeia de publicação confiável | **Recomendado**; testar remote indisponível, versão incompatível e integridade do deploy |
+| Autenticação/sessão | BFF server-side, OIDC Authorization Code + PKCE com IdP corporativo, cookie opaco HttpOnly/Secure/SameSite, Redis, CSRF, rotação e revogação | **Recomendado**; threat model, cookies/domínios reais, idle/absolute timeout e logout SSO |
+| Chamadas BFF | Cada MFE possui os **contratos de domínio** e invoca o BFF por cliente HTTP comum; Shell **não** implementa endpoints de negócio | **Definido como orientação**; testar isolamento entre MFEs e headers |
+| Erros e i18n | Shell governa apresentação e políticas transversais de erro, idioma, locale, feedback e fallback; MFEs fornecem conteúdo de domínio | **Definido como orientação**; testes PT-BR/EN, códigos de erro e acessibilidade |
+
+### 20.2 Média prioridade — escolhas iniciais
+| Tema | Orientação | Evolução e cuidado |
+|---|---|---|
+| CI/CD | GitHub Actions com lint, typecheck, testes, scanning e build seletivo por projeto; artefatos imutáveis, deploy e rollback independentes | Releases e owners separados; evitar pipeline global obrigatória para todo commit |
+| Observabilidade | Web Vitals, erros JS e de remotes, correlation ID, traces BFF/serviços com OpenTelemetry e cuidado com PII | Definir dashboards por jornada e alertas progressivamente |
+| Redis | Namespaces, credenciais e políticas separadas para sessão, autorização e projeções; prefixos sozinhos não isolam segurança | TTL de autorização curto e invalidação por mudança de permissão; falha nunca autoriza por padrão; avaliar instância dedicada a sessões |
+| Notificações | Polling como início simples; SSE quando volume/latência justificarem; WebSocket somente se bidirecionalidade real | Escopo por identidade/conta, autorização, reconexão, visibilidade e contagem |
+| Catálogo MFE | Catálogo dinâmico de features servido pelo BFF + manifesto técnico de remotes aprovados | Exibição não substitui autorização; não permitir URLs de remote arbitrárias vindas de dados de negócio |
+| MCP | Servidor separado do BFF Web; OAuth/identidade própria, escopos por tool, rate limits e auditoria | Não reutilizar cookie web; ações sensíveis exigem política de aprovação |
+| SRE | SLOs por jornada e componente, alertas para falha de login, BFF e carregamento de remote, runbooks | Definir números após baseline real de tráfego e latência |
+
+### 20.3 Shell Context API — frontend, não endpoint backend
+A API de contexto é um **contrato TypeScript público** exposto pelo Shell aos remotes. O Shell detém a implementação e o estado em memória; opcionalmente persiste **somente identificadores não sensíveis** no `sessionStorage` da aba. O BFF continua responsável por validar identidade, vínculo, permissão e consistência dos identificadores em cada operação.
+
+```typescript
+export interface PortalContext {
+  accountIdentifier?: string;
+  environmentIdentifier?: string;
+  applicationIdentifier?: string;
+  accountEnvironmentIdentifier?: string;
+  applicationEnvironmentIdentifier?: string;
+}
+
+export interface PortalContextPort {
+  getSnapshot(): Readonly<PortalContext>;
+  contextChanges$: Observable<Readonly<PortalContext>>;
+  selectAccount(accountIdentifier: string): void;
+  selectEnvironment(environmentIdentifier: string, accountEnvironmentIdentifier: string): void;
+  selectApplication(applicationIdentifier: string, applicationEnvironmentIdentifier: string): void;
+  clear(): void;
+}
+```
+
+**Regras:** mudança de conta limpa ambiente, aplicação e vínculos; mudança de ambiente limpa aplicação e vínculo aplicação–ambiente; mudança de aplicação invalida vínculo anterior. A implementação valida consistência local, cancela/descarta respostas antigas e limpa o contexto no logout. `featureCode` pertence à rota/catálogo, não precisa ser um sexto campo global. O tipo `Observable` é ilustrativo: pode-se optar por Angular Signals, desde que exista contrato estável entre host e remotes. Não criar instâncias concorrentes de contexto em cada MFE.
+
+### 20.4 Comunicação HTTP — divisão definitiva de responsabilidades
+- **Shell:** bootstrap da sessão e configuração transversal de HTTP, contexto, tratamento de erros, internacionalização, mensagens, loading global e telemetria.
+- **`libs/api-client`:** infraestrutura compartilhada de `HttpClient`, interceptors e políticas; **não** concentra modelos/endpoints de todos os domínios.
+- **`libs/api-contracts/<dominio>` (opcional):** contratos OpenAPI/tipos versionados do domínio, preferencialmente gerados; evitar dependência direta entre MFEs.
+- **Cada MFE:** implementa clientes e chamadas BFF de seu domínio (`WorkspaceApi`, `ConfigurationApi`, `NavigationApi`, `RulesApi`), estado e tratamento de regras de tela.
+- **BFF:** valida sessão, CSRF, headers/contexto, faz composição/proxy e encaminha para serviços autorizados; serviços aplicam autorização definitiva.
+
+```mermaid
+flowchart TB
+  SHELL[Shell: sessão, contexto, i18n, erros e feedback]
+  W[Workspace MFE: WorkspaceApi]
+  C[Configuration MFE: ConfigurationApi]
+  N[Navigation MFE: NavigationApi]
+  R[Rules MFE: RulesApi]
+  HTTP[Shared HTTP Client: same-origin, CSRF, correlação, contexto]
+  BFF[BFF Web: sessão, composição e proteção]
+  SERVICES[Serviços de domínio: autorização e negócio]
+  SHELL -. contratos/serviços transversais .-> W
+  SHELL -. contratos/serviços transversais .-> C
+  SHELL -. contratos/serviços transversais .-> N
+  SHELL -. contratos/serviços transversais .-> R
+  W --> HTTP
+  C --> HTTP
+  N --> HTTP
+  R --> HTTP
+  HTTP --> BFF
+  BFF --> SERVICES
+```
+
+Preferir BFF same-origin com cookie de sessão, sem access/refresh tokens no JavaScript. Interceptors **não** devem enviar credenciais ou headers de contexto a URLs arbitrárias; definir allowlist de destinos e evitar retries automáticos de mutações não idempotentes. Os identificadores de contexto seguem o contrato de headers corporativo já existente; o mapeamento exato e os campos de vínculo são sujeitos a contrato BFF, não devem ser inventados por cada MFE.
+
+### 20.5 Responsabilidade do Shell: erros, mensagens e internacionalização
+O Shell é o **dono da experiência transversal**, não dos textos nem das regras de negócio de cada feature:
+
+| Responsabilidade | Shell / infraestrutura comum | MFE / backend |
+|---|---|---|
+| Erros HTTP | Normalizar envelope e definir política de UI: 401 reautenticação, 403 sem acesso, 404 não encontrado, 409 conflito, 400/422 validação, 429 limite, 5xx indisponibilidade | BFF/serviço produzem código/status/correlationId; MFE contextualiza a ação e campos afetados |
+| Mensagens globais | Serviço único de toast, banner, modal, loading, confirmação e fallback, com componentes do DS corporativo | MFE decide quando solicitar feedback e fornece chave de tradução/parâmetros do domínio |
+| Internacionalização | Locale ativo, troca de idioma, fallback pt-BR/en, formatação de datas/números e carregamento de catálogos | Cada MFE mantém namespaces e traduções de domínio; backend preserva códigos de mensagem estáveis |
+| Remote indisponível | Tela de fallback, retry seguro, registro de telemetria e opção de retornar ao Workspace | MFE respeita lifecycle e contrato de erro |
+| Acessibilidade | Padrões globais de foco, anúncio de erros, componentes e navegação | MFE garante semântica e validações acessíveis em cada formulário |
+
+**Fluxo recomendado de erro:** serviço devolve código estável, status e correlationId (e campos `detail`/`suggestion` quando previstos); cliente HTTP normaliza sem apagar a informação; MFE associa erro à operação e, se necessário, aos campos; serviço global do Shell traduz e apresenta mensagem consistente. **Não** exibir stack traces, detalhes internos ou respostas técnicas brutas. Tradução deve priorizar chaves/códigos estáveis e fallback seguro; mensagens do backend podem ser fallback controlado, não texto concatenado em cada MFE. Erros de validação inline pertencem à tela/MFE, mas seguem padrão visual e tradução global.
+
+### 20.6 Segurança e isolamento de microfrontends
+Native Federation não é sandbox: remotes confiáveis compartilham o contexto JavaScript do portal. Exigir revisão de dependências, proteção de supply chain, CSP compatível com a solução efetiva, política de origens, scans e rollout/rollback. Não distribuir secrets, tokens ou credenciais em bundles. Um remote não deve poder registrar URL externa arbitrária nem contornar validação do BFF. Se houver remotes de terceiros não confiáveis, usar isolamento de origem/iframe e contratos de mensagens validados, não carregamento federado direto.
+
+### 20.7 Critérios mínimos de aceite antes da implementação
+1. POC com Shell e dois MFEs carregados por Native Federation, contrato de contexto único e troca de conta/ambiente sem vazamento de dados.
+2. Workspace e Configuration consumindo BFF mockado com **clientes de domínio distintos** e interceptor HTTP comum.
+3. 401/403/409/422/5xx, erro de remote e expiração de sessão exibidos com padrão único do Shell; tradução pt-BR/en e fallback.
+4. Design System corporativo consumido pelo Shell e por um MFE sem estilos globais conflitantes.
+5. Build e deploy de um MFE sem rebuild do Shell, manifesto controlado e rollback validado.
+6. Testes de CSRF, sessão server-side, autorização por recurso/contexto e logs sem exposição de tokens.
+7. Métricas de carregamento de remotes, erros e correlação entre frontend/BFF/serviços.
+
+**Próximas decisões de configuração (não bloqueiam o desenho):** pacote/versão corporativa do DS; versão validada de Angular/Nx/Federation; esquema exato de headers de vínculos; biblioteca de i18n adotada; política corporativa de sessão/CSRF; parâmetros de TTL/invalidacão; metas de SLO; formato de manifesto e contrato OpenAPI do BFF.
