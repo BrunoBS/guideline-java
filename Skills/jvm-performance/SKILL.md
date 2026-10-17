@@ -1,34 +1,36 @@
 ---
 name: jvm-performance
-description: Orientações preliminares de Performance JVM para revisões e implementações da Golden Platform; usar quando a tarefa abordar este tema.
+description: Guia de performance jvm para implementação e revisão de APIs Java de alta escala com decisões verificáveis.
 ---
 
 # Performance JVM
 
-> DRAFT — proposta para revisão, não é política aprovada.
+Status: DRAFT v0.2; engenharia independente, sem substituir políticas Golden.
 
-## Quando usar
-Ao implementar, refatorar ou revisar mudanças que envolvam performance jvm.
+## Quando ativar
+Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas a performance jvm.
 
-## Instruções provisórias
-Medir antes e depois; utilizar profiling, JFR, métricas de GC, heap e CPU, testes de carga representativos.
+## Procedimento
+1. Ler contratos, código, configuração, versões e testes relevantes; separar fatos de suposições.
+2. Definir comportamento esperado, requisitos não funcionais e possíveis regressões.
+3. Aplicar os critérios técnicos abaixo e comparar alternativas, inclusive não modificar.
+4. Planejar mudança mínima, validação, observabilidade e rollback.
+5. Produzir relatório de evidências, riscos e limitações.
 
-## Evitar
-Não ajustar GC, pool ou threads com base apenas em intuição.
+## Critérios técnicos
+1. Definir carga e SLO; medir goodput, latência p95/p99, erros e saturação.
+2. Triar CPU, alocação, GC, JIT, locks, filas, conexões e downstream; distinguir correlação de causa.
+3. Usar JFR/perfis com orçamento de overhead e proteção de dados; comparar versão afetada e controle.
+4. Revisar heap/RSS/cgroup, CPU throttling e memória nativa em containers.
+5. Validar uma hipótese por experimento; comparar custo por requisição e regressões sob mesma carga.
 
-## Checklist de revisão
-- [ ] Conferir documentação Golden aplicável e versão das dependências.
-- [ ] Identificar contratos públicos e compatibilidade retroativa.
-- [ ] Verificar testes, observabilidade e riscos de regressão.
-- [ ] Justificar decisões com evidência técnica.
-- [ ] Registrar conflito em `../DIVERGENCIAS.md` antes de alterar convenções.
+## Entrega obrigatória
+- Contexto, hipóteses e evidências existentes.
+- Recomendação com justificativa e alternativas rejeitadas.
+- Impacto em compatibilidade, carga, segurança e operação.
+- Plano de teste, critérios de aceitação e reversão.
 
-## Documentos a confrontar
-observability, ECS, Java 25.
+## Fontes e cautelas
+Fonte: JVM Expert java-performance; DHA performance-testing; references/PERFORMANCE-ENGINEERING.md.
 
-## Referências externas candidatas
-- https://github.com/dunghoangcy-web/ai-skill-java-spring-boot
-- https://github.com/Marisha-Sahay/awesome-java-agent-skills
-- https://github.com/robsonkades/agent-skills
-
-> Fontes candidatas: ainda não incorporadas nem auditadas integralmente quanto a licença e compatibilidade.
+Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
