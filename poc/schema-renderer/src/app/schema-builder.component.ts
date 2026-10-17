@@ -262,7 +262,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <div class="inline-object-heading"><strong>Atributos do objeto</strong><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
   <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
    <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
-   <button type="button" class="canvas-field-delete" (click)="confirmDeleteField(child.path)">Excluir</button>
+   <div class="field-card-tools"><button type="button" (click)="openFieldEditor(child.path)" aria-label="Configurar atributo" title="Configurar">⚙</button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir">🗑</button></div>
   </div>
   <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(field.path,kind.type)">+ {{kind.label}}</button></div>
   <p class="validation-help">Objeto dentro de objeto está desabilitado no editor visual.</p>
