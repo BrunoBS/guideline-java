@@ -34,3 +34,8 @@ Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas
 Fonte: DHA jpa-patterns; documentação MySQL EXPLAIN; references/QUERY-REVIEW.md.
 
 Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
+
+## Aprofundamento obrigatório
+Revisar SQL emitido, N+1, paginação de collection fetch join, projeções, isolamento por tenant e transações.
+
+Ler [playbook especializado](references/HIBERNATE-ORM-REVIEW.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
