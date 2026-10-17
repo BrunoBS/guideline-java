@@ -33,6 +33,15 @@ for name in EXPECTED:
         errors.append(f"{name}: missing example file")
     elif len(example.read_text(encoding="utf-8").strip()) < 250:
         errors.append(f"{name}: example file too short to audit")
+for name in EXPECTED:
+    example = ROOT / name / "references" / "EXEMPLOS-E-DECISOES.md"
+    if example.is_file():
+        body = example.read_text(encoding="utf-8")
+        for heading in ("### Quando NÃO aplicar", "### Critério de verificação", "### Referência"):
+            if heading not in body:
+                errors.append(f"{name}: missing example heading: {heading}")
+        if "não código compilado" not in body:
+            errors.append(f"{name}: missing didactic disclaimer")
 if not (ROOT / "CONTRATO-EXECUCAO-AGENTES.md").is_file():
     errors.append("missing shared execution contract")
 for issue in errors:
