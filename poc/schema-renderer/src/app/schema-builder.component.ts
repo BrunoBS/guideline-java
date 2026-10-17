@@ -124,6 +124,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .required-switch-input:checked+.required-switch-track{background:#2455b5}
  .required-switch-input:checked+.required-switch-track:after{transform:translateX(16px)}
  .required-switch-input:focus-visible+.required-switch-track{outline:3px solid #93c5fd;outline-offset:2px}
+ .validation-help{font-size:12px;line-height:1.5;color:#718096;margin:0 0 14px}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
  .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
@@ -232,7 +233,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <label *ngIf="mode==='dev' && selectedPath!=='' && !selectedPath.endsWith('/items')" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)"/> Obrigatório</label>
    </div>
    <div *ngIf="mode==='dev' || editorTab==='validation'">
-   <h4 class="rule-heading">Validações</h4>
+   <h4 class="rule-heading">Validações de {{typeLabel(node)}}</h4>
+   <p class="validation-help" *ngIf="mode==='construction'">Configure apenas as regras aplicáveis a este tipo de campo.</p>
    <ng-container *ngIf="node.type==='string'">
     <label>Formato
      <select [ngModel]="node.format||''" (ngModelChange)="setOptional('format',$event)">
@@ -257,7 +259,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <label>Mínimo de itens<input type="number" min="0" step="1" [ngModel]="node.minItems" (ngModelChange)="setNumber('minItems',$event,0,true)"/></label>
     <label>Máximo de itens<input type="number" min="0" step="1" [ngModel]="node.maxItems" (ngModelChange)="setNumber('maxItems',$event,0,true)"/></label>
    </div>
-   <label *ngIf="node.type==='array'">Tipo dos itens
+   <label *ngIf="node.type==='array' && mode==='dev'">Tipo dos itens
     <select [ngModel]="arrayItemType(node)" (ngModelChange)="setArrayItemType($event)">
      <option value="string">Texto</option><option value="integer">Inteiro</option><option value="number">Decimal</option><option value="boolean">Sim / Não</option><option value="object">Objeto / agrupador</option><option value="array">Lista</option>
     </select>
@@ -267,7 +269,10 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
     <label>Máximo de propriedades<input type="number" min="0" step="1" [ngModel]="node.maxProperties" (ngModelChange)="setNumber('maxProperties',$event,0,true)"/></label>
    </div>
+   <p class="validation-help" *ngIf="node.type==='array' && arrayItemType(node)==='object'">As propriedades e validações dos objetos são configuradas dentro da lista agrupada.</p>
    <label *ngIf="node.type==='object'" class="checkline"><input type="checkbox" [ngModel]="node.additionalProperties!==false" (ngModelChange)="setBoolean('additionalProperties',$event)"/> Permitir propriedades adicionais</label>
+   <p class="validation-help" *ngIf="node.type==='boolean'">Este campo aceita verdadeiro ou falso. Você pode restringir os valores usando enum.</p>
+   <h4 class="rule-heading" *ngIf="node.type!=='object' && node.type!=='array'">Valores permitidos</h4>
    <label *ngIf="node.type!=='object'&&node.type!=='array'">Enum (um valor JSON por linha)
     <textarea [ngModel]="enumText(node)" (change)="setEnum($any($event.target).value)" placeholder="Exemplo:&#10;&quot;ATIVO&quot;&#10;&quot;INATIVO&quot;"></textarea>
    </label>
