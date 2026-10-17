@@ -39,3 +39,6 @@ Não copiar código ou regras de fonte externa sem revisar versão, licença e a
 Calcular amplificação de retries, deadline fim a fim e idempotência; verificar cancelamento real do I/O.
 
 Ler [playbook especializado](references/RETRY-BUDGETS.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
+
+## Contrato operacional e exemplos
+Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
