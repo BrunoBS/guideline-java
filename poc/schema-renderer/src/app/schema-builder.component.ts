@@ -90,8 +90,15 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </div>
   </aside>
   <section class="canvas" *ngIf="mode==='construction'">
-   <div class="canvas-header"><div><strong>{{activeContainerPath ? "Campos do agrupador" : "Campos do schema"}}</strong><p>{{activeContainerLabel}} · Selecione um card para editar seu contrato.</p></div><span class="builder-help">{{canvasFields.length}} campos</span></div>
-   <button type="button" class="structure-toggle" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar ao agrupador anterior</button>
+   <div class="canvas-header">
+    <div><strong>{{activeContainerPath ? "Campos do agrupador" : "Campos do schema"}}</strong><p>{{activeContainerLabel}} · Selecione um card para editar seu contrato.</p></div>
+    <div class="builder-actions" style="margin:0">
+     <button type="button" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar</button>
+     <button type="button" *ngIf="selected?.type==='object' && selectedPath" (click)="openSelectedGroup()">Abrir agrupador</button>
+     <button type="button" *ngIf="selected?.type==='array' && arrayItemType(selected)==='object'" (click)="openArrayItems()">Abrir lista de objetos</button>
+     <span class="builder-help">{{canvasFields.length}} campos</span>
+    </div>
+   </div>
    <div class="canvas-fields">
     <button type="button" class="canvas-field" *ngFor="let field of canvasFields" [class.active]="selectedPath===field.path" (click)="select(field.path)">
      <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
@@ -106,9 +113,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-header"><strong>Editar campo</strong><button type="button" (click)="select('')">Fechar</button></div>
    <div class="builder-actions">
     <button type="button" *ngIf="node.type==='object'" (click)="addProperty()">+ Propriedade</button>
-    <button type="button" *ngIf="node.type==='object' && selectedPath" (click)="openSelectedGroup()">Abrir agrupador</button>
     <button type="button" *ngIf="node.type==='array'" (click)="addItems()">+ Definir items</button>
-    <button type="button" *ngIf="node.type==='array' && arrayItemType(node)==='object'" (click)="openArrayItems()">Abrir agrupador dos itens</button>
     <button type="button" *ngIf="selectedPath!==''" (click)="removeSelected()">Excluir nó</button>
    </div>
    <label *ngIf="isPropertySelected">Nome da propriedade
