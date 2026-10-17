@@ -34,3 +34,8 @@ Teste determinístico de concorrência, teste de saturação e medição de fila
 JDK 25 docs, JVM Expert performance, Awesome Java clean code (revisar afirmações de Java 21).
 
 > Texto original de curadoria, não transcrição de Skill de terceiros. Verificar APIs e versões na documentação oficial antes de gerar código.
+
+## Aprofundamento obrigatório
+Não aplicar conselho obsoleto sobre synchronized/pinning; limitar recursos escassos, não threads virtuais.
+
+Ler [playbook especializado](references/VIRTUAL-THREADS-JAVA25.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
