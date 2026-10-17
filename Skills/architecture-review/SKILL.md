@@ -1,34 +1,36 @@
 ---
 name: architecture-review
-description: Orientações preliminares de Revisão de arquitetura para revisões e implementações da Golden Platform; usar quando a tarefa abordar este tema.
+description: Guia de revisão arquitetural para implementação e revisão de APIs Java de alta escala com decisões verificáveis.
 ---
 
-# Revisão de arquitetura
+# Revisão arquitetural
 
-> DRAFT — proposta para revisão, não é política aprovada.
+Status: DRAFT v0.2; engenharia independente, sem substituir políticas Golden.
 
-## Quando usar
-Ao implementar, refatorar ou revisar mudanças que envolvam revisão de arquitetura.
+## Quando ativar
+Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas a revisão arquitetural.
 
-## Instruções provisórias
-Revisar dependências, limites de contexto, contratos, segurança, resiliência, observabilidade e evidências de teste.
+## Procedimento
+1. Ler contratos, código, configuração, versões e testes relevantes; separar fatos de suposições.
+2. Definir comportamento esperado, requisitos não funcionais e possíveis regressões.
+3. Aplicar os critérios técnicos abaixo e comparar alternativas, inclusive não modificar.
+4. Planejar mudança mínima, validação, observabilidade e rollback.
+5. Produzir relatório de evidências, riscos e limitações.
 
-## Evitar
-Não aprovar mudanças estruturais por preferências genéricas; registrar divergências.
+## Critérios técnicos
+1. Mapear boundaries, ownership de dados, contratos, chamadas síncronas/assíncronas e blast radius.
+2. Avaliar disponibilidade, consistência, segurança, performance, custo e operabilidade como trade-offs explícitos.
+3. Revisar ciclo completo: API, transação, persistência, evento, cache, métricas, rollout e rollback.
+4. Classificar findings por severidade e evidência; distinguir falha demonstrada, risco plausível e preferência estilística.
+5. Priorizar menor solução que satisfaça requisitos; não aprovar abstrações sem necessidade.
 
-## Checklist de revisão
-- [ ] Conferir documentação Golden aplicável e versão das dependências.
-- [ ] Identificar contratos públicos e compatibilidade retroativa.
-- [ ] Verificar testes, observabilidade e riscos de regressão.
-- [ ] Justificar decisões com evidência técnica.
-- [ ] Registrar conflito em `../DIVERGENCIAS.md` antes de alterar convenções.
+## Entrega obrigatória
+- Contexto, hipóteses e evidências existentes.
+- Recomendação com justificativa e alternativas rejeitadas.
+- Impacto em compatibilidade, carga, segurança e operação.
+- Plano de teste, critérios de aceitação e reversão.
 
-## Documentos a confrontar
-governance, roadmap, guideline, platform-build/platform-libraries.
+## Fontes e cautelas
+Fonte: DHA architecture/code-quality/security/devops; Golden somente na segunda fase.
 
-## Referências externas candidatas
-- https://github.com/dunghoangcy-web/ai-skill-java-spring-boot
-- https://github.com/Marisha-Sahay/awesome-java-agent-skills
-- https://github.com/robsonkades/agent-skills
-
-> Fontes candidatas: ainda não incorporadas nem auditadas integralmente quanto a licença e compatibilidade.
+Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
