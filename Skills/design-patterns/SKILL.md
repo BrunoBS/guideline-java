@@ -1,34 +1,36 @@
 ---
 name: design-patterns
-description: Orientações preliminares de Padrões de projeto para revisões e implementações da Golden Platform; usar quando a tarefa abordar este tema.
+description: Guia de design patterns para implementação e revisão de APIs Java de alta escala com decisões verificáveis.
 ---
 
-# Padrões de projeto
+# Design Patterns
 
-> DRAFT — proposta para revisão, não é política aprovada.
+Status: DRAFT v0.2; engenharia independente, sem substituir políticas Golden.
 
-## Quando usar
-Ao implementar, refatorar ou revisar mudanças que envolvam padrões de projeto.
+## Quando ativar
+Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas a design patterns.
 
-## Instruções provisórias
-Escolher Strategy, Factory, Adapter, Decorator e outros apenas quando reduzirem acoplamento ou variação real.
+## Procedimento
+1. Ler contratos, código, configuração, versões e testes relevantes; separar fatos de suposições.
+2. Definir comportamento esperado, requisitos não funcionais e possíveis regressões.
+3. Aplicar os critérios técnicos abaixo e comparar alternativas, inclusive não modificar.
+4. Planejar mudança mínima, validação, observabilidade e rollback.
+5. Produzir relatório de evidências, riscos e limitações.
 
-## Evitar
-Não usar padrões por obrigação nem duplicar capacidades já existentes nas libraries.
+## Critérios técnicos
+1. Strategy para algoritmos variantes; Factory para criação complexa; Adapter para SDK externo; Decorator para comportamento transversal; Specification para filtros composáveis.
+2. Outbox para publicação confiável associada a transação local; Saga somente se compensações e consistência distribuída justificarem.
+3. Identificar custo de abstração, extensibilidade necessária, impacto no debugging e ownership.
+4. Comparar padrão com solução simples; evitar singleton mutável, service locator e generalização prematura.
+5. Exigir exemplo de antes/depois, teste e justificativa da redução de acoplamento.
 
-## Checklist de revisão
-- [ ] Conferir documentação Golden aplicável e versão das dependências.
-- [ ] Identificar contratos públicos e compatibilidade retroativa.
-- [ ] Verificar testes, observabilidade e riscos de regressão.
-- [ ] Justificar decisões com evidência técnica.
-- [ ] Registrar conflito em `../DIVERGENCIAS.md` antes de alterar convenções.
+## Entrega obrigatória
+- Contexto, hipóteses e evidências existentes.
+- Recomendação com justificativa e alternativas rejeitadas.
+- Impacto em compatibilidade, carga, segurança e operação.
+- Plano de teste, critérios de aceitação e reversão.
 
-## Documentos a confrontar
-platform-libraries, workspace-service.
+## Fontes e cautelas
+Fonte: DHA design-patterns e architecture.
 
-## Referências externas candidatas
-- https://github.com/dunghoangcy-web/ai-skill-java-spring-boot
-- https://github.com/Marisha-Sahay/awesome-java-agent-skills
-- https://github.com/robsonkades/agent-skills
-
-> Fontes candidatas: ainda não incorporadas nem auditadas integralmente quanto a licença e compatibilidade.
+Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
