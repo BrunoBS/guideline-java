@@ -38,7 +38,7 @@ jobs:
           mkdir -p out
           javac --release 25 -d out src/*.java
           java -cp out SmokeTests
-  mysql-testcontainers:
+  mysql-redis-testcontainers:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -51,13 +51,13 @@ jobs:
           cache-dependency-path: Skills/laboratorio-integracao/pom.xml
       - name: Verify Docker availability
         run: docker version
-      - name: Run MySQL integration tests
+      - name: Run MySQL and Redis integration tests
         working-directory: Skills/laboratorio-integracao
         run: mvn -B -ntp verify
       - name: Archive test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: skills-mysql-surefire
+          name: skills-mysql-redis-surefire
           path: Skills/laboratorio-integracao/target/surefire-reports/
           if-no-files-found: warn
