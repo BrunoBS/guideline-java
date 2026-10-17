@@ -16,7 +16,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified:not(.developer-mode) .palette>strong,.builder.simplified:not(.developer-mode) .palette>.builder-help{flex:0 0 100%;margin:0}
  .builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2;order:unset}
  .builder.simplified:not(.developer-mode) .inspector{grid-column:2;grid-row:2;order:unset;position:static;transform:none;width:100%;max-height:none;overflow:visible;box-shadow:none}
- .builder.simplified:not(.developer-mode):not(:has(.inspector)) .canvas{grid-column:1/-1}
+ .builder.simplified:not(.developer-mode):not(:has(.inspector)) .canvas{grid-column:1}
  @media(max-width:760px){.builder.simplified:not(.developer-mode) .palette.desktop-palette{grid-template-columns:repeat(2,minmax(0,1fr))}.builder.simplified:not(.developer-mode){grid-template-columns:1fr}.builder.simplified:not(.developer-mode) .palette.desktop-palette{grid-column:1;grid-row:1;display:flex}.builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2}.builder.simplified:not(.developer-mode) .inspector{grid-column:1;grid-row:3}}
  .builder.simplified:has(.canvas):has(.inspector){grid-template-columns:minmax(330px,1fr) minmax(320px,1fr)}
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:minmax(0,1.3fr) minmax(240px,.7fr);gap:16px;align-items:start}
@@ -96,6 +96,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .editor-tabs button.active{background:#eaf1ff;border-color:#86a9e6;color:#16468e}
  .canvas-close{border:0;background:transparent;color:#64748b;font-size:24px;line-height:1;padding:3px 8px;border-radius:6px;cursor:pointer}
  .canvas-close:hover,.canvas-close:focus-visible{background:#eaf1ff;color:#17448c}
+ .inspector-disabled{background:#f8fafc!important;border-color:#e2e8f0!important}
+ .inspector-disabled .editor-heading{opacity:.55}
+ .editor-empty{color:#8090a5;font-size:14px;line-height:1.6;padding:24px 6px;text-align:center}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
  .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
@@ -171,8 +174,10 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-empty" *ngIf="!canvasFields.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
 
-  <div class="inspector" [class.field-modal]="false" *ngIf="(selectedPath || mode==='dev') && selected as node">
-   <div class="editor-heading"><strong>Editar campo</strong><button type="button" class="editor-close" aria-label="Fechar edição" title="Fechar edição" (click)="select('')">×</button></div>
+  <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="selected as node">
+   <div class="editor-heading"><strong>Editar campo</strong><button type="button" *ngIf="selectedPath" class="editor-close" aria-label="Fechar edição" title="Fechar edição" (click)="select('')">×</button></div>
+   <p class="editor-empty" *ngIf="mode==='construction' && !selectedPath">Selecione um campo em Campos do schema para editar suas propriedades e validações.</p>
+   <div *ngIf="mode==='dev' || selectedPath">
    <div class="builder-actions" *ngIf="mode==='dev'">
     <button type="button" *ngIf="node.type==='object'" (click)="addProperty()">+ Propriedade</button>
     <button type="button" *ngIf="node.type==='array'" (click)="addItems()">+ Definir items</button>
@@ -292,6 +297,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </ng-container>
    <p class="builder-error" *ngIf="error">{{error}}</p>
    <div class="editor-footer" *ngIf="mode==='construction' && selectedPath"><button type="button" class="editor-delete" (click)="confirmDeleteSelected()">♲ Excluir campo</button><span>Alterações salvas automaticamente</span></div>
+   </div>
   </div>
   <div class="confirm-overlay" *ngIf="showDeleteConfirmation" (click)="cancelDelete()"><section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title" aria-describedby="confirm-delete-description" (click)="$event.stopPropagation()"><div class="confirm-icon">!</div><h3 id="confirm-delete-title">Excluir campo?</h3><p id="confirm-delete-description">O campo <strong>{{selectedName}}</strong> será removido do schema. Essa ação não pode ser desfeita.</p><div class="confirm-actions"><button type="button" class="confirm-cancel" (click)="cancelDelete()">Cancelar</button><button type="button" class="confirm-danger" (click)="deleteConfirmed()">Excluir campo</button></div></section></div>
  </div>`
