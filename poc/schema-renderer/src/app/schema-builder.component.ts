@@ -234,6 +234,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified .schema-group .group-heading-copy strong{font-size:16px;color:#243b59}
  .builder.simplified .schema-group .group-heading-description{font-size:13px;font-weight:400;color:#68778f;white-space:normal!important}
  .builder.simplified .schema-group .group-heading-type{flex-shrink:0;color:#243b59;font-weight:700;font-size:13px}
+ .builder.simplified .schema-group .group-footer-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding:6px 4px}
+ .builder.simplified .schema-group .group-footer-actions button[aria-label^="Subir"],
+ .builder.simplified .schema-group .group-footer-actions button[aria-label^="Descer"]{min-width:36px!important;width:36px!important;height:36px!important;padding:0!important;background:#fff!important;color:#24446c!important;border:1px solid #d4ddeb!important}
+ .builder.simplified .schema-group .group-footer-actions button:disabled{opacity:.35;cursor:not-allowed}
+
  .builder.simplified .schema-group .schema-group-select:hover{background:transparent!important}
  .builder.simplified .schema-group .order-actions button{background:#fff!important;color:#24446c!important;border:1px solid #d4ddeb!important;border-radius:8px!important;min-width:36px!important;height:36px!important;cursor:pointer}
  .builder.simplified .schema-group .order-actions button:hover:not(:disabled){background:#edf4ff!important}
@@ -303,8 +308,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <section class="schema-group" *ngFor="let group of visualGroups" [style.order]="canvasPosition('group:'+group.id)" [class.active]="selectedGroupId===group.id">
       <div class="schema-group-header">
         <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)"><span class="group-heading-copy"><strong>{{group.title||'Novo grupo'}}</strong><span class="group-heading-description">{{group.description||'Grupo de campos'}}</span></span><span class="group-heading-type">group</span></button>
-        <div class="order-actions"><button type="button" (click)="moveGroup(group.id,-1)" [disabled]="!canMoveRootItem('group:'+group.id,-1)" aria-label="Subir grupo">↑</button><button type="button" (click)="moveGroup(group.id,1)" [disabled]="!canMoveRootItem('group:'+group.id,1)" aria-label="Descer grupo">↓</button></div>
-        <button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
+        <button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)" [attr.aria-label]="collapsedGroups.has(group.id)?'Expandir grupo':'Recolher grupo'">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
       </div>
       <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)">
  <div class="group-field-row" *ngFor="let field of groupFields(group)" [class.active]="selectedPath===field.path">
@@ -324,6 +328,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   </div>
  </div>
         <div class="inline-object-actions"><button type="button" *ngFor="let kind of groupFieldPalette" (click)="addFieldToGroup(group.id,kind.type)">+ {{kind.label}}</button></div>
+      </div>
+      <div class="group-footer-actions field-card-tools">
+        <button type="button" (click)="moveGroup(group.id,-1)" [disabled]="!canMoveRootItem('group:'+group.id,-1)" aria-label="Subir grupo">↑</button>
+        <button type="button" (click)="moveGroup(group.id,1)" [disabled]="!canMoveRootItem('group:'+group.id,1)" aria-label="Descer grupo">↓</button>
+        <button type="button" (click)="deleteVisualGroup(group.id)" aria-label="Excluir grupo"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button>
       </div>
     </section>
 <div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" [style.order]="canvasPosition('field:'+propertyKey(field.path))" [class.active]="selectedPath===field.path">
