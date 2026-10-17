@@ -37,3 +37,8 @@ Não copiar código ou regras de fonte externa sem revisar versão, licença e a
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate Spring Boot 4 / Hibernate
+- Confirmar dependências efetivas; não transportar starter de Boot 3 sem verificação.
+- Testar transações pelo proxy Spring, rollback no MySQL e propagação de contexto async.
+- Evitar paginação de coleção com JOIN FETCH; validar duas fases e filtro por workspace.
