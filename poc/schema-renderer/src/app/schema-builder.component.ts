@@ -481,7 +481,7 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  goToParentContainer(){this.selectedGroupId='';this.activeContainerPath=this.containerHistory.pop()||'';}
  arrayWidget(node:Schema):string{return node['x-ui']?.widget||'list';}
- setArrayWidget(widget:string){this.commit(root=>{const node=this.current(root)!;node['x-ui']??={};node['x-ui'].widget=widget;if(widget!=='list'){node.uniqueItems=true;if(!['string','integer','number'].includes(this.arrayItemType(node)))node.items={type:'string'};}});}
+ setArrayWidget(widget:string){this.commit(root=>{const node=this.current(root)!;node['x-ui']??={};node['x-ui'].widget=widget;if(widget!=='list'){node.uniqueItems=true;if(!['string','integer','number'].includes(this.arrayItemType(node)))node.items={type:'string'};const item=node.items as Schema;const options=node['x-ui']?.options||[];if(item&&typeof item==='object'&&options.length)item.enum=options.map((option:any)=>option.value);}});}
  arrayOptionsText(node:Schema):string{const options=node['x-ui']?.options||[];return options.map((option:any)=>String(option.value)+' | '+String(option.label)).join('\n');}
  setArrayOptions(text:string){this.commit(root=>{const node=this.current(root)!;const item=node.items as Schema;const type=this.arrayItemType(node);const options=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{const [raw,...label]=line.split('|');const value=raw.trim();return {value:type==='integer'||type==='number'?Number(value):value,label:label.join('|').trim()||value};}).filter(option=>option.value!==''&&(typeof option.value!=='number'||Number.isFinite(option.value)));node['x-ui']??={};node['x-ui'].options=options;if(item&&typeof item==='object')item.enum=[...new Set(options.map(option=>option.value))];});}
  arrayItemType(node:Schema):string{
@@ -500,6 +500,7 @@ export class SchemaBuilderComponent implements OnChanges {
     :type==='array'
      ?{type:'array',title:'Item',items:{type:'string'}}
      :{type,title:'Item'};
+   if(this.arrayWidget(node)!=='list'){node['x-ui']??={};node['x-ui'].options=[];}
   });
  }
  addTypedProperty(type:string){
