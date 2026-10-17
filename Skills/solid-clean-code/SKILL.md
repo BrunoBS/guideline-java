@@ -1,34 +1,36 @@
 ---
 name: solid-clean-code
-description: Orientações preliminares de SOLID e Clean Code para revisões e implementações da Golden Platform; usar quando a tarefa abordar este tema.
+description: Guia de solid / clean code para implementação e revisão de APIs Java de alta escala com decisões verificáveis.
 ---
 
-# SOLID e Clean Code
+# SOLID / Clean Code
 
-> DRAFT — proposta para revisão, não é política aprovada.
+Status: DRAFT v0.2; engenharia independente, sem substituir políticas Golden.
 
-## Quando usar
-Ao implementar, refatorar ou revisar mudanças que envolvam solid e clean code.
+## Quando ativar
+Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas a solid / clean code.
 
-## Instruções provisórias
-Aplicar SRP, DIP e coesão por comportamento; refatorar com testes e preservar contratos públicos.
+## Procedimento
+1. Ler contratos, código, configuração, versões e testes relevantes; separar fatos de suposições.
+2. Definir comportamento esperado, requisitos não funcionais e possíveis regressões.
+3. Aplicar os critérios técnicos abaixo e comparar alternativas, inclusive não modificar.
+4. Planejar mudança mínima, validação, observabilidade e rollback.
+5. Produzir relatório de evidências, riscos e limitações.
 
-## Evitar
-Não criar interfaces, heranças ou camadas artificiais sem motivo verificável.
+## Critérios técnicos
+1. SRP: identificar razões independentes de mudança, não impor uma classe por método.
+2. OCP/DIP: introduzir portas e estratégias quando houver variação real ou isolamento testável, não interfaces cerimoniais.
+3. LSP/ISP: contratos, pré/pós-condições e interfaces mínimas; evitar hierarquias que exigem instanceof.
+4. Revisar nomes, acoplamento, coesão, efeitos colaterais, exceções e propagação de contexto.
+5. Refatoração segura: caracterizar comportamento, fazer alteração pequena, executar testes e comparar contratos.
 
-## Checklist de revisão
-- [ ] Conferir documentação Golden aplicável e versão das dependências.
-- [ ] Identificar contratos públicos e compatibilidade retroativa.
-- [ ] Verificar testes, observabilidade e riscos de regressão.
-- [ ] Justificar decisões com evidência técnica.
-- [ ] Registrar conflito em `../DIVERGENCIAS.md` antes de alterar convenções.
+## Entrega obrigatória
+- Contexto, hipóteses e evidências existentes.
+- Recomendação com justificativa e alternativas rejeitadas.
+- Impacto em compatibilidade, carga, segurança e operação.
+- Plano de teste, critérios de aceitação e reversão.
 
-## Documentos a confrontar
-README guideline, use cases, AOP.
+## Fontes e cautelas
+Fonte: DHA code-quality; Awesome Java java-clean-code.
 
-## Referências externas candidatas
-- https://github.com/dunghoangcy-web/ai-skill-java-spring-boot
-- https://github.com/Marisha-Sahay/awesome-java-agent-skills
-- https://github.com/robsonkades/agent-skills
-
-> Fontes candidatas: ainda não incorporadas nem auditadas integralmente quanto a licença e compatibilidade.
+Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
