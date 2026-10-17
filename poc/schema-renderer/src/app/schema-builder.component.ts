@@ -43,6 +43,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .structure-toggle{margin:12px 0 0;background:transparent;color:#2455b5;border:0;cursor:pointer;text-align:left;padding:6px}
  .structure-panel{margin-top:10px;border-top:1px solid #e3e9f2;padding-top:12px}
  .inspector{max-height:calc(100vh - 110px);overflow-y:auto;position:sticky;top:12px}
+ .modal-backdrop{position:fixed;inset:0;background:rgba(10,24,48,.58);z-index:99}
+ .builder.simplified .inspector.field-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 40px);overflow-y:auto;z-index:100;box-shadow:0 24px 80px rgba(10,24,48,.25);box-sizing:border-box;grid-column:auto;grid-row:auto}
  @media(max-width:1100px){.builder{grid-template-columns:minmax(170px,.65fr) minmax(260px,1fr)}.inspector{grid-column:1/-1;position:static;max-height:none}}
  @media(max-width:760px){.builder{grid-template-columns:1fr}.palette{position:static}.inspector{grid-column:auto}}
  .tree,.inspector{border:1px solid #d9dfe9;border-radius:10px;padding:18px;min-width:0;background:#fff}
@@ -118,7 +120,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </div>
    <div class="canvas-empty" *ngIf="!canvasFields.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
-  <div class="inspector" *ngIf="(selectedPath || mode==='dev') && selected as node">
+  <div class="modal-backdrop" *ngIf="mode==='construction' && selectedPath" (click)="select('')"></div>
+  <div class="inspector" [class.field-modal]="mode==='construction'" role="dialog" aria-label="Editar campo" *ngIf="(selectedPath || mode==='dev') && selected as node">
    <div class="canvas-header"><strong>Editar campo</strong><button type="button" (click)="select('')">Fechar</button></div>
    <div class="builder-actions">
     <button type="button" *ngIf="node.type==='object'" (click)="addProperty()">+ Propriedade</button>
