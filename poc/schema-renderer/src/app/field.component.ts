@@ -7,7 +7,7 @@ import {
  arrayItemSchema,additionalSchemaForKey,propertyNameIssue,matches,merge,schemaLabel
 } from './schema-engine';
 
-@Component({selector:'app-field',standalone:true,imports:[CommonModule,FormsModule],template:`
+@Component({selector:'app-field',standalone:true,imports:[CommonModule,FormsModule],styles:[`.visual-form-group{border:1px solid #dce4ef;border-radius:12px;padding:16px;margin:14px 0;background:#fbfcff}.visual-form-group h3{margin:0 0 8px;font-size:16px;color:#243b59}.visual-form-group p{margin:0 0 12px;font-size:13px;color:#64748b}`],template:`
 <ng-container *ngIf="resolved as s">
   <div class="schema-impossible" *ngIf="isFalseSchema(s); else renderable">Este valor não é permitido pelo schema.</div>
 
@@ -61,7 +61,14 @@ import {
             <p class="muted" *ngIf="v.description">{{v.description}}</p>
             <div class="annotation-row" *ngIf="v.readOnly || v.writeOnly"><span *ngIf="v.readOnly">Somente leitura</span><span *ngIf="v.writeOnly">Somente escrita</span></div>
 
-            <div *ngFor="let item of entries(v.properties||{});trackBy:trackKey" class="field">
+            <section *ngFor="let group of visualGroups(v)" class="visual-form-group">
+              <h3>{{group.title||'Grupo'}}</h3>
+              <p *ngIf="group.description">{{group.description}}</p>
+              <div *ngFor="let key of group.fields" class="field">
+                <app-field *ngIf="v.properties?.[key]" [name]="key" [schema]="v.properties[key]" [root]="root" [value]="objectValue?.[key]" [required]="(v.required||[]).includes(key)" [issues]="issues" [path]="childPath(key)" (valueChange)="updateKey(key,$event)"></app-field>
+              </div>
+            </section>
+            <div *ngFor="let item of ungroupedEntries(v);trackBy:trackKey" class="field">
               <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue?.[item[0]]" [required]="(v.required||[]).includes(item[0])" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
             </div>
 
@@ -227,6 +234,8 @@ export class FieldComponent {
  get arrayValue():any[]{return Array.isArray(this.value)?this.value:[];}
  get objectPropertyCount(){return Object.keys(this.objectValue).length;}
 
+ visualGroups(s:Schema):{id:string;title:string;description?:string;fields:string[]}[]{const groups=s['x-ui']?.groups;return Array.isArray(groups)?groups.filter((g:any)=>g&&Array.isArray(g.fields)):[];}
+ ungroupedEntries(s:Schema):[string,any][]{const assigned=new Set(this.visualGroups(s).flatMap(g=>g.fields));return Object.entries(s.properties||{}).filter(([key])=>!assigned.has(key));}
  entries(object:Record<string,any>):[string,any][]{return Object.entries(object||{});}
  trackKey(_i:number,item:[string,any]){return item[0];}trackIndex(index:number){return index;}
  primaryType=primaryType;isNullable=isNullable;isFalseSchema=isFalseSchema;isFreeSchema=isFreeSchema;hasTypeUnion=hasTypeUnion;nonNullTypes=nonNullTypes;
