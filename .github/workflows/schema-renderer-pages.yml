@@ -30,7 +30,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -46,6 +46,7 @@ jobs:
       - name: Build for GitHub Pages
         working-directory: poc/schema-renderer
         run: pnpm exec ng build --base-href /guideline-java/
+      # Angular 22 requires Node >=22.22.3 and TypeScript 6.0.x.
       - name: Install Portal Manager dependencies
         working-directory: portal-source/workspace-mfe
         run: npm install --no-audit --no-fund
