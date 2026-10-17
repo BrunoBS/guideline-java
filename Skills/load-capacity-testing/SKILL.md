@@ -34,3 +34,8 @@ Relatório reproduzível com cenário, versão, limites, métricas, capacidade s
 DHA performance-testing; JVM Expert java-performance.
 
 > Texto original de curadoria, não transcrição de Skill de terceiros. Verificar APIs e versões na documentação oficial antes de gerar código.
+
+## Aprofundamento obrigatório
+Distinguir offered load e goodput, saturação do gerador e coordinated omission.
+
+Ler [playbook especializado](references/WORKLOAD-AND-OMISSION.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
