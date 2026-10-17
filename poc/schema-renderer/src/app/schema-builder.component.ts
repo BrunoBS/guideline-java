@@ -282,7 +282,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
   <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
  </button>
- <div class="field-card-tools"><button type="button" (click)="openFieldEditor(field.path)" title="Configurar campo" aria-label="Configurar campo">⚙</button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo">🗑</button></div>
+ <div class="field-card-tools"><button type="button" (click)="openFieldEditor(field.path)" title="Configurar campo" aria-label="Configurar campo"><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span>Excluir</span></button></div>
 </div>
    </div>
    <div class="schema-drop-root" (dragover)="dragOver($event)" (drop)="dropField(null,null,$event)">Solte aqui para mover para a raiz</div>
