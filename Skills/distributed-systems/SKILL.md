@@ -34,3 +34,8 @@ Diagramas de sequência e falhas, testes de duplicidade, perda temporária, reor
 DHA architecture/messaging; Resilience4j; transactional outbox pattern.
 
 > Texto original de curadoria, não transcrição de Skill de terceiros. Verificar APIs e versões na documentação oficial antes de gerar código.
+
+## Aprofundamento obrigatório
+Testar falhas antes/depois do commit, ACK, efeitos externos, outbox e replay.
+
+Ler [playbook especializado](references/IDEMPOTENCY-FAILURE-MATRIX.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
