@@ -37,3 +37,8 @@ Não copiar código ou regras de fonte externa sem revisar versão, licença e a
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de diagnóstico causal
+- Comparar workloads equivalentes, warmup, JVM flags e limites do container.
+- Não ajustar GC/heap com uma amostra isolada de p99; correlacionar JFR, CPU e dependências.
+- Proteger informações sensíveis em dumps e logs; estabelecer rollback.
