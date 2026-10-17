@@ -40,3 +40,8 @@ Antes de orientar implementação, ler [EXEMPLOS-E-DECISOES.md](references/EXEMP
 
 ## Contrato operacional e exemplos
 Antes de recomendar ou implementar, aplicar o [contrato comum dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e consultar [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Os exemplos são didáticos, não foram compilados no stack-alvo. Confirmar documentação oficial e versões reais; executar testes, registrar evidências e nunca alegar eficácia sem medições.
+
+## Gate de refatoração segura
+- Caracterizar contratos existentes antes de refatorar: outputs, erros, transações, autorização, observabilidade e ordem dos efeitos.
+- Rejeitar interface sem caso real, fronteira técnica ou teste que justifique variação.
+- Verificar regressões e diff mínimo; não alterar contrato público por preferência estética.
