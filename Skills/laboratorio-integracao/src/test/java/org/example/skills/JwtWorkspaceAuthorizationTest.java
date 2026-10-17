@@ -48,8 +48,8 @@ class JwtWorkspaceAuthorizationTest {
     void rejectsTamperingAndUnparseableInput() throws Exception {
         String token = issue(KEY, "alice", ISSUER, AUDIENCE, -60, 600);
         String[] parts = token.split("\\.");
-        String tampered = parts[0] + "." + parts[1].substring(0, parts[1].length() - 1)
-            + (parts[1].endsWith("A") ? "B" : "A") + "." + parts[2];
+        String tampered = parts[0] + "." + (parts[1].charAt(0) == 'A' ? "B" : "A")
+            + parts[1].substring(1) + "." + parts[2];
         assertNull(validate(tampered));
         assertNull(validate("not-a-jwt"));
         assertNull(validate(null));
