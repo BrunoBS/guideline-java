@@ -11,10 +11,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  styles:[`
  .builder.simplified:has(.canvas):has(.inspector){grid-template-columns:minmax(330px,1fr) minmax(320px,1fr)}
  .builder.simplified{grid-template-columns:minmax(330px,1fr) minmax(320px,1fr)}
+ .builder.simplified.developer-mode{grid-template-columns:minmax(260px,.8fr) minmax(360px,1.2fr)}
+ .builder.simplified.developer-mode .palette{grid-column:1;grid-row:1}
+ .builder.simplified.developer-mode .inspector{grid-column:2;grid-row:1}
  .builder.simplified .palette{grid-column:1;grid-row:2;position:static}
  .builder.simplified .canvas{grid-column:1;grid-row:1;min-height:340px}
  .builder.simplified .inspector{grid-column:2;grid-row:1 / span 2}
- @media(max-width:760px){.builder.simplified{grid-template-columns:1fr}.builder.simplified .palette,.builder.simplified .canvas,.builder.simplified .inspector{grid-column:1;grid-row:auto}}
+ @media(max-width:760px){.builder.simplified.developer-mode{grid-template-columns:1fr}.builder.simplified.developer-mode .palette,.builder.simplified.developer-mode .inspector{grid-column:1;grid-row:auto}.builder.simplified{grid-template-columns:1fr}.builder.simplified .palette,.builder.simplified .canvas,.builder.simplified .inspector{grid-column:1;grid-row:auto}}
  .builder{display:grid;grid-template-columns:minmax(180px,.72fr) minmax(300px,1.4fr) minmax(280px,1.12fr);gap:16px;align-items:start}
  .palette,.canvas{border:1px solid #d9dfe9;border-radius:12px;padding:18px;background:#fff;min-width:0}
  .palette{position:sticky;top:12px}
@@ -152,8 +155,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <label *ngIf="node.type!=='object'&&node.type!=='array'">Enum (um valor JSON por linha)
     <textarea [ngModel]="enumText(node)" (change)="setEnum($any($event.target).value)" placeholder="Exemplo:&#10;&quot;ATIVO&quot;&#10;&quot;INATIVO&quot;"></textarea>
    </label>
-   <button type="button" class="structure-toggle" *ngIf="mode==='construction'" (click)="showAdvanced=!showAdvanced">{{showAdvanced?'▾ Ocultar':'▸ Exibir'}} regras avançadas</button>
-   <ng-container *ngIf="showAdvanced || mode==='dev'">
+
+   <ng-container *ngIf="mode==='dev'">
    <h4 class="rule-heading">Composições visuais</h4>
    <div *ngFor="let kind of compositionKinds">
     <strong>{{kind}}</strong>
