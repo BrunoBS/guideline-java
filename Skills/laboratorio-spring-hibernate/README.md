@@ -17,3 +17,10 @@ mvn -B -ntp verify
 
 ### Gates restantes
 Validar startup no CI, isolar dados por tenant, paginação e ordenação, testar transação real com service, comparar N+1 vs projeção/fetch plan, validar SQL e plano MySQL. Nunca promover como Golden reference sem aprovação.
+
+### Paginação segura de coleções (teste novo, pendente de CI)
+
+- `CollectionPaginationIntegrationTest`: primeira consulta pagina **somente pais** por `workspaceId`, ordenação estável por `id`; segunda consulta carrega filhos com `JOIN FETCH` limitado aos IDs da página e ao mesmo workspace.
+- `hibernate.query.fail_on_pagination_over_collection_fetch=true`: teste negativo exige falha explícita ao tentar `setMaxResults` junto a `JOIN FETCH` de coleção, evitando paginação em memória.
+- **Regra para agentes:** não combinar diretamente `Pageable` com `JOIN FETCH` de coleção. Considerar duas consultas, DTO/projeção ou outra estratégia medida; preservar filtros de autorização nas duas etapas.
+- Este laboratório demonstra o padrão com dados pequenos. Ainda não comprova concorrência entre as duas consultas, consistência de snapshot ou desempenho em grandes volumes.
