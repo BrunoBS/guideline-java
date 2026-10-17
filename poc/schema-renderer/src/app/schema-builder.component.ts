@@ -40,7 +40,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .canvas-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
  .mobile-palette{display:none}
  .canvas-header p{font-size:12px;color:#586477;margin:5px 0}
- .canvas-fields{display:grid;gap:10px}
+ .canvas-fields{display:flex;flex-direction:column;gap:10px}
  .canvas-field{display:block;width:100%;padding:14px 16px;border:1px solid #dce4ef;background:#fff;color:#26354d;border-radius:10px;text-align:left;cursor:pointer;box-shadow:0 2px 5px rgba(20,40,80,.035)}
  .canvas-field:hover{border-color:#88a9e7;background:#f8faff}
  .canvas-field.active{border:2px solid #2455b5;background:#f0f5ff;padding:13px 15px}
@@ -300,10 +300,10 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
    </div>
    <div class="canvas-fields">
-    <section class="schema-group" *ngFor="let group of visualGroups" [class.active]="selectedGroupId===group.id">
+    <section class="schema-group" *ngFor="let group of visualGroups" [style.order]="canvasPosition('group:'+group.id)" [class.active]="selectedGroupId===group.id">
       <div class="schema-group-header">
         <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)"><span class="group-heading-copy"><strong>{{group.title||'Novo grupo'}}</strong><span class="group-heading-description">{{group.description||'Grupo de campos'}}</span></span><span class="group-heading-type">group</span></button>
-        <div class="order-actions"><button type="button" (click)="moveGroup(group.id,-1)" [disabled]="visualGroups[0]?.id===group.id" aria-label="Subir grupo">↑</button><button type="button" (click)="moveGroup(group.id,1)" [disabled]="visualGroups[visualGroups.length-1]?.id===group.id" aria-label="Descer grupo">↓</button></div>
+        <div class="order-actions"><button type="button" (click)="moveGroup(group.id,-1)" [disabled]="!canMoveRootItem('group:'+group.id,-1)" aria-label="Subir grupo">↑</button><button type="button" (click)="moveGroup(group.id,1)" [disabled]="!canMoveRootItem('group:'+group.id,1)" aria-label="Descer grupo">↓</button></div>
         <button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
       </div>
       <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)">
@@ -326,7 +326,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
         <div class="inline-object-actions"><button type="button" *ngFor="let kind of groupFieldPalette" (click)="addFieldToGroup(group.id,kind.type)">+ {{kind.label}}</button></div>
       </div>
     </section>
-<div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" [class.active]="selectedPath===field.path">
+<div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" [style.order]="canvasPosition('field:'+propertyKey(field.path))" [class.active]="selectedPath===field.path">
  <button type="button" class="canvas-field" (click)="openFieldEditor(field.path)">
   <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
@@ -563,10 +563,14 @@ export class SchemaBuilderComponent implements OnChanges {
 
  private preserveScrollAfter(action:()=>void){const x=window.scrollX,y=window.scrollY;action();requestAnimationFrame(()=>window.scrollTo(x,y));}
  addFieldToGroup(id:string,type:string){const path=this.activeContainerPath;this.preserveScrollAfter(()=>this.commit(root=>{const target=this.getNodeAt(root,path);const group=target?.['x-ui']?.groups?.find((g:any)=>g.id===id);if(!target||!group)return;target.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(target.properties,key))key='campo'+i++;target.properties[key]=type==='object'?{type:'object',title:key,description:'Objeto JSON.',properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};group.fields??=[];group.fields.push(key);}));}
- moveGroup(id:string,direction:number){const path=this.activeContainerPath;this.commit(root=>{const groups=this.getNodeAt(root,path)?.['x-ui']?.groups;if(!groups)return;const i=groups.findIndex((g:any)=>g.id===id),j=i+direction;if(i<0||j<0||j>=groups.length)return;[groups[i],groups[j]]=[groups[j],groups[i]];});}
+ get canvasOrder():string[]{const node=this.getNodeAt(this.schema,this.activeContainerPath);const groups=(node?.['x-ui']?.groups||[]).map((g:any)=>'group:'+g.id);const assigned=new Set((node?.['x-ui']?.groups||[]).flatMap((g:any)=>g.fields||[]));const fields=Object.keys(node?.properties||{}).filter(key=>!assigned.has(key)).map(key=>'field:'+key);const available=[...groups,...fields];const saved: string[]=node?.['x-ui']?.canvasOrder||[];return [...saved.filter(item=>available.includes(item)),...available.filter(item=>!saved.includes(item))];}
+ canvasPosition(token:string){const index=this.canvasOrder.indexOf(token);return index<0?9999:index;}
+ canMoveRootItem(token:string,direction:number){const i=this.canvasOrder.indexOf(token);return i>=0&&i+direction>=0&&i+direction<this.canvasOrder.length;}
+ moveRootItem(token:string,direction:number){if(!this.canMoveRootItem(token,direction))return;const order=[...this.canvasOrder],i=order.indexOf(token);[order[i],order[i+direction]]=[order[i+direction],order[i]];const path=this.activeContainerPath;this.commit(root=>{const node=this.getNodeAt(root,path);if(!node)return;node['x-ui']??={};node['x-ui'].canvasOrder=order;});}
+ moveGroup(id:string,direction:number){this.moveRootItem('group:'+id,direction);}
  private canvasSiblingPaths(path:string):string[]{const key=this.segments(path).at(-1);const group=this.visualGroups.find((g:any)=>(g.fields||[]).includes(key));return (group?this.groupFields(group):this.ungroupedCanvasFields).map(row=>row.path);}
- canMoveCanvasField(path:string,direction:number){const paths=this.canvasSiblingPaths(path),i=paths.indexOf(path);return i>=0&&i+direction>=0&&i+direction<paths.length;}
- moveCanvasField(path:string,direction:number){if(!this.canMoveCanvasField(path,direction))return;const paths=this.canvasSiblingPaths(path),keys=paths.map(p=>this.segments(p).at(-1)!);const i=paths.indexOf(path);[keys[i],keys[i+direction]]=[keys[i+direction],keys[i]];const container=this.activeContainerPath;const key=this.segments(path).at(-1);const group=this.visualGroups.find((g:any)=>(g.fields||[]).includes(key));this.commit(root=>{const node=this.getNodeAt(root,container);if(!node)return;node['x-ui']??={};if(group){const target=node['x-ui'].groups?.find((g:any)=>g.id===group.id);if(target)target.fields=keys;}else node['x-ui'].rootOrder=keys;});}
+ canMoveCanvasField(path:string,direction:number){const key=this.propertyKey(path);const isGrouped=this.visualGroups.some((g:any)=>(g.fields||[]).includes(key));if(!isGrouped)return this.canMoveRootItem('field:'+key,direction);const paths=this.canvasSiblingPaths(path),i=paths.indexOf(path);return i>=0&&i+direction>=0&&i+direction<paths.length;}
+ moveCanvasField(path:string,direction:number){if(!this.canMoveCanvasField(path,direction))return;const key=this.propertyKey(path);if(!this.visualGroups.some((g:any)=>(g.fields||[]).includes(key))){this.moveRootItem('field:'+key,direction);return;}const paths=this.canvasSiblingPaths(path),keys=paths.map(p=>this.segments(p).at(-1)!);const i=paths.indexOf(path);[keys[i],keys[i+direction]]=[keys[i+direction],keys[i]];const container=this.activeContainerPath;const key=this.segments(path).at(-1);const group=this.visualGroups.find((g:any)=>(g.fields||[]).includes(key));this.commit(root=>{const node=this.getNodeAt(root,container);if(!node)return;node['x-ui']??={};if(group){const target=node['x-ui'].groups?.find((g:any)=>g.id===group.id);if(target)target.fields=keys;}else node['x-ui'].rootOrder=keys;});}
  private objectAttributePaths(path:string){const segments=this.segments(path),key=segments.pop();if(segments.pop()!=='properties'||!key)return {parent:'',keys:[],index:-1};const parent='/'+segments.map(x=>this.escape(x)).join('/');const keys=Object.keys(this.getNodeAt(this.schema,parent)?.properties||{});return {parent,keys,index:keys.indexOf(key)};}
  canMoveObjectAttribute(path:string,direction:number){const {keys,index}=this.objectAttributePaths(path);return index>=0&&index+direction>=0&&index+direction<keys.length;}
  moveObjectAttribute(path:string,direction:number){if(!this.canMoveObjectAttribute(path,direction))return;const {parent,keys,index}=this.objectAttributePaths(path);[keys[index],keys[index+direction]]=[keys[index+direction],keys[index]];this.commit(root=>{const node=this.getNodeAt(root,parent);if(!node?.properties)return;node.properties=Object.fromEntries(keys.map(key=>[key,node.properties![key]]));});}
