@@ -9,6 +9,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  standalone:true,
  imports:[CommonModule,FormsModule],
  styles:[`
+ .builder.simplified:has(.canvas):has(.inspector){grid-template-columns:minmax(330px,1fr) minmax(320px,1fr)}
  .builder.simplified{grid-template-columns:minmax(330px,1fr) minmax(320px,1fr)}
  .builder.simplified .palette{grid-column:1;grid-row:2;position:static}
  .builder.simplified .canvas{grid-column:1;grid-row:1;min-height:340px}
@@ -72,12 +73,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  `],
  template:`
  <div class="builder simplified">
-  <aside class="palette" *ngIf="showAddMenu">
-   <strong>Adicionar componentes</strong>
+  <aside class="palette" *ngIf="showAddMenu || mode==='dev'">
+   <strong>{{mode==='dev'?'Estrutura técnica':'Adicionar componentes'}}</strong>
    <p class="builder-help">Escolha um tipo para adicionar ao formulário ou ao objeto selecionado.</p>
    <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
-   <button type="button" class="structure-toggle" (click)="showStructure=!showStructure">{{showStructure?'▾ Ocultar':'▸ Mostrar'}} estrutura completa</button>
-   <div class="structure-panel tree" *ngIf="showStructure">
+   <button type="button" class="structure-toggle" *ngIf="mode==='dev'" (click)="showStructure=!showStructure">{{showStructure?'▾ Ocultar':'▸ Mostrar'}} estrutura completa</button>
+   <div class="structure-panel tree" *ngIf="mode==='dev' && showStructure">
    <strong>Estrutura do schema</strong>
    <p class="builder-help">Selecione qualquer nó, inclusive definições e regras.</p>
    <button *ngFor="let row of rows" type="button" class="tree-row" [class.selected]="selectedPath===row.path" [style.padding-left.px]="9+row.depth*12" (click)="select(row.path)">
@@ -85,7 +86,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </button>
    </div>
   </aside>
-  <section class="canvas">
+  <section class="canvas" *ngIf="mode==='construction'">
    <div class="canvas-header"><div><strong>Campos do schema</strong><p>Selecione um card para editar seu contrato.</p></div><span class="builder-help">{{canvasFields.length}} campos</span></div>
    <div class="canvas-fields">
     <button type="button" class="canvas-field" *ngFor="let field of canvasFields" [class.active]="selectedPath===field.path" (click)="select(field.path)">
@@ -97,7 +98,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-empty" *ngIf="!canvasFields.length">Seu formulário está vazio. Adicione um componente pelo painel à esquerda.</div>
    <button type="button" class="canvas-add" (click)="showAddMenu=!showAddMenu">＋ Adicionar campo</button>
   </section>
-  <div class="inspector" *ngIf="selectedPath && selected as node">
+  <div class="inspector" *ngIf="(selectedPath || mode==='dev') && selected as node">
    <div class="canvas-header"><strong>Editar campo</strong><button type="button" (click)="select('')">Fechar</button></div>
    <div class="builder-actions">
     <button type="button" *ngIf="node.type==='object'" (click)="addProperty()">+ Propriedade</button>
@@ -151,8 +152,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <label *ngIf="node.type!=='object'&&node.type!=='array'">Enum (um valor JSON por linha)
     <textarea [ngModel]="enumText(node)" (change)="setEnum($any($event.target).value)" placeholder="Exemplo:&#10;&quot;ATIVO&quot;&#10;&quot;INATIVO&quot;"></textarea>
    </label>
-   <button type="button" class="structure-toggle" (click)="showAdvanced=!showAdvanced">{{showAdvanced?'▾ Ocultar':'▸ Exibir'}} regras avançadas</button>
-   <ng-container *ngIf="showAdvanced">
+   <button type="button" class="structure-toggle" *ngIf="mode==='construction'" (click)="showAdvanced=!showAdvanced">{{showAdvanced?'▾ Ocultar':'▸ Exibir'}} regras avançadas</button>
+   <ng-container *ngIf="showAdvanced || mode==='dev'">
    <h4 class="rule-heading">Composições visuais</h4>
    <div *ngFor="let kind of compositionKinds">
     <strong>{{kind}}</strong>
@@ -212,6 +213,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 })
 export class SchemaBuilderComponent implements OnChanges {
  @Input() schema:Schema={type:'object',properties:{}};
+ @Input() mode:'construction'|'dev'='construction';
  @Output() schemaChange=new EventEmitter<Schema>();
  selectedPath='';
  error='';
