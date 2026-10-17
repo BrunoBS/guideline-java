@@ -23,6 +23,14 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
   .home-card strong{font-size:21px}.home-card p{line-height:1.5;color:#53627a;margin:0}
   .home-card .card-icon{font-size:30px;color:#003399}.home-card .card-action{margin-top:auto;color:#003399;font-weight:700}
   .workspace-back{margin-bottom:14px}
+  .schema-preview-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);gap:18px;align-items:start}
+  .schema-editor-column,.schema-live-preview{min-width:0}
+  .schema-editor-column .editor{height:58vh;min-height:360px}
+  .schema-live-preview{border:1px solid #d7dfec;border-radius:12px;padding:18px;background:#fff;min-height:360px}
+  .schema-live-preview .section-heading{margin-bottom:16px;align-items:flex-start}
+  .schema-live-preview .section-heading h4{margin:0 0 6px;color:#001f5b;font-size:17px}
+  .schema-preview-placeholder{padding:18px;border:1px dashed #b7c4d8;border-radius:8px;background:#f7f9fc;color:#53627a;line-height:1.5}
+  @media(max-width:1000px){.schema-preview-layout{grid-template-columns:1fr}.schema-editor-column .editor{height:360px}}
   @media(max-width:700px){.home-cards{grid-template-columns:1fr}}
   .example-picker{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .example-picker>label{display:grid;grid-template-columns:auto minmax(320px,560px);align-items:center;gap:10px;margin:0}
@@ -70,14 +78,31 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
         <span class="schema-example-tooltip" role="tooltip">{{selectedExampleDescription}}</span>
       </span>
     </div>
-    <textarea class="editor" [ngModel]="source" (ngModelChange)="schemaSourceChanged($event)" aria-label="Editor JSON Schema"></textarea>
+    <div class="schema-preview-layout">
+      <div class="schema-editor-column">
+        <label for="schema-source">Cole ou edite o JSON Schema</label>
+        <textarea id="schema-source" class="editor" [ngModel]="source" (ngModelChange)="schemaSourceChanged($event)" aria-label="Editor JSON Schema"></textarea>
+      </div>
+      <aside class="schema-live-preview" aria-label="Preview do formulário">
+        <div class="section-heading">
+          <div><h4>Preview do formulário</h4><p>Atualizado automaticamente conforme o schema válido.</p></div>
+          <span class="status valid" *ngIf="!parseError">Preview atualizado</span>
+          <span class="status invalid" *ngIf="parseError">Aguardando schema válido</span>
+        </div>
+        <app-field *ngIf="!parseError && schema" [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
+        <p class="schema-preview-placeholder" *ngIf="parseError">Corrija o JSON Schema para atualizar o preview. A mensagem de erro aparece abaixo do editor.</p>
+        <div class="validation-summary" *ngIf="!parseError && errors.length">
+          <h4>Validação do preview</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul>
+        </div>
+      </aside>
+    </div>
     <div class="opposite-actions developer-actions">
       <span class="status valid" *ngIf="schemaValidated && !parseError">✓ Sintaxe JSON e estrutura do schema válidas</span>
       <span></span>
       <div>
         <button type="button" class="secondary" (click)="validateSchemaJson()">Validar JSON</button>
         <button type="button" class="secondary" (click)="formatSchemaJson()">Formatar JSON</button>
-        <button type="button" (click)="apply()">Renderizar schema</button>
+        <button type="button" (click)="apply()">Abrir formulário completo →</button>
       </div>
     </div>
     <p class="error callout" *ngIf="parseError">{{parseError}}</p>
@@ -222,7 +247,17 @@ export class AppComponent {
   this.sync(true);
  }
 
- schemaSourceChanged(text:string){this.source=text;this.parseError='';this.schemaValidated=false;}
+ schemaSourceChanged(text:string){
+  this.source=text;
+  try{
+   const next=this.parseSchemaSource();
+   this.schema=next;this.selectedExample='';this.value=initial(next,next);
+   this.parseError='';this.valueError='';this.developerValidated=false;
+   this.schemaValidated=true;this.sync(true);
+  }catch(error){
+   this.parseError=this.schemaErrorMessage(error);this.schemaValidated=false;
+  }
+ }
  validateSchemaJson(){try{this.parseSchemaSource();this.parseError='';this.schemaValidated=true;}catch(error){this.parseError=this.schemaErrorMessage(error);this.schemaValidated=false;}}
  formatSchemaJson(){try{const parsed=this.parseSchemaSource();this.source=JSON.stringify(parsed,null,2);this.parseError='';this.schemaValidated=true;}catch(error){this.parseError=this.schemaErrorMessage(error);this.schemaValidated=false;}}
 
