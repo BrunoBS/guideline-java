@@ -325,6 +325,15 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <option value="string">Texto</option><option value="integer">Inteiro</option><option value="number">Decimal</option><option value="boolean">Sim / Não</option><option value="object">Objeto / agrupador</option><option value="array">Lista</option>
     </select>
    </label>
+   <div class="field-options-card" *ngIf="node.type==='array'">
+    <strong class="field-options-title">Apresentação da lista</strong>
+    <label>Componente<select [ngModel]="arrayWidget(node)" (ngModelChange)="setArrayWidget($event)"><option value="list">Lista dinâmica</option><option value="multiselect">Multiselect</option><option value="checkboxes">Grupo de checkboxes</option></select></label>
+    <ng-container *ngIf="arrayWidget(node)!=='list'">
+      <p class="validation-help">Cadastre opções estáticas. Cada linha representa um valor e seu rótulo, separados por |.</p>
+      <label>Opções (valor | rótulo)<textarea rows="5" [ngModel]="arrayOptionsText(node)" (change)="setArrayOptions($any($event.target).value)" placeholder="READ | Leitura&#10;WRITE | Escrita&#10;ADMIN | Administração"></textarea></label>
+      <p class="validation-help" *ngIf="arrayItemType(node)==='object'||arrayItemType(node)==='array'||arrayItemType(node)==='boolean'">Para multiselect, utilize itens do tipo Texto, Inteiro ou Decimal.</p>
+    </ng-container>
+   </div>
    <label *ngIf="node.type==='array'" class="required-switch-label validation-switch"><span>Itens únicos</span><input type="checkbox" class="required-switch-input" [ngModel]="!!node.uniqueItems" (ngModelChange)="setBoolean('uniqueItems',$event)" role="switch" [attr.aria-checked]="!!node.uniqueItems"/><span class="required-switch-track" aria-hidden="true"></span></label>
    <div class="rule-grid" *ngIf="node.type==='object'">
     <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
@@ -471,6 +480,10 @@ export class SchemaBuilderComponent implements OnChanges {
   this.openContainer(this.selectedPath+'/items');
  }
  goToParentContainer(){this.selectedGroupId='';this.activeContainerPath=this.containerHistory.pop()||'';}
+ arrayWidget(node:Schema):string{return node['x-ui']?.widget||'list';}
+ setArrayWidget(widget:string){this.commit(root=>{const node=this.current(root)!;node['x-ui']??={};node['x-ui'].widget=widget;if(widget!=='list'){node.uniqueItems=true;if(!['string','integer','number'].includes(this.arrayItemType(node)))node.items={type:'string'};}});}
+ arrayOptionsText(node:Schema):string{const options=node['x-ui']?.options||[];return options.map((option:any)=>String(option.value)+' | '+String(option.label)).join('\n');}
+ setArrayOptions(text:string){this.commit(root=>{const node=this.current(root)!;const item=node.items as Schema;const type=this.arrayItemType(node);const options=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{const [raw,...label]=line.split('|');const value=raw.trim();return {value:type==='integer'||type==='number'?Number(value):value,label:label.join('|').trim()||value};}).filter(option=>option.value!==''&&(typeof option.value!=='number'||Number.isFinite(option.value)));node['x-ui']??={};node['x-ui'].options=options;if(item&&typeof item==='object')item.enum=[...new Set(options.map(option=>option.value))];});}
  arrayItemType(node:Schema):string{
   const item=node.items;
   if(item===true||item===undefined)return 'string';
