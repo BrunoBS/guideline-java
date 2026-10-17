@@ -390,7 +390,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </button>
  </ng-template>
   <div class="inline-object group-inner-panel" *ngIf="isObjectSchema(field.schema)">
-  <div class="inline-object-heading"><span>{{objectChildren(field.path).length}} atributo(s)</span><button type="button" class="object-toggle" (click)="toggleObjectExpanded(field.path)" [attr.aria-expanded]="!collapsedObjects.has(field.path)" [attr.aria-label]="collapsedObjects.has(field.path)?'Mostrar atributos':'Ocultar atributos'">{{collapsedObjects.has(field.path)?'▸':'▾'}}</button></div>
+  <div class="inline-object-heading"><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
   <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
   <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
    <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
