@@ -131,6 +131,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .required-switch-input:focus-visible+.required-switch-track{outline:3px solid #93c5fd;outline-offset:2px}
  .validation-switch{display:flex!important;justify-content:space-between;width:100%;margin:14px 0!important}
  .schema-group{border:1px solid #cbd8ea;border-radius:12px;padding:12px;background:#f8fbff;margin-bottom:12px}.schema-group.active{border-color:#2455b5}.schema-group-header{display:flex;align-items:center;gap:8px}.schema-group-select{flex:1;display:flex;justify-content:space-between;align-items:center;border:0;background:transparent;color:#243b59;text-align:left;padding:8px;cursor:pointer;font-weight:650}.schema-group-select small{color:#64748b;font-weight:400}.schema-group-toggle{border:0;background:transparent;color:#243b59;font-size:20px;cursor:pointer;padding:5px 12px}.schema-group-fields{display:grid;gap:10px;padding:10px 4px 2px 18px}.schema-group-add{border:1px dashed #94a3b8;border-radius:8px;padding:10px;background:white;color:#2455b5;cursor:pointer;text-align:left}.schema-group .canvas-field-card{background:white}
+ .inline-object{margin:8px 12px 12px;padding:12px;border:1px solid #dce4ef;border-radius:10px;background:#f8fbff}
+ .inline-object-heading{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px;font-size:13px}
+ .inline-object-heading span{color:#64748b}
+ .inline-object-child{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #e3e9f2}
+ .inline-object-child button:first-child{display:flex;justify-content:space-between;gap:12px;flex:1;border:0;background:transparent;text-align:left;cursor:pointer;color:#243b59}
+ .inline-object-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+ .inline-object-actions button{padding:7px 9px;border:1px solid #cbd8ea;border-radius:7px;background:white;color:#2455b5;cursor:pointer}
  .form-settings-button{margin-top:8px;padding:7px 10px;border:1px solid #cbd8ea;border-radius:8px;background:#fff;color:#2455b5;cursor:pointer;font-size:12px}
  .visual-group-list{display:grid;gap:8px;grid-column:1/-1}.visual-group-choice{display:flex;justify-content:space-between;align-items:center;text-align:left;border:1px solid #cbd8ea;border-radius:10px;background:#f8fbff;padding:12px;cursor:pointer}.visual-group-choice.active{border-color:#2455b5;background:#edf4ff}.visual-group-inspector{display:grid;gap:12px}.visual-group-members{display:flex;justify-content:space-between;gap:8px}.visual-group-members button,.visual-group-actions button{cursor:pointer;border:1px solid #cbd8ea;background:white;border-radius:8px;padding:8px}.visual-group-actions{display:flex;justify-content:space-between;gap:8px}
  .visual-groups{grid-column:1/-1;display:grid;gap:12px;margin-bottom:12px}
@@ -218,7 +225,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <div><strong>{{activeContainerPath ? "Campos do agrupador" : "Campos do schema"}}</strong><p>{{activeContainerLabel}} · Selecione um card para editar seu contrato.</p><button type="button" *ngIf="!activeContainerPath" class="form-settings-button" (click)="selectForm()">✎ Configurar formulário</button></div>
     <div class="builder-actions" style="margin:0">
      <button type="button" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar</button>
-     <button type="button" *ngIf="selected?.type==='object' && selectedPath" (click)="openSelectedGroup()">Abrir agrupador</button>
+
      <button type="button" *ngIf="selected && selected.type==='array' && arrayItemType(selected)==='object'" (click)="openArrayItems()">Abrir lista de objetos</button>
 
      <span class="builder-help">{{canvasFields.length}} campos</span>
@@ -241,7 +248,16 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
   <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
  </button>
- <div class="canvas-field-footer"><button type="button" class="canvas-field-delete" (click)="confirmDeleteField(field.path)">Excluir campo</button></div>
+  <div class="inline-object" *ngIf="field.schema.type==='object'">
+  <div class="inline-object-heading"><strong>Atributos do objeto</strong><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
+  <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
+   <button type="button" (click)="select(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
+   <button type="button" class="canvas-field-delete" (click)="confirmDeleteField(child.path)">Excluir</button>
+  </div>
+  <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(field.path,kind.type)">+ {{kind.label}}</button></div>
+  <p class="validation-help">Objeto dentro de objeto está desabilitado no editor visual.</p>
+ </div>
+<div class="canvas-field-footer"><button type="button" class="canvas-field-delete" (click)="confirmDeleteField(field.path)">Excluir campo</button></div>
 </div>
 
       </div>
@@ -513,6 +529,9 @@ export class SchemaBuilderComponent implements OnChanges {
    if(this.arrayWidget(node)!=='list'){node['x-ui']??={};node['x-ui'].options=[];}
   });
  }
+ inlineTypes=[{type:'string',label:'Texto'},{type:'integer',label:'Inteiro'},{type:'number',label:'Decimal'},{type:'boolean',label:'Sim/Não'},{type:'array',label:'Lista'}];
+ objectChildren(path:string){const node=this.getNodeAt(this.schema,path);return Object.entries(node?.properties||{}).map(([key,schema])=>({path:path+'/properties/'+this.escape(key),label:key,schema:schema as Schema}));}
+ addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||node.type!=='object')return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;});}
  addTypedProperty(type:string){
   const targetPath=this.activeContainerPath;
   const node=this.getNodeAt(this.schema,targetPath);
