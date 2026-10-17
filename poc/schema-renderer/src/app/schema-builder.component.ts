@@ -213,6 +213,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .editor-modal-actions{display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:white;padding:14px 0;border-top:1px solid #d9dfe9}
  .field-card-tools{display:flex;justify-content:flex-end;gap:8px;padding:6px 12px}
  .field-card-tools button{border:1px solid #d4ddeb;background:#fff;border-radius:8px;padding:7px 11px;cursor:pointer}
+ .order-actions{display:inline-flex;gap:6px;margin-left:auto}
+ .order-actions button,.field-card-tools button[aria-label^="Subir"],.field-card-tools button[aria-label^="Descer"]{min-width:36px;width:36px;padding:0;font-size:19px}
+ .order-actions button:disabled,.field-card-tools button:disabled{opacity:.35;cursor:not-allowed}
  .field-card-tools button:last-child{color:#a52332}
  .field-card-tools button{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;line-height:1}
  .field-card-tools button{width:auto;min-width:104px;height:36px;padding:0 12px;gap:7px;font-size:13px;font-weight:600;color:#24446c}
@@ -250,13 +253,14 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
    </div>
    <div class="canvas-fields">
-    <section class="schema-group" *ngFor="let group of visualGroups" draggable="true" (dragstart)="dragGroup(group.id,$event)" (dragover)="dragOver($event)" (drop)="dropGroup(group.id,$event)" [class.active]="selectedGroupId===group.id">
+    <section class="schema-group" *ngFor="let group of visualGroups" [class.active]="selectedGroupId===group.id">
       <div class="schema-group-header">
         <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)">{{group.title||'Novo grupo'}} <small>{{group.fields.length}} campo(s)</small></button>
+        <div class="order-actions"><button type="button" (click)="moveGroup(group.id,-1)" [disabled]="visualGroups[0]?.id===group.id" aria-label="Subir grupo">↑</button><button type="button" (click)="moveGroup(group.id,1)" [disabled]="visualGroups[visualGroups.length-1]?.id===group.id" aria-label="Descer grupo">↓</button></div>
         <button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
       </div>
-      <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)" (dragover)="dragOver($event)" (drop)="dropField(group.id,null,$event)">
-<div class="canvas-field-card" *ngFor="let field of groupFields(group)" draggable="true" (dragstart)="dragField(field.path,$event)" (dragover)="dragOver($event)" (drop)="dropField(group.id,propertyKey(field.path),$event)" [class.active]="selectedPath===field.path">
+      <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)">
+<div class="canvas-field-card" *ngFor="let field of groupFields(group)" [class.active]="selectedPath===field.path">
  <button type="button" class="canvas-field" (click)="openFieldEditor(field.path)">
   <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
@@ -266,17 +270,18 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <div class="inline-object-heading"><strong>Atributos do objeto</strong><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
   <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
    <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
-   <div class="field-card-tools"><button type="button" (click)="openFieldEditor(child.path)" aria-label="Configurar atributo" title="Configurar"><span class="action-icon" aria-hidden="true">⚙</span><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
+   <div class="field-card-tools"><button type="button" (click)="moveObjectAttribute(child.path,-1)" [disabled]="!canMoveObjectAttribute(child.path,-1)" aria-label="Subir atributo">↑</button><button type="button" (click)="moveObjectAttribute(child.path,1)" [disabled]="!canMoveObjectAttribute(child.path,1)" aria-label="Descer atributo">↓</button><button type="button" (click)="openFieldEditor(child.path)" aria-label="Configurar atributo" title="Configurar"><span class="action-icon" aria-hidden="true">⚙</span><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
   </div>
   <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(field.path,kind.type)">+ {{kind.label}}</button></div>
   <p class="validation-help">Objeto dentro de objeto está desabilitado no editor visual.</p>
  </div>
-<div class="field-card-tools"><button type="button" (click)="openFieldEditor(field.path)" title="Configurar campo" aria-label="Configurar campo"><span class="action-icon" aria-hidden="true">⚙</span><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
+<div class="field-card-tools"><button type="button" (click)="moveCanvasField(field.path,-1)" [disabled]="!canMoveCanvasField(field.path,-1)" aria-label="Subir campo">↑</button><button type="button" (click)="moveCanvasField(field.path,1)" [disabled]="!canMoveCanvasField(field.path,1)" aria-label="Descer campo">↓</button><button type="button" (click)="openFieldEditor(field.path)" title="Configurar campo" aria-label="Configurar campo"><span class="action-icon" aria-hidden="true">⚙</span><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
 </div>
 
+        <div class="inline-object-actions"><button type="button" *ngFor="let kind of groupFieldPalette" (click)="addFieldToGroup(group.id,kind.type)">+ {{kind.label}}</button></div>
       </div>
     </section>
-<div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" draggable="true" (dragstart)="dragField(field.path,$event)" (dragover)="dragOver($event)" (drop)="dropField(null,propertyKey(field.path),$event)" [class.active]="selectedPath===field.path">
+<div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" [class.active]="selectedPath===field.path">
  <button type="button" class="canvas-field" (click)="openFieldEditor(field.path)">
   <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
@@ -286,16 +291,16 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <div class="inline-object-heading"><strong>Atributos do objeto</strong><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
   <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
    <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
-   <div class="field-card-tools"><button type="button" (click)="openFieldEditor(child.path)" aria-label="Configurar atributo" title="Configurar"><span class="action-icon" aria-hidden="true">⚙</span><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
+   <div class="field-card-tools"><button type="button" (click)="moveObjectAttribute(child.path,-1)" [disabled]="!canMoveObjectAttribute(child.path,-1)" aria-label="Subir atributo">↑</button><button type="button" (click)="moveObjectAttribute(child.path,1)" [disabled]="!canMoveObjectAttribute(child.path,1)" aria-label="Descer atributo">↓</button><button type="button" (click)="openFieldEditor(child.path)" aria-label="Configurar atributo" title="Configurar"><span class="action-icon" aria-hidden="true">⚙</span><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
   </div>
   <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(field.path,kind.type)">+ {{kind.label}}</button></div>
   <p class="validation-help">Objeto dentro de objeto está desabilitado no editor visual.</p>
  </div>
 
- <div class="field-card-tools"><button type="button" (click)="openFieldEditor(field.path)" title="Configurar campo" aria-label="Configurar campo"><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span>Excluir</span></button></div>
+ <div class="field-card-tools"><button type="button" (click)="moveCanvasField(field.path,-1)" [disabled]="!canMoveCanvasField(field.path,-1)" aria-label="Subir campo">↑</button><button type="button" (click)="moveCanvasField(field.path,1)" [disabled]="!canMoveCanvasField(field.path,1)" aria-label="Descer campo">↓</button><button type="button" (click)="openFieldEditor(field.path)" title="Configurar campo" aria-label="Configurar campo"><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span>Excluir</span></button></div>
 </div>
    </div>
-   <div class="schema-drop-root" (dragover)="dragOver($event)" (drop)="dropField(null,null,$event)">Solte aqui para mover para a raiz</div>
+
    <div class="canvas-empty" *ngIf="!canvasFields.length && !visualGroups.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
 
@@ -503,6 +508,15 @@ export class SchemaBuilderComponent implements OnChanges {
  selectVisualGroup(id:string){this.editingForm=false;this.selectedGroupId=id;this.selectedPath='';this.editorTab='property';this.showAddMenu=false;this.groupAddPickerOpen=false;}
  selectGroupField(key:string){this.selectedGroupId='';this.select((this.activeContainerPath||'')+'/properties/'+this.escape(key));}
  fieldTitle(key:string){return this.getNodeAt(this.schema,(this.activeContainerPath||'')+'/properties/'+this.escape(key))?.title||key;}
+
+ addFieldToGroup(id:string,type:string){const path=this.activeContainerPath;this.commit(root=>{const target=this.getNodeAt(root,path);const group=target?.['x-ui']?.groups?.find((g:any)=>g.id===id);if(!target||!group)return;target.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(target.properties,key))key='campo'+i++;target.properties[key]=type==='object'?{type:'object',title:key,description:'Objeto JSON.',properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};group.fields??=[];group.fields.push(key);});}
+ moveGroup(id:string,direction:number){const path=this.activeContainerPath;this.commit(root=>{const groups=this.getNodeAt(root,path)?.['x-ui']?.groups;if(!groups)return;const i=groups.findIndex((g:any)=>g.id===id),j=i+direction;if(i<0||j<0||j>=groups.length)return;[groups[i],groups[j]]=[groups[j],groups[i]];});}
+ private canvasSiblingPaths(path:string):string[]{const key=this.segments(path).at(-1);const group=this.visualGroups.find((g:any)=>(g.fields||[]).includes(key));return (group?this.groupFields(group):this.ungroupedCanvasFields).map(row=>row.path);}
+ canMoveCanvasField(path:string,direction:number){const paths=this.canvasSiblingPaths(path),i=paths.indexOf(path);return i>=0&&i+direction>=0&&i+direction<paths.length;}
+ moveCanvasField(path:string,direction:number){if(!this.canMoveCanvasField(path,direction))return;const paths=this.canvasSiblingPaths(path),keys=paths.map(p=>this.segments(p).at(-1)!);const i=paths.indexOf(path);[keys[i],keys[i+direction]]=[keys[i+direction],keys[i]];const container=this.activeContainerPath;const key=this.segments(path).at(-1);const group=this.visualGroups.find((g:any)=>(g.fields||[]).includes(key));this.commit(root=>{const node=this.getNodeAt(root,container);if(!node)return;node['x-ui']??={};if(group){const target=node['x-ui'].groups?.find((g:any)=>g.id===group.id);if(target)target.fields=keys;}else node['x-ui'].rootOrder=keys;});}
+ private objectAttributePaths(path:string){const segments=this.segments(path),key=segments.pop();if(segments.pop()!=='properties'||!key)return {parent:'',keys:[],index:-1};const parent='/'+segments.map(x=>this.escape(x)).join('/');const keys=Object.keys(this.getNodeAt(this.schema,parent)?.properties||{});return {parent,keys,index:keys.indexOf(key)};}
+ canMoveObjectAttribute(path:string,direction:number){const {keys,index}=this.objectAttributePaths(path);return index>=0&&index+direction>=0&&index+direction<keys.length;}
+ moveObjectAttribute(path:string,direction:number){if(!this.canMoveObjectAttribute(path,direction))return;const {parent,keys,index}=this.objectAttributePaths(path);[keys[index],keys[index+direction]]=[keys[index+direction],keys[index]];this.commit(root=>{const node=this.getNodeAt(root,parent);if(!node?.properties)return;node.properties=Object.fromEntries(keys.map(key=>[key,node.properties![key]]));});}
  get visualGroups():any[]{return this.getNodeAt(this.schema,this.activeContainerPath)?.['x-ui']?.groups||[];}
  updateVisualGroup(id:string,key:'title'|'description',value:string){const path=this.activeContainerPath;this.commit(root=>{const g=this.getNodeAt(root,path)?.['x-ui']?.groups?.find((x:any)=>x.id===id);if(g)g[key]=value;});}
  toggleVisualGroupField(id:string,field:string,enabled:boolean){const path=this.activeContainerPath;this.commit(root=>{const groups=this.getNodeAt(root,path)?.['x-ui']?.groups||[];for(const g of groups)g.fields=(g.fields||[]).filter((x:string)=>x!==field);if(enabled){const g=groups.find((x:any)=>x.id===id);if(g)g.fields.push(field);}});}
