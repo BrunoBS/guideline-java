@@ -578,6 +578,34 @@ export class SchemaBuilderComponent implements OnChanges {
  groupFields(group:any):NodeRow[]{return [];}
  get ungroupedCanvasFields(){return this.canvasFields;}
  propertyKey(path:string){return this.segments(path).at(-1)||'';}
+ private objectAttributeLocation(path:string):{parentPath:string;key:string;keys:string[]}|null{
+  const parts=this.segments(path);
+  if(parts.length<2||parts[parts.length-2]!=='properties')return null;
+  const key=parts[parts.length-1];
+  const parentPath=parts.slice(0,-2).map(part=>'/'+this.escape(part)).join('');
+  const parent=this.getNodeAt(this.schema,parentPath);
+  if(!parent||!this.isObjectSchema(parent)||!parent.properties||!Object.prototype.hasOwnProperty.call(parent.properties,key))return null;
+  return {parentPath,key,keys:Object.keys(parent.properties)};
+ }
+ canMoveObjectAttribute(path:string,direction:number):boolean{
+  const location=this.objectAttributeLocation(path);
+  if(!location)return false;
+  const index=location.keys.indexOf(location.key);
+  return index>=0&&index+direction>=0&&index+direction<location.keys.length;
+ }
+ moveObjectAttribute(path:string,direction:number):void{
+  const location=this.objectAttributeLocation(path);
+  if(!location||!this.canMoveObjectAttribute(path,direction))return;
+  const keys=[...location.keys];
+  const index=keys.indexOf(location.key);
+  [keys[index],keys[index+direction]]=[keys[index+direction],keys[index]];
+  this.commit(root=>{
+   const parent=this.getNodeAt(root,location.parentPath);
+   if(!parent?.properties)return;
+   parent.properties=Object.fromEntries(keys.map(key=>[key,parent.properties![key]]));
+  });
+ }
+
  dragSource='';
  dragField(path:string,event:DragEvent){this.dragSource='field:'+path;event.stopPropagation();event.dataTransfer?.setData('text/plain',this.dragSource);}
  dragGroup(id:string,event:DragEvent){this.dragSource='group:'+id;event.stopPropagation();event.dataTransfer?.setData('text/plain',this.dragSource);}
@@ -612,7 +640,7 @@ export class SchemaBuilderComponent implements OnChanges {
  goToParentContainer(){this.selectedGroupId='';this.activeContainerPath=this.containerHistory.pop()||'';}
  arrayWidget(node:Schema):string{return 'list';}
  setArrayWidget(widget:string){}
- arrayOptionsText(node:Schema):string{const item=node.items;return item&&typeof item==='object'&&!Array.isArray(item)&&Array.isArray(item.enum)?item.enum.map(v=>String(v)).join('\n'):'';}
+ arrayOptionsText(node:Schema):string{const item=node.items;return item&&typeof item==='object'&&!Array.isArray(item)&&Array.isArray(item.enum)?item.enum.map((v:unknown)=>String(v)).join('\n'):'';}
  setArrayOptions(text:string){this.commit(root=>{const node=this.current(root)!,item=node.items;if(!item||typeof item!=='object'||Array.isArray(item))return;const type=this.arrayItemType(node);const values=text.split(/\r?\n/).map(v=>v.trim()).filter(Boolean).map(v=>type==='integer'||type==='number'?Number(v):v).filter(v=>typeof v!=='number'||Number.isFinite(v));if(values.length)item.enum=[...new Set(values)];else delete item.enum;});}
  arrayItemType(node:Schema):string{
   const item=node.items;
