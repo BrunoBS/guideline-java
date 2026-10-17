@@ -29,3 +29,7 @@ Relatório: diagnóstico; evidências; decisão; contraindicações; patch propo
 
 ### Referência
 Spring Boot 4 testing reference. Consultar inventário central em `Skills/PESQUISA-OFICIAL-E-GAPS-2026-10.md`. Não tratar este exemplo como certificação da API.
+
+### Pré-requisito de compilação (Boot 4)
+O trecho é apenas um DTO. Para validar `@NotBlank` em HTTP, incluir o starter de validação compatível com a versão efetiva do Spring Boot 4, aplicar `@Valid` no parâmetro do controller e configurar um teste de requisição inválida e válida. A presença da anotação no record **não garante** rejeição HTTP por si só.
+Fonte oficial: https://docs.spring.io/spring-boot/4.0/reference/io/validation.html
