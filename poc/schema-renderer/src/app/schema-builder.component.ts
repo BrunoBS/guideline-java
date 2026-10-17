@@ -773,6 +773,8 @@ export class SchemaBuilderComponent implements OnChanges {
    const entries=Object.entries(target.properties).map(([k,v])=>[k===old?name:k,v]);
    target.properties=Object.fromEntries(entries);
    if(target.required)target.required=target.required.map((k:string)=>k===old?name:k);
+   const ui=target['x-ui'];
+   if(ui){for(const group of ui.groups||[])group.fields=(group.fields||[]).map((key:string)=>key===old?name:key);if(Array.isArray(ui.rootOrder))ui.rootOrder=ui.rootOrder.map((key:string)=>key===old?name:key);}
    this.selectedPath=parentPath+'/properties/'+this.escape(name);
   });
  }
