@@ -99,6 +99,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .inspector-disabled{background:#f8fafc!important;border-color:#e2e8f0!important}
  .inspector-disabled .editor-heading{opacity:.55}
  .editor-empty{color:#8090a5;font-size:14px;line-height:1.6;padding:24px 6px;text-align:center}
+ .field-editor-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+ .field-editor-heading .editor-field-type{margin:0 0 0 auto;justify-content:flex-end}
  .editor-field-type{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 16px;font-size:13px;color:#64748b}
  .editor-field-type strong{padding:4px 9px;border-radius:7px;background:#eef2f8;color:#40516a;font-size:12px}
  .editor-field-type small{flex-basis:100%;color:#94a3b8;font-size:11px}
@@ -265,7 +267,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <div class="visual-group-actions"><button type="button" class="visual-group-delete-button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
   </div>
   <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!selectedGroupId && selected as node">
-   <div class="editor-heading"><strong>Editar campo</strong></div>
+   <div class="editor-heading field-editor-heading"><strong>Editar campo</strong><div class="editor-field-type" *ngIf="mode==='construction' && selectedPath"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong></div></div>
    <p class="editor-empty" *ngIf="mode==='construction' && !selectedPath">Selecione um campo em Campos do schema para editar suas propriedades e validações.</p>
    <div *ngIf="mode==='dev' || selectedPath">
    <div class="builder-actions" *ngIf="mode==='dev'">
@@ -285,9 +287,6 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <option *ngFor="let t of types" [value]="t">{{t}}</option>
     </select>
    </label>
-   <div class="editor-type-required" *ngIf="mode==='construction'">
-    <div class="editor-field-type"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong></div>
-   </div>
    <div class="field-options-card" *ngIf="selectedPath!=='' && (mode==='dev' || editorTab==='property')">
     <strong class="field-options-title">Opções do campo</strong>
     <label class="required-switch-label" *ngIf="!selectedPath.endsWith('/items')"><span>Obrigatório</span><input type="checkbox" class="required-switch-input" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)" role="switch" [attr.aria-checked]="selectedRequired"/><span class="required-switch-track" aria-hidden="true"></span></label>
