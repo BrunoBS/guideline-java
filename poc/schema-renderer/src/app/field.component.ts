@@ -160,7 +160,7 @@ import {
                 <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
               </label>
             </div>
-            <p class="muted" *ngIf="v.description && !isNullState()">{{v.description}}</p>
+            <p class="muted" *ngIf="v.description && !isNullState() && primaryType(v)!=='string' && primaryType(v)!=='integer' && primaryType(v)!=='number'">{{v.description}}</p>
 
             <ng-container *ngIf="!isNullState(); else nullArrayState">
               <ng-container *ngIf="isMultiSelect(v); else regularArray">
@@ -467,7 +467,7 @@ export class FieldComponent {
   this.emit(value);
  }
  inputType(s:Schema){switch(s.format){case 'password':return 'password';case 'email':return 'email';case 'date':return 'date';case 'date-time':return 'datetime-local';case 'time':return 'time';case 'uri':case 'url':return 'url';default:return 'text';}}
- placeholder(s:Schema){const example=Array.isArray(s.examples)?s.examples[0]:s.example;return example===undefined?'':typeof example==='string'?example:JSON.stringify(example);}
+ placeholder(s:Schema){const example=Array.isArray(s.examples)?s.examples[0]:s.example;return s.description || (example===undefined?'':typeof example==='string'?example:JSON.stringify(example));}
  jsonValue(value:any){try{return JSON.stringify(value,null,2)??'';}catch{return String(value??'');}}
  freeChanged(input:HTMLTextAreaElement){try{this.emit(JSON.parse(input.value));input.setCustomValidity('');}catch{input.setCustomValidity('JSON inválido');input.reportValidity();}}
 
