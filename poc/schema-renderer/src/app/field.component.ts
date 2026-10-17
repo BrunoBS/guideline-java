@@ -176,7 +176,7 @@ import {
 
               <ng-template #regularArray>
                 <div *ngFor="let item of arrayValue;index as i;trackBy:trackIndex" class="array-item" [class.contains-match]="matchesContains(v,item)">
-                  <div class="array-index-heading"><strong>Item {{i+1}}</strong><span *ngIf="matchesContains(v,item)" class="match-badge">corresponde a contains</span></div>
+                  <div class="array-index-heading" *ngIf="matchesContains(v,item)"><span class="match-badge">corresponde a contains</span></div>
                   <app-field [name]="'Item '+(i+1)" [schema]="itemSchema(v,i)" [root]="root" [value]="item" [required]="true" [issues]="issues" [path]="indexPath(i)" (valueChange)="updateItem(i,$event)"></app-field>
                   <div class="array-item-actions">
                     <button *ngIf="!hasTuple(v)" type="button" class="secondary" [disabled]="i===0 || v.readOnly" (click)="move(i,-1)">↑</button>
