@@ -17,7 +17,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2;order:unset}
  .builder.simplified:not(.developer-mode) .inspector{grid-column:2;grid-row:2;order:unset;position:static;transform:none;width:100%;max-height:none;overflow:visible;box-shadow:none}
  .builder.simplified:not(.developer-mode):not(:has(.inspector)) .canvas{grid-column:1/-1}
- @media(max-width:760px){.builder.simplified:not(.developer-mode){grid-template-columns:1fr}.builder.simplified:not(.developer-mode) .palette.desktop-palette{grid-column:1;grid-row:1;display:flex}.builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2}.builder.simplified:not(.developer-mode) .inspector{grid-column:1;grid-row:3}}
+ @media(max-width:760px){.builder.simplified:not(.developer-mode) .palette.desktop-palette{grid-template-columns:repeat(2,minmax(0,1fr))}.builder.simplified:not(.developer-mode){grid-template-columns:1fr}.builder.simplified:not(.developer-mode) .palette.desktop-palette{grid-column:1;grid-row:1;display:flex}.builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2}.builder.simplified:not(.developer-mode) .inspector{grid-column:1;grid-row:3}}
  .builder.simplified:has(.canvas):has(.inspector){grid-template-columns:minmax(330px,1fr) minmax(320px,1fr)}
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:minmax(0,1.3fr) minmax(240px,.7fr);gap:16px;align-items:start}
  .builder.simplified{display:flex;flex-direction:column;gap:16px}
@@ -91,11 +91,14 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .inspector .checkline input{width:auto}
  @media(max-width:760px){.builder{grid-template-columns:1fr}.tree,.inspector{padding:14px}.rule-grid{grid-template-columns:1fr}}
 
+ .editor-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0 18px;border-bottom:1px solid #dce4ef;padding-bottom:10px}
+ .editor-tabs button{border:1px solid #dce4ef;border-radius:8px;padding:11px 8px;background:#f7f9fd;color:#40536d;cursor:pointer;font-weight:600}
+ .editor-tabs button.active{background:#eaf1ff;border-color:#86a9e6;color:#16468e}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
- .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:flex;flex-wrap:wrap;gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
- .builder.simplified:not(.developer-mode) .palette.desktop-palette>strong,.builder.simplified:not(.developer-mode) .palette.desktop-palette>.builder-help{flex:0 0 100%;margin:0}
- .builder.simplified:not(.developer-mode) .palette.desktop-palette .palette-item{flex:1 1 125px;width:auto;margin:0}
+ .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
+ .builder.simplified:not(.developer-mode) .palette.desktop-palette>strong,.builder.simplified:not(.developer-mode) .palette.desktop-palette>.builder-help{grid-column:1/-1;margin:0}
+ .builder.simplified:not(.developer-mode) .palette.desktop-palette .palette-item{width:100%;margin:0;box-sizing:border-box}
  .builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2;order:unset}
  .builder.simplified:not(.developer-mode) .inspector{grid-column:2;grid-row:2;order:unset;position:static;transform:none;width:100%;max-height:none;overflow:visible;box-shadow:none}
  .builder.simplified:not(.developer-mode):not(:has(.inspector)) .canvas{grid-column:1/-1}
@@ -147,6 +150,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <button type="button" *ngIf="node.type==='array'" (click)="addItems()">+ Definir items</button>
     <button type="button" *ngIf="selectedPath!==''" (click)="removeSelected()">Excluir nó</button>
    </div>
+   <nav class="editor-tabs" *ngIf="mode==='construction'" aria-label="Seções do editor"><button type="button" [class.active]="editorTab==='property'" (click)="editorTab='property'">Dados da propriedade</button><button type="button" [class.active]="editorTab==='validation'" (click)="editorTab='validation'">Validações</button></nav>
+   <div *ngIf="mode==='dev' || editorTab==='property'">
    <label *ngIf="isPropertySelected">Nome da propriedade
     <input [ngModel]="selectedName" (change)="renameSelected($any($event.target).value)"/>
    </label>
@@ -160,6 +165,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <label *ngIf="selectedPath!=='' && !selectedPath.endsWith('/items')" style="display:flex;align-items:center;gap:8px">
     <input type="checkbox" style="width:auto" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)"/> Obrigatório
    </label>
+   </div>
+   <div *ngIf="mode==='dev' || editorTab==='validation'">
    <h4 class="rule-heading">Validações</h4>
    <ng-container *ngIf="node.type==='string'">
     <label>Formato
@@ -200,6 +207,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <textarea [ngModel]="enumText(node)" (change)="setEnum($any($event.target).value)" placeholder="Exemplo:&#10;&quot;ATIVO&quot;&#10;&quot;INATIVO&quot;"></textarea>
    </label>
 
+   </div>
    <ng-container *ngIf="mode==='dev'">
    <h4 class="rule-heading">Composições visuais</h4>
    <div *ngFor="let kind of compositionKinds">
@@ -273,6 +281,7 @@ export class SchemaBuilderComponent implements OnChanges {
  rows:NodeRow[]=[];
  showAddMenu=false;
  showAdvanced=false;
+ editorTab:'property'|'validation'='property';
  showStructure=false;
  palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'},{type:'array-object',label:'Lista agrupada',icon:'☷▣'}];
  get canvasFields(){
@@ -393,7 +402,7 @@ export class SchemaBuilderComponent implements OnChanges {
   return !!name&&!!parent?.required?.includes(name);
  }
  typeLabel(node:Schema){return Array.isArray(node.type)?node.type.join('|'):node.type||'livre';}
- select(path:string){this.selectedPath=path;this.error='';}
+ select(path:string){this.selectedPath=path;this.editorTab='property';this.error='';}
  private rebuild(){
   const rows:NodeRow[]=[];
   const walk=(node:Schema,path:string,label:string,depth:number,required=false)=>{
