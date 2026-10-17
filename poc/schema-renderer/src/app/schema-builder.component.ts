@@ -529,7 +529,7 @@ export class SchemaBuilderComponent implements OnChanges {
  selectedGroupId='';
  editingForm=false;
  groupAddPickerOpen=false;
- get groupFieldPalette(){return this.palette.filter(item=>item.type!=='group');}
+ get groupFieldPalette(){return this.palette;}
  openGroupAddPicker(id:string){this.selectVisualGroup(id);this.groupAddPickerOpen=true;}
  addFieldToSelectedGroup(type:string){if(!this.selectedGroupId)return;this.addFieldToGroup(this.selectedGroupId,type);this.groupAddPickerOpen=false;}
  collapsedGroups=new Set<string>();
@@ -552,7 +552,7 @@ export class SchemaBuilderComponent implements OnChanges {
  cancelDelete(){this.showDeleteConfirmation=false;}
  deleteConfirmed(){this.showDeleteConfirmation=false;this.removeSelected();}
  showStructure=false;
- palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo (objeto)',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
+ palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'array',label:'Lista',icon:'☷'}];
  get selectedVisualGroup():any{return this.visualGroups.find((g:any)=>g.id===this.selectedGroupId);}
  selectForm(){this.editingForm=true;this.selectedGroupId='';this.selectedPath='';}
  updateForm(key:'title'|'description',value:string){this.commit(root=>{if(value)root[key]=value;else delete root[key];});}
@@ -669,7 +669,6 @@ export class SchemaBuilderComponent implements OnChanges {
   const node=this.getNodeAt(this.schema,targetPath);
   if(!node||!this.isObjectSchema(node)){this.error='Selecione um objeto para adicionar campos.';return;}
   this.error='';
-  if(type==='group')type='object';
   this.commit(root=>{
    const target=this.getNodeAt(root,targetPath)!;
    target.properties??={};
