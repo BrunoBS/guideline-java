@@ -29,3 +29,7 @@ Relatório: diagnóstico; evidências; decisão; contraindicações; patch propo
 
 ### Referência
 MySQL 8.4 EXPLAIN reference. Consultar inventário central em `Skills/PESQUISA-OFICIAL-E-GAPS-2026-10.md`. Não tratar este exemplo como certificação da API.
+
+### Pré-requisito SQL
+Os caracteres `?` representam parâmetros JDBC preparados; a linha mostrada não é uma instrução diretamente executável no cliente MySQL sem bind de parâmetros. Para avaliar plano, usar valores representativos em ambiente controlado e registrar esquema, índices existentes, distribuição, `EXPLAIN` e impacto de DML. Um índice candidato não é uma recomendação definitiva.
+Fonte oficial: https://dev.mysql.com/doc/refman/8.4/en/explain.html
