@@ -114,6 +114,16 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .canvas-field-card .canvas-field-footer{display:flex;justify-content:flex-end;padding:0 14px 12px}
  .canvas-field-card .canvas-field-delete{position:static;display:inline-flex;align-items:center;justify-content:center;width:auto;height:auto;padding:5px 7px;border:0;border-radius:6px;background:transparent;color:#b42318;font-size:13px;font-weight:500;cursor:pointer}
  .canvas-field-card .canvas-field-delete:hover,.canvas-field-card .canvas-field-delete:focus-visible{background:#fff0ef;color:#912018}
+
+ .editor-type-required{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:14px 0}
+ .editor-type-required .editor-field-type{margin:0;flex:1 1 auto}
+ .required-switch-label{display:inline-flex!important;align-items:center;gap:9px;margin:0!important;white-space:nowrap;cursor:pointer;font-size:13px;color:#40516a}
+ .required-switch-input{position:absolute;opacity:0;width:1px;height:1px}
+ .required-switch-track{position:relative;display:inline-block;width:38px;height:22px;border-radius:999px;background:#cbd5e1;transition:background .15s}
+ .required-switch-track:after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0002;transition:transform .15s}
+ .required-switch-input:checked+.required-switch-track{background:#2455b5}
+ .required-switch-input:checked+.required-switch-track:after{transform:translateX(16px)}
+ .required-switch-input:focus-visible+.required-switch-track{outline:3px solid #93c5fd;outline-offset:2px}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
  .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
@@ -213,10 +223,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <option *ngFor="let t of types" [value]="t">{{t}}</option>
     </select>
    </label>
-   <div class="editor-field-type" *ngIf="mode==='construction'"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong><small>Definido ao adicionar o componente</small></div>
-   <label *ngIf="selectedPath!=='' && !selectedPath.endsWith('/items')" style="display:flex;align-items:center;gap:8px">
-    <input type="checkbox" style="width:auto" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)"/> Obrigatório
-   </label>
+   <div class="editor-type-required" *ngIf="mode==='construction'">
+    <div class="editor-field-type"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong></div>
+    <label class="required-switch-label" *ngIf="selectedPath!=='' && !selectedPath.endsWith('/items')">
+     <span>Obrigatório</span><input type="checkbox" class="required-switch-input" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)" role="switch" [attr.aria-checked]="selectedRequired"/><span class="required-switch-track" aria-hidden="true"></span>
+    </label>
+   </div>
+   <label *ngIf="mode==='dev' && selectedPath!=='' && !selectedPath.endsWith('/items')" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)"/> Obrigatório</label>
    </div>
    <div *ngIf="mode==='dev' || editorTab==='validation'">
    <h4 class="rule-heading">Validações</h4>
@@ -315,7 +328,6 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <p class="builder-help">Os campos não suportados visualmente são preservados. Enum deve conter valores JSON válidos, um por linha.</p>
    </ng-container>
    <p class="builder-error" *ngIf="error">{{error}}</p>
-   <div class="editor-footer" *ngIf="mode==='construction' && selectedPath"><span>Alterações salvas automaticamente</span></div>
    </div>
   </div>
   <div class="confirm-overlay" *ngIf="showDeleteConfirmation" (click)="cancelDelete()"><section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title" aria-describedby="confirm-delete-description" (click)="$event.stopPropagation()"><div class="confirm-icon">!</div><h3 id="confirm-delete-title">Excluir campo?</h3><p id="confirm-delete-description">O campo <strong>{{selectedName}}</strong> será removido do schema. Essa ação não pode ser desfeita.</p><div class="confirm-actions"><button type="button" class="confirm-cancel" (click)="cancelDelete()">Cancelar</button><button type="button" class="confirm-danger" (click)="deleteConfirmed()">Excluir campo</button></div></section></div>
