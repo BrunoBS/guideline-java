@@ -289,7 +289,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <p class="validation-help">Com este grupo selecionado, escolha Texto, Inteiro, Decimal, Sim/Não, Objeto ou Lista em Adicionar componentes. O novo campo será incluído automaticamente aqui.</p>
     <div class="visual-group-actions"><button type="button" class="visual-group-delete-button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
   </div>
-  <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!editingForm && !selectedGroupId && selected as node">
+  <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!editingForm && !selectedGroupId"><ng-container *ngIf="selected as node">
    <div class="editor-heading field-editor-heading"><strong>Editar campo</strong><div class="editor-field-type" *ngIf="mode==='construction' && selectedPath"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong></div></div>
    <p class="editor-empty" *ngIf="mode==='construction' && !selectedPath">Selecione um campo em Campos do schema para editar suas propriedades e validações.</p>
    <div *ngIf="mode==='dev' || selectedPath">
@@ -427,6 +427,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </ng-container>
    <p class="builder-error" *ngIf="error">{{error}}</p>
    </div>
+   </ng-container>
   </div>
   <div class="confirm-overlay" *ngIf="showDeleteConfirmation" (click)="cancelDelete()"><section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title" aria-describedby="confirm-delete-description" (click)="$event.stopPropagation()"><div class="confirm-icon">!</div><h3 id="confirm-delete-title">Excluir campo?</h3><p id="confirm-delete-description">O campo <strong>{{selectedName}}</strong> será removido do schema. Essa ação não pode ser desfeita.</p><div class="confirm-actions"><button type="button" class="confirm-cancel" (click)="cancelDelete()">Cancelar</button><button type="button" class="confirm-danger" (click)="deleteConfirmed()">Excluir campo</button></div></section></div>
  </div>`
