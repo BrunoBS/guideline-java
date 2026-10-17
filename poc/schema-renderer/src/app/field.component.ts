@@ -30,7 +30,7 @@ import {
     <ng-container *ngIf="viewSchema(s) as v">
       <div class="free-value" *ngIf="isFreeSchema(v); else typedRenderer">
         <div class="field-heading">
-          <label>{{v.title||name||'Valor livre'}} {{required?'*':''}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span></label>
+          <label *ngIf="!suppressHeading">{{v.title||name||'Valor livre'}} {{required?'*':''}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span></label>
           <label *ngIf="showNullToggle(s)" class="nullable-toggle" title="Definir como nulo">
             <span>Definir como nulo</span>
             <input type="checkbox" [checked]="isNullState()" (change)="setNull($any($event.target).checked,s)" />
@@ -48,7 +48,7 @@ import {
 
       <ng-template #typedRenderer>
         <fieldset *ngIf="primaryType(v)==='object'||hasProperties(v); else nonObject" [disabled]="v.readOnly" [class.invalid-fieldset]="isInvalid(path)">
-          <legend>{{v.title||name||'Objeto'}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span></legend>
+          <legend *ngIf="!suppressHeading">{{v.title||name||'Objeto'}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span></legend>
           <div class="container-nullable-row" *ngIf="showNullToggle(s)">
             <label class="nullable-toggle" title="Definir como nulo">
               <span>Definir como nulo</span>
@@ -152,7 +152,7 @@ import {
 
         <ng-template #nonObject>
           <fieldset *ngIf="primaryType(v)==='array'; else scalar" [disabled]="v.readOnly" [class.invalid-fieldset]="isInvalid(path)">
-            <legend>{{v.title||name||'Lista'}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span> ({{arrayValue.length}}<ng-container *ngIf="v.maxItems!==undefined"> / {{v.maxItems}}</ng-container>)</legend>
+            <legend *ngIf="!suppressHeading">{{v.title||name||'Lista'}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span> ({{arrayValue.length}}<ng-container *ngIf="v.maxItems!==undefined"> / {{v.maxItems}}</ng-container>)</legend>
             <div class="container-nullable-row" *ngIf="showNullToggle(s)">
               <label class="nullable-toggle" title="Definir como nulo">
                 <span>Definir como nulo</span>
@@ -176,8 +176,8 @@ import {
 
               <ng-template #regularArray>
                 <div *ngFor="let item of arrayValue;index as i;trackBy:trackIndex" class="array-item" [class.contains-match]="matchesContains(v,item)">
-                  <div class="array-index-heading" *ngIf="matchesContains(v,item)"><span class="match-badge">corresponde a contains</span></div>
-                  <app-field [name]="'Item '+(i+1)" [schema]="itemSchema(v,i)" [root]="root" [value]="item" [required]="true" [issues]="issues" [path]="indexPath(i)" (valueChange)="updateItem(i,$event)"></app-field>
+                  <div class="array-index-heading"><strong>Item {{i+1}} *</strong><span *ngIf="matchesContains(v,item)" class="match-badge">corresponde a contains</span></div>
+                  <app-field [suppressHeading]="true" [name]="'Item '+(i+1)" [schema]="itemSchema(v,i)" [root]="root" [value]="item" [required]="true" [issues]="issues" [path]="indexPath(i)" (valueChange)="updateItem(i,$event)"></app-field>
                   <div class="array-item-actions">
                     <button *ngIf="!hasTuple(v)" type="button" class="secondary" [disabled]="i===0 || v.readOnly" (click)="move(i,-1)">↑</button>
                     <button *ngIf="!hasTuple(v)" type="button" class="secondary" [disabled]="i===arrayValue.length-1 || v.readOnly" (click)="move(i,1)">↓</button>
@@ -197,7 +197,7 @@ import {
           <ng-template #scalar>
             <div class="control" [class.invalid-control]="isInvalid(path)">
               <div class="field-heading">
-                <label>{{v.title||name||'Valor'}} {{required?'*':''}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span></label>
+                <label *ngIf="!suppressHeading">{{v.title||name||'Valor'}} {{required?'*':''}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span></label>
                 <label *ngIf="showNullToggle(s)" class="nullable-toggle" title="Definir como nulo">
                   <span>Definir como nulo</span>
                   <input type="checkbox" [checked]="isNullState()" (change)="setNull($any($event.target).checked,s)" />
@@ -224,7 +224,7 @@ import {
   </ng-template>
 </ng-container>`})
 export class FieldComponent {
- @Input() name='';@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;@Input() issues:ValidationIssue[]=[];@Input() path='';@Output() valueChange=new EventEmitter<any>();
+ @Input() name='';@Input() suppressHeading=false;@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;@Input() issues:ValidationIssue[]=[];@Input() path='';@Output() valueChange=new EventEmitter<any>();
  chosenType?:string;
  private dynamicChosenTypes:Record<string,string>={};
  private dynamicJsonDraftValues:Record<string,string>={};
