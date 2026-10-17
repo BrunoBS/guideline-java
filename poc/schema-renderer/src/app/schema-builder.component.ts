@@ -17,7 +17,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified .palette{grid-column:1;grid-row:2;position:static}
  .builder.simplified .canvas{grid-column:1;grid-row:1;min-height:340px}
  .builder.simplified .inspector{grid-column:2;grid-row:1 / span 2}
- @media(max-width:760px){.builder.simplified.developer-mode{grid-template-columns:1fr}.builder.simplified.developer-mode .palette,.builder.simplified.developer-mode .inspector{grid-column:1;grid-row:auto}.builder.simplified{grid-template-columns:1fr}.builder.simplified .palette,.builder.simplified .canvas,.builder.simplified .inspector{grid-column:1;grid-row:auto}}
+ @media(max-width:760px){.builder.simplified.developer-mode{grid-template-columns:1fr}.builder.simplified.developer-mode .palette,.builder.simplified.developer-mode .inspector{grid-column:1;grid-row:auto}.builder.simplified{grid-template-columns:1fr}.builder.simplified .palette,.builder.simplified .canvas,.builder.simplified .inspector{grid-column:1;grid-row:auto}.builder.simplified .palette.desktop-palette{display:none}.builder.simplified .canvas-header{position:sticky;top:0;z-index:8;padding:8px;background:#fbfcff;border-bottom:1px solid #e3e9f2}.builder.simplified .canvas-header>.builder-actions{justify-content:flex-end}.builder.simplified .canvas-header .builder-help{display:none}.builder.simplified .canvas-add-top{white-space:nowrap}.builder.simplified .mobile-palette{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0 0 12px;padding:10px;border:1px solid #d9dfe9;border-radius:10px;background:#fff}.builder.simplified .mobile-palette .palette-item{margin:0;min-width:0;padding:9px 7px;font-size:13px}}
  .builder{display:grid;grid-template-columns:minmax(180px,.72fr) minmax(300px,1.4fr) minmax(280px,1.12fr);gap:16px;align-items:start}
  .palette,.canvas{border:1px solid #d9dfe9;border-radius:12px;padding:18px;background:#fff;min-width:0}
  .palette{position:sticky;top:12px}
@@ -25,6 +25,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .palette-item:hover{background:#e8efff;border-color:#7fa5e9}
  .canvas{min-height:420px;background:#fbfcff}
  .canvas-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+ .mobile-palette{display:none}
  .canvas-header p{font-size:12px;color:#586477;margin:5px 0}
  .canvas-fields{display:grid;gap:10px}
  .canvas-field{display:block;width:100%;padding:14px 16px;border:1px solid #dce4ef;background:#fff;color:#26354d;border-radius:10px;text-align:left;cursor:pointer;box-shadow:0 2px 5px rgba(20,40,80,.035)}
@@ -54,6 +55,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .inspector label{display:grid;gap:5px;margin-bottom:12px;font-weight:600}
  .inspector input,.inspector select{width:100%;box-sizing:border-box;padding:9px;border:1px solid #b8c4d4;border-radius:6px;background:white}
  .builder-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+ .canvas-add-top{border:1px solid #2455b5;background:#2455b5;color:#fff;border-radius:8px;padding:8px 11px;cursor:pointer;font-weight:600}
  .builder-actions button{padding:8px 12px;cursor:pointer}
  .inspector>strong{display:block;margin-bottom:12px}
  .inspector label{line-height:1.4}
@@ -76,7 +78,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  `],
  template:`
  <div class="builder simplified">
-  <aside class="palette" *ngIf="showAddMenu || mode==='dev'">
+  <aside class="palette" [class.desktop-palette]="mode==='construction'" *ngIf="showAddMenu || mode==='dev'">
    <strong>{{mode==='dev'?'Estrutura técnica':'Adicionar componentes'}}</strong>
    <p class="builder-help">Escolha um tipo para adicionar ao formulário ou ao objeto selecionado.</p>
    <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
@@ -96,8 +98,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <button type="button" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar</button>
      <button type="button" *ngIf="selected?.type==='object' && selectedPath" (click)="openSelectedGroup()">Abrir agrupador</button>
      <button type="button" *ngIf="selected && selected.type==='array' && arrayItemType(selected)==='object'" (click)="openArrayItems()">Abrir lista de objetos</button>
+     <button type="button" class="canvas-add-top" (click)="toggleAddMenu()">{{showAddMenu?'Fechar':'＋ Adicionar campo'}}</button>
      <span class="builder-help">{{canvasFields.length}} campos</span>
     </div>
+   </div>
+   <div class="mobile-palette" *ngIf="showAddMenu">
+    <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
    </div>
    <div class="canvas-fields">
     <button type="button" class="canvas-field" *ngFor="let field of canvasFields" [class.active]="selectedPath===field.path" (click)="select(field.path)">
@@ -106,8 +112,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
     </button>
    </div>
-   <div class="canvas-empty" *ngIf="!canvasFields.length">{{activeContainerPath ? "Este agrupador está vazio. Adicione um campo pelo painel à esquerda." : "Seu formulário está vazio. Adicione um componente pelo painel à esquerda."}}</div>
-   <button type="button" class="canvas-add" (click)="showAddMenu=!showAddMenu">＋ Adicionar campo</button>
+   <div class="canvas-empty" *ngIf="!canvasFields.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
   <div class="inspector" *ngIf="(selectedPath || mode==='dev') && selected as node">
    <div class="canvas-header"><strong>Editar campo</strong><button type="button" (click)="select('')">Fechar</button></div>
@@ -260,6 +265,7 @@ export class SchemaBuilderComponent implements OnChanges {
   this.activeContainerPath=path;
   this.error='';
  }
+ toggleAddMenu(){this.showAddMenu=!this.showAddMenu;}
  openSelectedGroup(){this.openContainer(this.selectedPath);}
  openArrayItems(){
   if(this.selected?.type!=='array'||this.arrayItemType(this.selected)!=='object')return;
@@ -291,6 +297,7 @@ export class SchemaBuilderComponent implements OnChanges {
    target.properties[key]=type==='object'?{type,properties:{},title:key}:type==='array'?{type,items:{type:'string'},title:key}:{type,title:key};
    this.selectedPath=targetPath+'/properties/'+this.escape(key);
   });
+  this.showAddMenu=false;
  }
  newDefinitionName='';
  newPatternName='';
