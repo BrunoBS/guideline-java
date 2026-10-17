@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -35,6 +36,7 @@ class NPlusOneIntegrationTest {
     @Autowired EntityManagerFactory entityManagerFactory;
 
     @Test
+    @Transactional
     void comparesLazyNPlusOneToFetchJoinWithoutLeakingWorkspaces() {
         List<ConfigurationWithDetailEntity> rows = new ArrayList<>();
         for (int i = 0; i < 5; i++) rows.add(new ConfigurationWithDetailEntity(10L, new ConfigurationDetailEntity("a-" + i)));
