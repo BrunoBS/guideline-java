@@ -260,7 +260,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <label>Mínimo de itens<input type="number" min="0" step="1" [ngModel]="node.minItems" (ngModelChange)="setNumber('minItems',$event,0,true)"/></label>
     <label>Máximo de itens<input type="number" min="0" step="1" [ngModel]="node.maxItems" (ngModelChange)="setNumber('maxItems',$event,0,true)"/></label>
    </div>
-   <label *ngIf="node.type==='array' && mode==='dev'">Tipo dos itens
+   <label *ngIf="node.type==='array'">Tipo dos itens
     <select [ngModel]="arrayItemType(node)" (ngModelChange)="setArrayItemType($event)">
      <option value="string">Texto</option><option value="integer">Inteiro</option><option value="number">Decimal</option><option value="boolean">Sim / Não</option><option value="object">Objeto / agrupador</option><option value="array">Lista</option>
     </select>
@@ -270,7 +270,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
     <label>Máximo de propriedades<input type="number" min="0" step="1" [ngModel]="node.maxProperties" (ngModelChange)="setNumber('maxProperties',$event,0,true)"/></label>
    </div>
-   <p class="validation-help" *ngIf="node.type==='array' && arrayItemType(node)==='object'">As propriedades e validações dos objetos são configuradas dentro da lista agrupada.</p>
+   <p class="validation-help" *ngIf="node.type==='array' && arrayItemType(node)==='object'">Para adicionar propriedades aos objetos, selecione a lista e clique em Abrir lista de objetos.</p>
    <label *ngIf="node.type==='object'" class="required-switch-label validation-switch"><span>Permitir propriedades adicionais</span><input type="checkbox" class="required-switch-input" [ngModel]="node.additionalProperties!==false" (ngModelChange)="setBoolean('additionalProperties',$event)" role="switch" [attr.aria-checked]="node.additionalProperties!==false"/><span class="required-switch-track" aria-hidden="true"></span></label>
    <p class="validation-help" *ngIf="node.type==='boolean'">Este campo aceita apenas verdadeiro ou falso. Não há restrições adicionais necessárias para validar o tipo.</p>
    <h4 class="rule-heading" *ngIf="node.type==='string' || node.type==='integer' || node.type==='number'">Valores permitidos</h4>
@@ -361,7 +361,7 @@ export class SchemaBuilderComponent implements OnChanges {
  cancelDelete(){this.showDeleteConfirmation=false;}
  deleteConfirmed(){this.showDeleteConfirmation=false;this.removeSelected();}
  showStructure=false;
- palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'},{type:'array-object',label:'Lista agrupada',icon:'☷▣'}];
+ palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
  get canvasFields(){
   const prefix=this.activeContainerPath?this.activeContainerPath+'/properties/':'/properties/';
   return this.rows.filter(row=>row.path.startsWith(prefix)&&!row.path.slice(prefix.length).includes('/'));
@@ -395,7 +395,12 @@ export class SchemaBuilderComponent implements OnChanges {
   this.commit(root=>{
    const node=this.current(root)!;
    const existing=node.items&&typeof node.items==='object'&&!Array.isArray(node.items)?node.items:{};
-   node.items=type==='object'?{...existing,type,properties:existing.properties||{},title:existing.title||'Item'}:{...existing,type};
+   // Changing item type resets incompatible constraints and nested properties.
+   node.items=type==='object'
+    ?{type:'object',title:'Item',properties:{}}
+    :type==='array'
+     ?{type:'array',title:'Item',items:{type:'string'}}
+     :{type,title:'Item'};
   });
  }
  addTypedProperty(type:string){
@@ -408,10 +413,7 @@ export class SchemaBuilderComponent implements OnChanges {
    target.properties??={};
    let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(target.properties,key))key='campo'+i++;
    const objectType=type==='object'||type==='group';
-   const groupedList=type==='array-object';
-   target.properties[key]=groupedList
-    ?{type:'array',title:key,description:'Lista de objetos agrupados.',items:{type:'object',title:'Item',properties:{}}}
-    :objectType
+   target.properties[key]=objectType
      ?{type:'object',title:key,description:type==='group'?'Agrupador de propriedades.':'Objeto JSON.',properties:{}}
      :type==='array'?{type:'array',items:{type:'string'},title:key}:{type,title:key};
    this.selectedPath=targetPath+'/properties/'+this.escape(key);
