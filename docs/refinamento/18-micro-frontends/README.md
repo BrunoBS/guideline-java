@@ -351,3 +351,119 @@ Dependências: Shell/DS/contratos antecedem Workspace; Workspace depende do BFF 
 
 ## 18. Princípios de aceite arquitetural
 O Shell é infraestrutura de experiência, o Workspace é navegação de negócio, cada MFE é dono da própria feature, o BFF é a fronteira web e o MCP é a fronteira de agentes. Contexto não é autorização. Redis acelera, mas não substitui fonte de verdade nem política de revogação. Configurações copiadas são snapshots, não herança referencial. Todas as jornadas devem ser testáveis com mocks antes de conectar serviços reais.
+
+## 19. Estratégia de repositórios — monorepo versus multirepositório
+
+> **Diretriz preferencial para refinamento: MONOREPO com autonomia real por MFE.** Esta é uma recomendação arquitetural, não uma imposição irreversível. A validação final deverá considerar governança, segurança, escala de equipes e compatibilidade da stack.
+
+### 19.1 Premissas
+- A plataforma começa com poucos times, mas poderá distribuir Shell, Workspace e features para equipes distintas.
+- O frontend terá Angular e Native Federation; a adoção de Nx deve ser validada com as versões efetivas de Angular, Node, TypeScript e plugins.
+- Cada MFE precisa de ownership, build, testes, release, observabilidade e deploy independentes.
+- O BFF e o MCP Server são **projetos backend separados**, fora do monorepo exclusivamente frontend.
+- O repositório `guideline-java` permanece como local de documentação e POCs; a base de produto seria `portal-manager-frontend`.
+- A localização do código em um mesmo repositório não significa acoplamento de runtime: remotes são aplicações independentes carregadas pelo Shell.
+
+### 19.2 Estratégia A — monorepo (favorita)
+Um repositório `portal-manager-frontend`, gerenciado preferencialmente com Nx, contendo apps Angular e bibliotecas reutilizáveis.
+
+```text
+portal-manager-frontend/
+├── apps/
+│   ├── chassi-shell/            # host; login, sessão, layout, contexto, navegação
+│   ├── mfe-workspace/           # contas, ambientes, aplicações, catálogo de features
+│   ├── mfe-configuration/       # chaves e toggles
+│   ├── mfe-navigation/          # menus e rotas
+│   └── mfe-rules/               # regras
+├── libs/
+│   ├── design-system/           # componentes, temas, tokens e acessibilidade
+│   ├── shell-contracts/         # contratos públicos de contexto, rotas e eventos
+│   ├── api-client/              # cliente BFF e contratos HTTP
+│   ├── observability/           # instrumentação frontend
+│   └── testing/                 # fixtures e utilitários de testes
+├── tools/                       # automações e scripts de workspace
+├── nx.json
+├── package.json
+└── tsconfig.base.json
+```
+
+**Argumentos favoráveis:** uma única matriz de versões e padrões; revisão transversal de contratos; integração e testes ponta a ponta facilitados; compartilhamento disciplinado de bibliotecas; experiência de desenvolvimento local simples; pipelines por projetos afetados com cache de build; evolução inicial mais rápida para um time pequeno. Uma biblioteca comum de Design System reduz divergência visual, enquanto os contratos do Shell podem ser testados contra todos os remotes.
+
+**Custos e riscos:** dependências compartilhadas mal delimitadas podem gerar acoplamento; mudanças globais podem afetar múltiplos projetos; controle de acesso ao código é menos granular; CI mal configurada pode virar gargalo; divergências entre times exigem ownership explícito. Mitigações: regras de dependência do Nx, CODEOWNERS, revisão obrigatória por responsáveis, boundaries de domínio, políticas de versões, testes de contrato, pipeline seletiva e artefatos/deploys separados.
+
+**Condição obrigatória:** não criar uma aplicação Angular raiz que importe todas as features como módulos estáticos. O Shell é um app host, Workspace e features são apps remotos independentes. Não permitir importação de código interno entre MFEs; comunicação via contratos públicos, rotas e API de contexto do Shell.
+
+### 19.3 Estratégia B — multirepositório
+Um repositório por aplicação e, quando necessário, por biblioteca:
+
+```text
+portal-shell
+portal-mfe-workspace
+portal-mfe-configuration
+portal-mfe-navigation
+portal-mfe-rules
+portal-design-system
+portal-shell-contracts
+portal-api-client
+```
+
+**Argumentos favoráveis:** ownership e permissões de acesso mais isolados; ciclos de release totalmente separados; adoção de políticas específicas por equipe; menor risco de alterações acidentais fora do domínio; fronteiras de responsabilidade mais visíveis. É adequado quando times são grandes, independentes ou sujeitos a controles diferentes.
+
+**Custos e riscos:** manutenção de várias pipelines, configurações e templates; upgrades coordenados mais trabalhosos; integração local e testes entre remotes exigem tooling adicional; bibliotecas precisam ser publicadas em registry privado com SemVer; compatibilidade entre versões demanda contrato e matriz explícitos; mudanças transversais envolvem múltiplos pull requests. Requer uma equipe de plataforma para templates, automação de dependências, catálogos de versões e observabilidade comum.
+
+### 19.4 Comparação
+| Critério | Monorepo | Multirepositório |
+|---|---|---|
+| Início com um time pequeno | **Menor esforço** | Mais setup e governança |
+| Padronização de Angular e tooling | **Centralizada** | Coordenada entre repositórios |
+| Compartilhamento de DS/contratos | **Simples com limites** | Pacotes versionados |
+| Builds e deploys independentes | **Sim, com pipelines por app** | Sim, naturalmente |
+| Times independentes | Sim, com CODEOWNERS/boundaries | **Maior isolamento organizacional** |
+| Controle de acesso por domínio | Limitado | **Mais granular** |
+| Mudanças transversais | **Um PR pode cobrir vários projetos** | PRs coordenados |
+| Risco de acoplamento | Exige enforcement técnico | Exige contratos publicados |
+| Escala de CI | Requer affected builds e cache | Distribuição por repositório |
+| Migração futura de equipes | Possível sem separar repositórios | Já separado |
+
+### 19.5 Governança e deploys no monorepo
+1. Cada app tem proprietário (CODEOWNERS), pipeline, testes, bundle budget, versão, deploy e rollback independentes.
+2. Nx project boundaries impedem dependências diretas entre MFEs; `libs/` expõe apenas APIs públicas e segue regras de ownership.
+3. Shell carrega remotes via manifesto/versionamento; publicar um remote compatível **não** exige rebuild do Shell.
+4. Contratos Shell–MFE são versionados e sujeitos a testes de compatibilidade; breaking changes exigem janela de migração.
+5. Design System compartilhado pode iniciar como biblioteca interna do monorepo; se a organização passar a ter outros repositórios consumidores, avaliar publicação em registry privado.
+6. CI executa lint, typecheck, testes, security scanning e build somente nos projetos afetados, mais verificações transversais necessárias.
+7. Cada remote gera artefato imutável, é distribuído independentemente e possui monitoramento por nome e versão.
+8. Dependências globais (Angular, Native Federation, Nx) seguem política de atualização e validação de compatibilidade.
+
+```mermaid
+flowchart TD
+  REPO[Monorepo portal-manager-frontend] --> SHELL[apps/chassi-shell]
+  REPO --> WS[apps/mfe-workspace]
+  REPO --> CFG[apps/mfe-configuration]
+  REPO --> NAV[apps/mfe-navigation]
+  REPO --> RULES[apps/mfe-rules]
+  REPO --> LIBS[libs/ compartilhadas]
+  SHELL --> PS[Pipeline Shell]
+  WS --> PW[Pipeline Workspace]
+  CFG --> PC[Pipeline Configuration]
+  NAV --> PN[Pipeline Navigation]
+  RULES --> PR[Pipeline Rules]
+  PS --> DS[Deploy Shell]
+  PW --> DW[Deploy Workspace]
+  PC --> DC[Deploy Configuration]
+  PN --> DN[Deploy Navigation]
+  PR --> DR[Deploy Rules]
+  DS --> MANIFEST[Manifesto federado / resolução de remotes]
+  DW --> MANIFEST
+  DC --> MANIFEST
+  DN --> MANIFEST
+  DR --> MANIFEST
+```
+
+### 19.6 Como evoluir para múltiplos times
+**Primeira etapa:** um monorepo, contratos bem delimitados e owners por domínio. **Segunda etapa:** times independentes permanecem no mesmo repositório com aprovação de código, pipelines e releases próprias. **Terceira etapa (opcional):** extrair um MFE para repositório próprio quando houver necessidade real de isolamento de acesso, compliance, política de release ou tooling incompatível. A extração deve preservar o contrato do Shell, o manifesto federado e a API do BFF, evitando mudança na experiência do usuário.
+
+### 19.7 Recomendação registrada
+**Preferir a Estratégia A — monorepo `portal-manager-frontend` com Nx, Angular e Native Federation**, com `apps/` para Shell e MFEs e `libs/` para Design System e contratos. **Não** incluir BFF/MCP como apps frontend. A opção multirepositório permanece válida e documentada para futura decisão organizacional. Critérios de revisão: número de times, requisitos de permissão, duração de builds, frequência de alterações transversais, maturidade das pipelines e necessidade de stacks distintas.
+
+**Status da decisão:** favorita para implementação inicial; formalizar ADR após POC de Federation, build seletivo e deploy independente.
