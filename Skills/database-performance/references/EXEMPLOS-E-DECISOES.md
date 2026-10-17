@@ -29,3 +29,7 @@ Relatório: diagnóstico; evidências; decisão; contraindicações; patch propo
 
 ### Referência
 Hibernate ORM 7.1 user guide. Consultar inventário central em `Skills/PESQUISA-OFICIAL-E-GAPS-2026-10.md`. Não tratar este exemplo como certificação da API.
+
+### Evidência existente versus meta
+O laboratório `Skills/laboratorio-spring-hibernate` executa testes reais de N+1, paginação em duas etapas e isolamento em dataset pequeno (cinco ou sete pais, conforme teste). **Não** executou ainda o cenário de 100 itens indicado acima. Essa quantidade é meta de ampliação, não resultado comprovado. `JOIN FETCH` de coleção com `Pageable` é antipadrão; a segunda consulta também deve manter o filtro de workspace e a ordem original.
+Fontes: https://docs.hibernate.org/orm/7.1/userguide/html_single/ e https://docs.spring.io/spring-data/jpa/reference/jpa/query-methods.html
