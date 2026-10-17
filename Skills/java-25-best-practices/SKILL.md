@@ -40,3 +40,8 @@ Antes de orientar implementação, ler [EXEMPLOS-E-DECISOES.md](references/EXEMP
 
 ## Contrato operacional e exemplos
 Antes de recomendar ou implementar, aplicar o [contrato comum dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e consultar [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Os exemplos são didáticos, não foram compilados no stack-alvo. Confirmar documentação oficial e versões reais; executar testes, registrar evidências e nunca alegar eficácia sem medições.
+
+## Gate de compatibilidade Java 25
+- Registrar `java -version`, `javac -version`, `mvn -version` e bytecode alvo; não inferir API disponível só pelo `source`.
+- Separar preview/incubator de recursos estáveis e exigir flags explícitas no build e runtime quando aplicável; proibir habilitação implícita em produção.
+- Para virtual threads, medir contenção de recursos externos e testar interrupção; não confundir mais tarefas com maior capacidade do banco.
