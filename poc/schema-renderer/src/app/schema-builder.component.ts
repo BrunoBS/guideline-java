@@ -242,6 +242,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified .canvas-field-card:has(> .inline-object) > .field-card-tools{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding:6px 4px}
  .builder.simplified .canvas-field-card:has(> .inline-object) > .canvas-field .canvas-field-meta:last-child{display:none}
  .builder.simplified .canvas-field-card.schema-group{margin-bottom:12px}
+ .builder.simplified .canvas-field-card.schema-group > .schema-group-header{display:flex;align-items:flex-start;gap:10px}
+ .builder.simplified .canvas-field-card.schema-group > .schema-group-header .schema-group-select{display:flex!important;flex:1;min-width:0;align-items:flex-start!important;justify-content:flex-start!important;padding:8px 10px!important;min-height:68px!important}
+ .builder.simplified .canvas-field-card.schema-group > .schema-group-header .group-heading-copy{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0;white-space:normal}
+ .builder.simplified .canvas-field-card.schema-group > .schema-group-header .group-heading-description{font-size:13px;font-weight:400;color:#68778f;white-space:normal}
+ .builder.simplified .canvas-field-card.schema-group > .schema-group-header .group-heading-type{padding:8px 10px}
+
  .builder.simplified .canvas-field-card.schema-group > .canvas-field{display:block!important;width:100%;border:0!important;background:transparent!important;box-shadow:none!important}
  .builder.simplified .canvas-field-card.schema-group > .group-inner-panel{margin:16px 0 0!important;padding:12px 14px!important;border:1px solid #dce4ef!important;border-radius:10px!important;background:#f8fbff!important}
  .builder.simplified .canvas-field-card.schema-group > .group-inner-panel .inline-object-heading{display:flex;align-items:center;gap:12px}
@@ -366,11 +372,17 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
       </div>
     </section>
 <div class="canvas-field-card" [class.schema-group]="isObjectSchema(field.schema)" *ngFor="let field of ungroupedCanvasFields" [style.order]="canvasPosition('field:'+propertyKey(field.path))" [class.active]="selectedPath===field.path">
- <button type="button" class="canvas-field" (click)="openFieldEditor(field.path)">
-  <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
-  <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
-  <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
- </button>
+ <div class="schema-group-header" *ngIf="isObjectSchema(field.schema); else regularFieldHeader">
+   <button type="button" class="schema-group-select" (click)="openFieldEditor(field.path)"><span class="group-heading-copy"><strong>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></strong><span class="group-heading-description">{{field.schema.description||''}}</span></span></button>
+   <span class="group-heading-type">object</span>
+ </div>
+ <ng-template #regularFieldHeader>
+   <button type="button" class="canvas-field" (click)="openFieldEditor(field.path)">
+     <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
+     <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
+     <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
+   </button>
+ </ng-template>
   <div class="inline-object group-inner-panel" *ngIf="isObjectSchema(field.schema)">
   <div class="inline-object-heading"><button type="button" class="object-heading-select" (click)="openFieldEditor(field.path)"><strong>{{field.schema.title||field.label}}</strong></button><span>{{objectChildren(field.path).length}} atributo(s)</span><button type="button" class="object-toggle" (click)="toggleObjectExpanded(field.path)" [attr.aria-expanded]="!collapsedObjects.has(field.path)" [attr.aria-label]="collapsedObjects.has(field.path)?'Mostrar atributos':'Ocultar atributos'">{{collapsedObjects.has(field.path)?'▸':'▾'}}</button></div>
   <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
