@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 
 type Screen = 'home'|'login'|'types'|'accounts'|'welcome'|'account'|'access'|'configure'|'manage'|'environment'|'application'|'feature'|'catalog';
 type Env = {id:string;name:string;type:string;configured:boolean;url?:string;publisher?:string};
-type App = {id:string;name:string;description:string;active:boolean;environments:Record<string,boolean>};
+type WorkspaceApplication = {id:string;name:string;description:string;active:boolean;environments:Record<string,boolean>};
 @Component({
  selector:'wm-root',standalone:true,imports:[CommonModule,FormsModule],
  template:`
@@ -33,11 +33,11 @@ type App = {id:string;name:string;description:string;active:boolean;environments
  `,
 })
 export class App {
- screen=signal<Screen>('home'); logged=signal(false); accountType=signal('MANAGER'); account=signal(''); selectedEnv=signal<Env|null>(null);selectedApp=signal<App|null>(null);featureName=signal('');modal=signal('');toast=signal('');allMetrics=signal(false);metricPage=signal(0);appPage=signal(0);envPage=signal(0);
+ screen=signal<Screen>('home'); logged=signal(false); accountType=signal('MANAGER'); account=signal(''); selectedEnv=signal<Env|null>(null);selectedApp=signal<WorkspaceApplication | null>(null);featureName=signal('');modal=signal('');toast=signal('');allMetrics=signal(false);metricPage=signal(0);appPage=signal(0);envPage=signal(0);
  email='colaborador@empresa.com';accountNameEdit='';accountDescriptionEdit='';formName='';formDescription='';formType='CUSTOM';formUrl='';formPublisher='';editingEnvId='';editingAppId='';editingAppName='';copyFromAccount=false;
  accounts=signal([{name:'Conta Varejo',description:'Plataforma de canais digitais',restricted:false},{name:'Conta Financeiro',description:'Serviços e integrações',restricted:false},{name:'Minha Nova Conta',description:'Aguardando aprovação corporativa',restricted:true}]);
  environments=signal<Env[]>([{id:'dev',name:'Desenvolvimento',type:'DEFAULT',configured:true,url:'https://dev.api.exemplo.com',publisher:'APPCONFIG'},{id:'hml',name:'Homologação',type:'DEFAULT',configured:true,url:'https://hml.api.exemplo.com',publisher:'CACHE'},{id:'prd',name:'Produção',type:'DEFAULT',configured:false}]);
- apps=signal<App[]>([{id:'portal',name:'Portal Web',description:'Aplicação web corporativa',active:true,environments:{dev:true,hml:true}},{id:'payments',name:'API de Pagamentos',description:'Integração financeira',active:true,environments:{}},{id:'backoffice',name:'Backoffice',description:'Sistema administrativo',active:true,environments:{dev:true}}]);
+ apps=signal<WorkspaceApplication[]>([{id:'portal',name:'Portal Web',description:'Aplicação web corporativa',active:true,environments:{dev:true,hml:true}},{id:'payments',name:'API de Pagamentos',description:'Integração financeira',active:true,environments:{}},{id:'backoffice',name:'Backoffice',description:'Sistema administrativo',active:true,environments:{dev:true}}]);
  features=[{name:'Chaves',icon:'⚿',description:'Parâmetros e configurações'},{name:'Toggles',icon:'◉',description:'Ativação de funcionalidades'},{name:'Menus',icon:'▤',description:'Estrutura de navegação'},{name:'Rotas',icon:'⇢',description:'Caminhos e destinos'},{name:'Regras',icon:'◇',description:'Regras de negócio'}];
  metrics=[{label:'Ambientes',value:'3'},{label:'Aplicações',value:'12'},{label:'Chaves',value:'1.240'},{label:'Pacotes executados',value:'86'},{label:'Menus',value:'50'},{label:'Itens de menu',value:'500'},{label:'Toggles',value:'73'},{label:'Pacotes pendentes',value:'7'},{label:'Rotas',value:'34'},{label:'Regras',value:'18'},{label:'Pacotes com falha',value:'2'},{label:'Microserviços',value:'9'}];
  metricPages=()=>Math.ceil(this.metrics.length/4);
@@ -55,13 +55,13 @@ export class App {
  prevMetrics(){this.metricPage.set((this.metricPage()+this.metricPages()-1)%this.metricPages())}
  nextMetrics(){this.metricPage.set((this.metricPage()+1)%this.metricPages())}
  enterEnvironment(e:Env){if(!e.configured)return;this.selectedEnv.set(e);this.go('environment')}
- isAppReady(a:App){return !!a.environments[this.selectedEnv()?.id??'']}
- enterApp(a:App){if(!this.isAppReady(a))return;this.selectedApp.set(a);this.go('application')}
+ isAppReady(a: WorkspaceApplication){return !!a.environments[this.selectedEnv()?.id??'']}
+ enterApp(a: WorkspaceApplication){if(!this.isAppReady(a))return;this.selectedApp.set(a);this.go('application')}
  enterFeature(f:string){this.featureName.set(f);this.go('feature')}
- openAppModal(a?:App){this.editingAppId=a?.id??'';this.formName=a?.name??'';this.formDescription=a?.description??'';this.modal.set('app')}
+ openAppModal(a?: WorkspaceApplication){this.editingAppId=a?.id??'';this.formName=a?.name??'';this.formDescription=a?.description??'';this.modal.set('app')}
  newEnvironment(){this.editingEnvId='';this.formName='';this.formType='CUSTOM';this.formUrl='';this.formPublisher='';this.modal.set('env')}
  editEnvironment(e:Env){this.editingEnvId=e.id;this.formName=e.name;this.formType=e.type;this.formUrl=e.url??'';this.formPublisher=e.publisher??'';this.modal.set('env')}
- configureApp(a:App){this.editingAppId=a.id;this.editingAppName=a.name;this.copyFromAccount=false;this.formUrl='';this.formPublisher='';this.modal.set('app-env')}
+ configureApp(a: WorkspaceApplication){this.editingAppId=a.id;this.editingAppName=a.name;this.copyFromAccount=false;this.formUrl='';this.formPublisher='';this.modal.set('app-env')}
  toggleCopy(){if(this.copyFromAccount){this.formUrl=this.selectedEnv()?.url??'';this.formPublisher=this.selectedEnv()?.publisher??''}else{this.formUrl='';this.formPublisher=''}}
  saveModal(){if(this.modal()==='app'){if(!this.formName.trim())return this.toast.set('Nome da aplicação é obrigatório');if(this.editingAppId){this.apps.update(a=>a.map(x=>x.id===this.editingAppId?{...x,name:this.formName,description:this.formDescription}:x))}else{this.apps.update(a=>[...a,{id:'app-'+Date.now(),name:this.formName,description:this.formDescription,active:true,environments:{}}])}}else if(this.modal()==='env'){if(!this.formName.trim()||!this.formUrl.trim()||!this.formPublisher)return this.toast.set('Preencha todos os campos obrigatórios');if(this.editingEnvId){this.environments.update(a=>a.map(x=>x.id===this.editingEnvId?{...x,configured:true,url:this.formUrl,publisher:this.formPublisher}:x))}else{this.environments.update(a=>[...a,{id:'env-'+Date.now(),name:this.formName,type:this.formType,configured:true,url:this.formUrl,publisher:this.formPublisher}])}}else if(this.modal()==='app-env'){if(!this.formUrl.trim()||!this.formPublisher)return this.toast.set('Preencha todos os campos obrigatórios');const envId=this.selectedEnv()?.id;if(!envId)return;this.apps.update(a=>a.map(x=>x.id===this.editingAppId?{...x,environments:{...x.environments,[envId]:true}}:x))}this.modal.set('');this.toast.set('Dados salvos com sucesso')}
 }
