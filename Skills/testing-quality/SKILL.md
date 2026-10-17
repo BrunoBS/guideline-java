@@ -37,3 +37,8 @@ Não copiar código ou regras de fonte externa sem revisar versão, licença e a
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de validade dos testes
+- Job verde comprova apenas cenários executados, não correção geral nem ganho de agentes.
+- Cobrir concorrência, rollback pós-flush, autorização cruzada e falha de dependência.
+- Teste que verifica apenas bean existente não comprova transação nem segurança.
