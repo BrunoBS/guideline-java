@@ -131,6 +131,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .required-switch-input:focus-visible+.required-switch-track{outline:3px solid #93c5fd;outline-offset:2px}
  .validation-switch{display:flex!important;justify-content:space-between;width:100%;margin:14px 0!important}
  .schema-group{border:1px solid #cbd8ea;border-radius:12px;padding:12px;background:#f8fbff;margin-bottom:12px}.schema-group.active{border-color:#2455b5}.schema-group-header{display:flex;align-items:center;gap:8px}.schema-group-select{flex:1;display:flex;justify-content:space-between;align-items:center;border:0;background:transparent;color:#243b59;text-align:left;padding:8px;cursor:pointer;font-weight:650}.schema-group-select small{color:#64748b;font-weight:400}.schema-group-toggle{border:0;background:transparent;color:#243b59;font-size:20px;cursor:pointer;padding:5px 12px}.schema-group-fields{display:grid;gap:10px;padding:10px 4px 2px 18px}.schema-group-add{border:1px dashed #94a3b8;border-radius:8px;padding:10px;background:white;color:#2455b5;cursor:pointer;text-align:left}.schema-group .canvas-field-card{background:white}
+ .form-settings-button{margin-top:8px;padding:7px 10px;border:1px solid #cbd8ea;border-radius:8px;background:#fff;color:#2455b5;cursor:pointer;font-size:12px}
  .visual-group-list{display:grid;gap:8px;grid-column:1/-1}.visual-group-choice{display:flex;justify-content:space-between;align-items:center;text-align:left;border:1px solid #cbd8ea;border-radius:10px;background:#f8fbff;padding:12px;cursor:pointer}.visual-group-choice.active{border-color:#2455b5;background:#edf4ff}.visual-group-inspector{display:grid;gap:12px}.visual-group-members{display:flex;justify-content:space-between;gap:8px}.visual-group-members button,.visual-group-actions button{cursor:pointer;border:1px solid #cbd8ea;background:white;border-radius:8px;padding:8px}.visual-group-actions{display:flex;justify-content:space-between;gap:8px}
  .visual-groups{grid-column:1/-1;display:grid;gap:12px;margin-bottom:12px}
  .visual-group-card{border:1px solid #cbd8ea;border-radius:12px;padding:16px;background:#f8fbff}
@@ -214,7 +215,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   </aside>
   <section class="canvas" *ngIf="mode==='construction'">
    <div class="canvas-header">
-    <div><strong>{{activeContainerPath ? "Campos do agrupador" : "Campos do schema"}}</strong><p>{{activeContainerLabel}} · Selecione um card para editar seu contrato.</p></div>
+    <div><strong>{{activeContainerPath ? "Campos do agrupador" : "Campos do schema"}}</strong><p>{{activeContainerLabel}} · Selecione um card para editar seu contrato.</p><button type="button" *ngIf="!activeContainerPath" class="form-settings-button" (click)="selectForm()">✎ Configurar formulário</button></div>
     <div class="builder-actions" style="margin:0">
      <button type="button" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar</button>
      <button type="button" *ngIf="selected?.type==='object' && selectedPath" (click)="openSelectedGroup()">Abrir agrupador</button>
@@ -258,6 +259,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-empty" *ngIf="!canvasFields.length && !visualGroups.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
 
+  <div class="inspector visual-group-inspector" *ngIf="mode==='construction' && editingForm">
+    <div class="editor-heading"><strong>Configurar formulário</strong></div>
+    <label>Título do formulário<input [ngModel]="schema.title||''" (ngModelChange)="updateForm('title',$event)" placeholder="Ex.: Configuração da aplicação"/></label>
+    <label>Descrição<textarea rows="3" [ngModel]="schema.description||''" (ngModelChange)="updateForm('description',$event)" placeholder="Descreva a finalidade do formulário"></textarea></label>
+    <p class="validation-help">O título e a descrição serão salvos no JSON Schema e utilizados pelo formulário renderizado.</p>
+  </div>
   <div class="inspector visual-group-inspector" *ngIf="mode==='construction' && selectedVisualGroup as group">
     <div class="editor-heading"><strong>Editar campo · Grupo</strong></div>
     <label>Título do agrupador<input [ngModel]="group.title" (ngModelChange)="updateVisualGroup(group.id,'title',$event)"/></label>
@@ -266,7 +273,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <p class="validation-help">Com este grupo selecionado, escolha Texto, Inteiro, Decimal, Sim/Não, Objeto ou Lista em Adicionar componentes. O novo campo será incluído automaticamente aqui.</p>
     <div class="visual-group-actions"><button type="button" class="visual-group-delete-button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
   </div>
-  <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!selectedGroupId && selected as node">
+  <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!editingForm && !selectedGroupId && selected as node">
    <div class="editor-heading field-editor-heading"><strong>Editar campo</strong><div class="editor-field-type" *ngIf="mode==='construction' && selectedPath"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong></div></div>
    <p class="editor-empty" *ngIf="mode==='construction' && !selectedPath">Selecione um campo em Campos do schema para editar suas propriedades e validações.</p>
    <div *ngIf="mode==='dev' || selectedPath">
@@ -414,6 +421,7 @@ export class SchemaBuilderComponent implements OnChanges {
  @Output() schemaChange=new EventEmitter<Schema>();
  selectedPath='';
  selectedGroupId='';
+ editingForm=false;
  groupAddPickerOpen=false;
  get groupFieldPalette(){return this.palette.filter(item=>item.type!=='group');}
  openGroupAddPicker(id:string){this.selectVisualGroup(id);this.groupAddPickerOpen=true;}
@@ -438,7 +446,9 @@ export class SchemaBuilderComponent implements OnChanges {
  showStructure=false;
  palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
  get selectedVisualGroup():any{return this.visualGroups.find((g:any)=>g.id===this.selectedGroupId);}
- selectVisualGroup(id:string){this.selectedGroupId=id;this.selectedPath='';this.editorTab='property';this.showAddMenu=false;this.groupAddPickerOpen=false;}
+ selectForm(){this.editingForm=true;this.selectedGroupId='';this.selectedPath='';}
+ updateForm(key:'title'|'description',value:string){this.commit(root=>{if(value)root[key]=value;else delete root[key];});}
+ selectVisualGroup(id:string){this.editingForm=false;this.selectedGroupId=id;this.selectedPath='';this.editorTab='property';this.showAddMenu=false;this.groupAddPickerOpen=false;}
  selectGroupField(key:string){this.selectedGroupId='';this.select((this.activeContainerPath||'')+'/properties/'+this.escape(key));}
  fieldTitle(key:string){return this.getNodeAt(this.schema,(this.activeContainerPath||'')+'/properties/'+this.escape(key))?.title||key;}
  get visualGroups():any[]{return this.getNodeAt(this.schema,this.activeContainerPath)?.['x-ui']?.groups||[];}
@@ -590,7 +600,7 @@ export class SchemaBuilderComponent implements OnChanges {
   return !!name&&!!parent?.required?.includes(name);
  }
  typeLabel(node:Schema){return Array.isArray(node.type)?node.type.join('|'):node.type||'livre';}
- select(path:string){this.groupAddPickerOpen=false;this.selectedGroupId='';this.showDeleteConfirmation=false;this.selectedPath=path;this.editorTab='property';this.error='';}
+ select(path:string){this.editingForm=false;this.groupAddPickerOpen=false;this.selectedGroupId='';this.showDeleteConfirmation=false;this.selectedPath=path;this.editorTab='property';this.error='';}
  private rebuild(){
   const rows:NodeRow[]=[];
   const walk=(node:Schema,path:string,label:string,depth:number,required=false)=>{
