@@ -124,6 +124,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .required-switch-input:checked+.required-switch-track{background:#2455b5}
  .required-switch-input:checked+.required-switch-track:after{transform:translateX(16px)}
  .required-switch-input:focus-visible+.required-switch-track{outline:3px solid #93c5fd;outline-offset:2px}
+ .validation-switch{display:flex!important;justify-content:space-between;width:100%;margin:14px 0!important}
  .validation-help{font-size:12px;line-height:1.5;color:#718096;margin:0 0 14px}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
@@ -230,7 +231,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <span>Obrigatório</span><input type="checkbox" class="required-switch-input" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)" role="switch" [attr.aria-checked]="selectedRequired"/><span class="required-switch-track" aria-hidden="true"></span>
     </label>
    </div>
-   <label *ngIf="mode==='dev' && selectedPath!=='' && !selectedPath.endsWith('/items')" style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="width:auto" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)"/> Obrigatório</label>
+   <label *ngIf="mode==='dev' && selectedPath!=='' && !selectedPath.endsWith('/items')" class="required-switch-label"><span>Obrigatório</span><input type="checkbox" class="required-switch-input" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)" role="switch" [attr.aria-checked]="selectedRequired"/><span class="required-switch-track" aria-hidden="true"></span></label>
    </div>
    <div *ngIf="mode==='dev' || editorTab==='validation'">
    <h4 class="rule-heading">Validações de {{typeLabel(node)}}</h4>
@@ -264,13 +265,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <option value="string">Texto</option><option value="integer">Inteiro</option><option value="number">Decimal</option><option value="boolean">Sim / Não</option><option value="object">Objeto / agrupador</option><option value="array">Lista</option>
     </select>
    </label>
-   <label *ngIf="node.type==='array'" class="checkline"><input type="checkbox" [ngModel]="!!node.uniqueItems" (ngModelChange)="setBoolean('uniqueItems',$event)"/> Itens únicos</label>
+   <label *ngIf="node.type==='array'" class="required-switch-label validation-switch"><span>Itens únicos</span><input type="checkbox" class="required-switch-input" [ngModel]="!!node.uniqueItems" (ngModelChange)="setBoolean('uniqueItems',$event)" role="switch" [attr.aria-checked]="!!node.uniqueItems"/><span class="required-switch-track" aria-hidden="true"></span></label>
    <div class="rule-grid" *ngIf="node.type==='object'">
     <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
     <label>Máximo de propriedades<input type="number" min="0" step="1" [ngModel]="node.maxProperties" (ngModelChange)="setNumber('maxProperties',$event,0,true)"/></label>
    </div>
    <p class="validation-help" *ngIf="node.type==='array' && arrayItemType(node)==='object'">As propriedades e validações dos objetos são configuradas dentro da lista agrupada.</p>
-   <label *ngIf="node.type==='object'" class="checkline"><input type="checkbox" [ngModel]="node.additionalProperties!==false" (ngModelChange)="setBoolean('additionalProperties',$event)"/> Permitir propriedades adicionais</label>
+   <label *ngIf="node.type==='object'" class="required-switch-label validation-switch"><span>Permitir propriedades adicionais</span><input type="checkbox" class="required-switch-input" [ngModel]="node.additionalProperties!==false" (ngModelChange)="setBoolean('additionalProperties',$event)" role="switch" [attr.aria-checked]="node.additionalProperties!==false"/><span class="required-switch-track" aria-hidden="true"></span></label>
    <p class="validation-help" *ngIf="node.type==='boolean'">Este campo aceita verdadeiro ou falso. Você pode restringir os valores usando enum.</p>
    <h4 class="rule-heading" *ngIf="node.type!=='object' && node.type!=='array'">Valores permitidos</h4>
    <label *ngIf="node.type!=='object'&&node.type!=='array'">Enum (um valor JSON por linha)
