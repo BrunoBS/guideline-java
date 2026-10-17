@@ -42,3 +42,8 @@ Ler [playbook especializado](references/HIBERNATE-ORM-REVIEW.md) antes de emitir
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de persistência segura
+- Preservar filtro de workspace em todas as fases de paginação e hidratação.
+- Para coleções, separar paginação de pais e carregamento de filhos; validar ordem estável.
+- Medir N+1 e testar concorrência, rollback e custo de escrita antes de otimizar.
