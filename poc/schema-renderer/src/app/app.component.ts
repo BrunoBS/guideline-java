@@ -200,7 +200,7 @@ export class AppComponent {
  previewOpen=false;
  builderSource='';
  builderSchemaError='';
- enterBuilder(){this.area='builder';this.builderTab='construction';this.openBuilder();this.builderSource=JSON.stringify(this.schema,null,2);}
+ enterBuilder(){this.area='builder';this.builderTab='construction';this.newBuilderSchema();this.builderSource=JSON.stringify(this.schema,null,2);}
  enterRenderer(){this.area='renderer';this.activeTab=1;}
  builderError='';
  builderPreview=false;
