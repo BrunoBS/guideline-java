@@ -1,4 +1,4 @@
-name: Schema Studio - GitHub Pages
+name: Schema Studio + Portal Manager - GitHub Pages
 on:
   push:
     branches: [feature/poc-schema-renderer]
@@ -13,7 +13,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: schema-studio-pages
+  group: guideline-java-pages
   cancel-in-progress: true
 
 jobs:
@@ -22,6 +22,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Checkout Portal Manager POC
+        uses: actions/checkout@v4
+        with:
+          ref: feat/workspace-mfe-prototype
+          path: portal-source
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -41,10 +46,19 @@ jobs:
       - name: Build for GitHub Pages
         working-directory: poc/schema-renderer
         run: pnpm exec ng build --base-href /guideline-java/
+      - name: Install Portal Manager dependencies
+        working-directory: portal-source/workspace-mfe
+        run: npm install --no-audit --no-fund
+      - name: Build Portal Manager POC
+        working-directory: portal-source/workspace-mfe
+        run: npx ng build --base-href /guideline-java/portal-manager/
       - name: Prepare Pages artifact
         run: |
           mkdir -p _site
           cp -a poc/schema-renderer/dist/schema-renderer-poc/browser/. _site/
+          mkdir -p _site/portal-manager
+          cp -a portal-source/workspace-mfe/dist/workspace-mfe/browser/. _site/portal-manager/
+          cp _site/portal-manager/index.html _site/portal-manager/404.html
           cp _site/index.html _site/404.html
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
