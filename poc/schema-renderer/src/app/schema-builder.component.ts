@@ -282,6 +282,16 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
   <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
  </button>
+  <div class="inline-object" *ngIf="this.isObjectSchema(field.schema)">
+  <div class="inline-object-heading"><strong>Atributos do objeto</strong><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
+  <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
+   <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
+   <div class="field-card-tools"><button type="button" (click)="openFieldEditor(child.path)" aria-label="Configurar atributo" title="Configurar"><span class="action-icon" aria-hidden="true">⚙</span><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
+  </div>
+  <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(field.path,kind.type)">+ {{kind.label}}</button></div>
+  <p class="validation-help">Objeto dentro de objeto está desabilitado no editor visual.</p>
+ </div>
+
  <div class="field-card-tools"><button type="button" (click)="openFieldEditor(field.path)" title="Configurar campo" aria-label="Configurar campo"><span>Configurar</span></button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span>Excluir</span></button></div>
 </div>
    </div>
