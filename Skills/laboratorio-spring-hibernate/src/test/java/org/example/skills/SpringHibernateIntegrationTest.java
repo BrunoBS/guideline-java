@@ -34,6 +34,7 @@ class SpringHibernateIntegrationTest {
 
     @Autowired ConfigurationRepository repository;
     @Autowired EntityManager entityManager;
+    @Autowired ConfigurationService service;
 
     @BeforeEach
     void clear() { repository.deleteAll(); }
@@ -64,8 +65,7 @@ class SpringHibernateIntegrationTest {
 
     @Test
     void rollsBackTransactionalServiceOperationOnFailure() {
-        // Integration boundary for a future @Transactional service test.
-        // This test intentionally avoids asserting transactional behavior it has not exercised.
-        assertNotNull(entityManager);
+        assertThrows(IllegalStateException.class, () -> service.createThenFail(10L, "must-rollback"));
+        assertEquals(0, repository.findByWorkspaceId(10L, PageRequest.of(0, 10)).getTotalElements());
     }
 }
