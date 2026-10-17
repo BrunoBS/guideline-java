@@ -332,7 +332,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <nav class="editor-tabs" *ngIf="mode==='construction'" aria-label="Seções do editor"><button type="button" [class.active]="editorTab==='property'" (click)="editorTab='property'">Propriedade</button><button type="button" [class.active]="editorTab==='validation'" (click)="editorTab='validation'">Validações</button></nav>
    <div *ngIf="mode==='dev' || editorTab==='property'">
    <label *ngIf="isPropertySelected">Nome da propriedade
-    <input [ngModel]="selectedName" (change)="renameSelected($any($event.target).value)"/>
+    <input [ngModel]="propertyNameDraft ?? selectedName" (ngModelChange)="onPropertyNameInput($event)" (blur)="commitPropertyName()" (keydown.enter)="commitPropertyName()" [attr.aria-invalid]="propertyNameError ? 'true' : null"/>
+    <small class="builder-error" *ngIf="propertyNameError">{{propertyNameError}}</small>
    </label>
    <label>Título<input [ngModel]="node.title||''" (ngModelChange)="setAttribute('title',$event)"/></label>
    <label>Descrição<input [ngModel]="node.description||''" (ngModelChange)="setAttribute('description',$event)"/></label>
@@ -670,7 +671,7 @@ export class SchemaBuilderComponent implements OnChanges {
   return !!name&&!!parent?.required?.includes(name);
  }
  typeLabel(node:Schema){return Array.isArray(node.type)?node.type.join('|'):node.type||'livre';}
- select(path:string){this.editingForm=false;this.groupAddPickerOpen=false;this.selectedGroupId='';this.showDeleteConfirmation=false;this.selectedPath=path;this.editorTab='property';this.error='';}
+ select(path:string){this.editingForm=false;this.groupAddPickerOpen=false;this.selectedGroupId='';this.showDeleteConfirmation=false;this.selectedPath=path;this.propertyNameDraft=null;this.propertyNameError='';this.editorTab='property';this.error='';}
  private rebuild(){
   const rows:NodeRow[]=[];
   const walk=(node:Schema,path:string,label:string,depth:number,required=false)=>{
@@ -813,6 +814,10 @@ export class SchemaBuilderComponent implements OnChanges {
    if(required.size)parent.required=[...required];else delete parent.required;
   });
  }
+ propertyNameDraft:string|null=null;
+ propertyNameError='';
+ onPropertyNameInput(name:string){this.propertyNameDraft=name;this.propertyNameError='';}
+ commitPropertyName(){if(this.propertyNameDraft===null)return;const name=this.propertyNameDraft;const parts=this.segments(this.selectedPath),old=parts.pop()||'';if(parts.pop()!=='properties')return;const parentPath='/'+parts.map(p=>this.escape(p)).join('/');const parent=this.getNodeAt(this.schema,parentPath);if(!name.trim()){this.propertyNameError='Informe o nome da propriedade.';return;}if(name!==old&&Object.prototype.hasOwnProperty.call(parent?.properties||{},name)){this.propertyNameError='Já existe uma propriedade com esse nome.';return;}this.propertyNameError='';this.propertyNameDraft=null;this.renameSelected(name);}
  renameSelected(name:string){
   this.error='';
   if(!name){this.error='Informe o nome da propriedade.';return;}
