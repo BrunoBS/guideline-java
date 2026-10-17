@@ -117,6 +117,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 
  .editor-type-required{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:14px 0}
  .editor-type-required .editor-field-type{margin:0;flex:1 1 auto}
+ .field-options-card{display:flex;flex-direction:column;gap:13px;border:1px solid #dce4ef;border-radius:12px;background:#f8fbff;padding:15px;margin:12px 0}
+ .field-options-title{font-size:13px;color:#243b59;margin-bottom:2px}
+ .field-options-card .required-switch-label{display:flex!important;justify-content:space-between;width:100%}
  .required-switch-label{display:inline-flex!important;align-items:center;gap:9px;margin:0!important;white-space:nowrap;cursor:pointer;font-size:13px;color:#40516a}
  .required-switch-input{position:absolute;opacity:0;width:1px;height:1px}
  .required-switch-track{position:relative;display:inline-block;width:38px;height:22px;border-radius:999px;background:#cbd5e1;transition:background .15s}
@@ -284,12 +287,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </label>
    <div class="editor-type-required" *ngIf="mode==='construction'">
     <div class="editor-field-type"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong></div>
-    <label class="required-switch-label" *ngIf="selectedPath!=='' && !selectedPath.endsWith('/items')">
-     <span>Obrigatório</span><input type="checkbox" class="required-switch-input" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)" role="switch" [attr.aria-checked]="selectedRequired"/><span class="required-switch-track" aria-hidden="true"></span>
-    </label>
    </div>
-   <label *ngIf="selectedPath!=='' && (mode==='dev' || editorTab==='property')" class="required-switch-label validation-switch"><span>Permitir nulo</span><input type="checkbox" class="required-switch-input" [ngModel]="isNullableField(node)" (ngModelChange)="setNullableField($event)" role="switch" [attr.aria-checked]="isNullableField(node)"/><span class="required-switch-track" aria-hidden="true"></span></label>
-   <label *ngIf="mode==='dev' && selectedPath!=='' && !selectedPath.endsWith('/items')" class="required-switch-label"><span>Obrigatório</span><input type="checkbox" class="required-switch-input" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)" role="switch" [attr.aria-checked]="selectedRequired"/><span class="required-switch-track" aria-hidden="true"></span></label>
+   <div class="field-options-card" *ngIf="selectedPath!=='' && (mode==='dev' || editorTab==='property')">
+    <strong class="field-options-title">Opções do campo</strong>
+    <label class="required-switch-label" *ngIf="!selectedPath.endsWith('/items')"><span>Obrigatório</span><input type="checkbox" class="required-switch-input" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)" role="switch" [attr.aria-checked]="selectedRequired"/><span class="required-switch-track" aria-hidden="true"></span></label>
+    <label class="required-switch-label"><span>Permitir nulo</span><input type="checkbox" class="required-switch-input" [ngModel]="isNullableField(node)" (ngModelChange)="setNullableField($event)" role="switch" [attr.aria-checked]="isNullableField(node)"/><span class="required-switch-track" aria-hidden="true"></span></label>
+   </div>
    </div>
    <div *ngIf="mode==='dev' || editorTab==='validation'">
    <h4 class="rule-heading">Validações de {{typeLabel(node)}}</h4>
