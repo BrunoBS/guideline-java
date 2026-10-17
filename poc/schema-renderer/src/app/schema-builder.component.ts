@@ -658,6 +658,8 @@ export class SchemaBuilderComponent implements OnChanges {
  private commit(edit:(root:Schema)=>void){
   const next=structuredClone(this.schema);
   edit(next);
+  this.schema=next;
+  this.rebuild();
   this.schemaChange.emit(next);
  }
  private current(root:Schema){return this.getNodeAt(root,this.selectedPath);}
