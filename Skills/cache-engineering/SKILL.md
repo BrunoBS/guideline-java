@@ -34,3 +34,8 @@ Plano de chave e invalidação, teste de concorrência em miss, falha Redis e at
 DHA architecture, Redis docs, distributed systems.
 
 > Texto original de curadoria, não transcrição de Skill de terceiros. Verificar APIs e versões na documentação oficial antes de gerar código.
+
+## Aprofundamento obrigatório
+TTL jitter não resolve hot key isolada; diferenciar single-flight local, coordenação distribuída e stale.
+
+Ler [playbook especializado](references/STAMPEDE-AND-CONSISTENCY.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
