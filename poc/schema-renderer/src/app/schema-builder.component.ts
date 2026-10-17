@@ -353,14 +353,14 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
    </button>
  </ng-template>
-  <div class="inline-object group-inner-panel" *ngIf="isObjectSchema(field.schema)">
-  <div class="inline-object-heading"><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
+  <div class="inline-object group-inner-panel" *ngIf="isObjectSchema(field.schema) || isArrayOfObjects(field.schema)">
+  <div class="inline-object-heading"><span>{{objectChildren(objectAttributesPath(field.path)).length}} atributo(s)</span></div>
   <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
-  <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
+  <div class="inline-object-child" *ngFor="let child of objectChildren(objectAttributesPath(field.path))">
    <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
    <div class="field-card-tools"><button type="button" (click)="moveObjectAttribute(child.path,-1)" [disabled]="!canMoveObjectAttribute(child.path,-1)" aria-label="Subir atributo">↑</button><button type="button" (click)="moveObjectAttribute(child.path,1)" [disabled]="!canMoveObjectAttribute(child.path,1)" aria-label="Descer atributo">↓</button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
   </div>
-  <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(field.path,kind.type)">+ {{kind.label}}</button></div>
+  <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(objectAttributesPath(field.path),kind.type)">+ {{kind.label}}</button></div>
   </div>
  </div>
 
@@ -662,6 +662,8 @@ export class SchemaBuilderComponent implements OnChanges {
   });
  }
  inlineTypes=[{type:'object',label:'Objeto'},{type:'string',label:'Texto'},{type:'integer',label:'Inteiro'},{type:'number',label:'Decimal'},{type:'boolean',label:'Sim/Não'},{type:'array',label:'Lista'}];
+ isArrayOfObjects(node:Schema):boolean{return node.type==='array'&&!!node.items&&typeof node.items==='object'&&!Array.isArray(node.items)&&this.isObjectSchema(node.items as Schema);}
+ objectAttributesPath(path:string):string{const node=this.getNodeAt(this.schema,path);return node&&this.isArrayOfObjects(node)?path+'/items':path;}
  objectChildren(path:string){const node=this.getNodeAt(this.schema,path);return Object.entries(node?.properties||{}).map(([key,schema])=>({path:path+'/properties/'+this.escape(key),label:key,schema:schema as Schema}));}
  addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.preserveScrollAfter(()=>this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||!this.isObjectSchema(node))return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='object'?{type:'object',title:key,properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;}));}
  addTypedProperty(type:string){
