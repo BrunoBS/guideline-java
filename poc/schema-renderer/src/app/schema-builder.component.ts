@@ -486,7 +486,7 @@ export class SchemaBuilderComponent implements OnChanges {
  groupAddPickerOpen=false;
  get groupFieldPalette(){return this.palette.filter(item=>item.type!=='group');}
  openGroupAddPicker(id:string){this.selectVisualGroup(id);this.groupAddPickerOpen=true;}
- addFieldToSelectedGroup(type:string){if(!this.selectedGroupId)return;this.addTypedProperty(type);this.groupAddPickerOpen=false;}
+ addFieldToSelectedGroup(type:string){if(!this.selectedGroupId)return;this.addFieldToGroup(this.selectedGroupId,type);this.groupAddPickerOpen=false;}
  collapsedGroups=new Set<string>();
  activeContainerPath='';
  containerHistory:string[]=[];
@@ -592,7 +592,7 @@ export class SchemaBuilderComponent implements OnChanges {
   if(!node||!this.isObjectSchema(node)){this.error='Selecione um objeto para adicionar campos.';return;}
   this.error='';
   if(type==='group'){
-   this.commit(root=>{const target=this.getNodeAt(root,targetPath)!;target['x-ui']??={};target['x-ui'].groups??=[];const groups=target['x-ui'].groups;groups.push({id:'grupo-'+Date.now().toString(36)+'-'+groups.length,title:'Novo grupo',description:'',fields:[]});this.selectedGroupId=groups[groups.length-1].id;this.selectedPath='';});
+   this.commit(root=>{const target=this.getNodeAt(root,targetPath)!;target['x-ui']??={};target['x-ui'].groups??=[];const groups=target['x-ui'].groups;groups.push({id:'grupo-'+Date.now().toString(36)+'-'+groups.length,title:'Novo grupo',description:'',fields:[]});this.selectedGroupId='';this.selectedPath='';});
    this.showAddMenu=false;return;
   }
   this.commit(root=>{
@@ -603,7 +603,6 @@ export class SchemaBuilderComponent implements OnChanges {
    target.properties[key]=objectType
      ?{type:'object',title:key,description:'Objeto JSON.',properties:{}}
      :type==='array'?{type:'array',items:{type:'string'},title:key}:{type,title:key};
-   if(this.selectedGroupId){const group=target['x-ui']?.groups?.find((g:any)=>g.id===this.selectedGroupId);if(group)group.fields.push(key);}
    this.selectedPath=targetPath+'/properties/'+this.escape(key);
    this.selectedGroupId='';
   });
