@@ -4,6 +4,10 @@ on:
     branches: [docs/golden-engineering-skills]
     paths:
       - 'Skills/laboratorio-java/**'
+      - 'Skills/validacao/**'
+      - 'Skills/*/SKILL.md'
+      - 'Skills/*/references/**'
+      - 'Skills/CONTRATO-EXECUCAO-AGENTES.md'
       - 'Skills/laboratorio-integracao/**'
       - 'Skills/laboratorio-spring-hibernate/**'
       - '.github/workflows/skills-validation.yml'
@@ -86,3 +90,11 @@ jobs:
           name: skills-spring-hibernate-surefire
           path: Skills/laboratorio-spring-hibernate/target/surefire-reports/
           if-no-files-found: warn
+
+  skills-structure-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit all 17 skills
+        run: python3 Skills/validacao/audit_skills.py
