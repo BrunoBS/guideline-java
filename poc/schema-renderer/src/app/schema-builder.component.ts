@@ -260,6 +260,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 
 
  .builder.simplified .schema-group .group-inner-panel .inline-object-heading{display:flex;align-items:center;gap:12px}
+ .builder.simplified .schema-group .group-inner-panel .inline-object-heading,
+ .builder.simplified .canvas-field-card.schema-group > .group-inner-panel .inline-object-heading{justify-content:flex-end}
+
  .builder.simplified .schema-group .group-inner-panel .inline-object-heading .object-heading-select{flex:1;text-align:left}
  .builder.simplified .schema-group .group-inner-panel .schema-group-fields{padding:12px 0 0}
 
@@ -345,7 +348,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
       </div>
       <div class="inline-object group-inner-panel">
         <div class="inline-object-heading">
-          <button type="button" class="object-heading-select" (click)="openVisualGroupEditor(group.id)"><strong>{{group.title||'Novo grupo'}}</strong></button>
+          
           <span>{{groupFields(group).length}} campo(s)</span>
         </div>
         <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)">
@@ -355,7 +358,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="field-card-tools"><button type="button" (click)="moveCanvasField(field.path,-1)" [disabled]="!canMoveCanvasField(field.path,-1)" aria-label="Subir campo">↑</button><button type="button" (click)="moveCanvasField(field.path,1)" [disabled]="!canMoveCanvasField(field.path,1)" aria-label="Descer campo">↓</button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
   </div>
   <div class="inline-object group-nested-object" *ngIf="isObjectSchema(field.schema)">
-   <div class="inline-object-heading"><button type="button" class="object-heading-select" (click)="openFieldEditor(field.path)"><strong>{{field.schema.title||field.label}}</strong></button><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
+   <div class="inline-object-heading"><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
   <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
    <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
     <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
@@ -387,7 +390,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </button>
  </ng-template>
   <div class="inline-object group-inner-panel" *ngIf="isObjectSchema(field.schema)">
-  <div class="inline-object-heading"><button type="button" class="object-heading-select" (click)="openFieldEditor(field.path)"><strong>{{field.schema.title||field.label}}</strong></button><span>{{objectChildren(field.path).length}} atributo(s)</span><button type="button" class="object-toggle" (click)="toggleObjectExpanded(field.path)" [attr.aria-expanded]="!collapsedObjects.has(field.path)" [attr.aria-label]="collapsedObjects.has(field.path)?'Mostrar atributos':'Ocultar atributos'">{{collapsedObjects.has(field.path)?'▸':'▾'}}</button></div>
+  <div class="inline-object-heading"><span>{{objectChildren(field.path).length}} atributo(s)</span><button type="button" class="object-toggle" (click)="toggleObjectExpanded(field.path)" [attr.aria-expanded]="!collapsedObjects.has(field.path)" [attr.aria-label]="collapsedObjects.has(field.path)?'Mostrar atributos':'Ocultar atributos'">{{collapsedObjects.has(field.path)?'▸':'▾'}}</button></div>
   <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
   <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
    <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
