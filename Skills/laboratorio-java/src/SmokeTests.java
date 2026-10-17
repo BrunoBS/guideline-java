@@ -29,6 +29,7 @@ public final class SmokeTests {
         if (max.get() > 3) throw new AssertionError("Exceeded limit");
         expect(IllegalStateException.class, () -> caller.call(() -> { throw new IllegalStateException("boom"); }));
         assertEquals("recovered", caller.call(() -> "recovered"));
+        VirtualThreadCancellationTests.run();
         System.out.println("PASS: key validation, bounded concurrency, release on exception");
     }
     private static void assertEquals(Object expected, Object actual) {
