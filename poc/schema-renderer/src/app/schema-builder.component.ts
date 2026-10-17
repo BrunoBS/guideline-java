@@ -116,6 +116,18 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified:not(.developer-mode) .editor-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid #e5eaf2;padding-top:14px;margin-top:22px}
  .builder.simplified:not(.developer-mode) .editor-footer span{font-size:12px;color:#718096}
  .builder.simplified:not(.developer-mode) .editor-delete{background:transparent;border:0;padding:5px;color:#b42318;font-size:13px;cursor:pointer}
+
+ .confirm-overlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.52)}
+ .confirm-dialog{width:min(420px,100%);box-sizing:border-box;border:1px solid #dce4ef;border-radius:16px;padding:28px;background:#fff;box-shadow:0 24px 75px rgba(15,23,42,.22);text-align:left}
+ .confirm-icon{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:#fff1f0;color:#b42318;font-size:22px;font-weight:700;margin-bottom:16px}
+ .confirm-dialog h3{font-size:20px;margin:0 0 10px;color:#1f2937}
+ .confirm-dialog p{font-size:14px;line-height:1.6;color:#5b6678;margin:0 0 24px}
+ .confirm-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+ .confirm-actions button{border-radius:9px;padding:10px 16px;cursor:pointer;font-size:14px;font-weight:600}
+ .confirm-cancel{border:1px solid #d6deeb;background:#fff;color:#40516a}
+ .confirm-danger{border:1px solid #b42318;background:#b42318;color:#fff}
+ .confirm-cancel:hover{background:#f5f7fb}
+ .confirm-danger:hover{background:#912018}
  `],
  template:`
  <div class="builder simplified">
@@ -278,6 +290,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <p class="builder-error" *ngIf="error">{{error}}</p>
    <div class="editor-footer" *ngIf="mode==='construction' && selectedPath"><button type="button" class="editor-delete" (click)="confirmDeleteSelected()">♲ Excluir campo</button><span>Alterações salvas automaticamente</span></div>
   </div>
+  <div class="confirm-overlay" *ngIf="showDeleteConfirmation" (click)="cancelDelete()"><section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title" aria-describedby="confirm-delete-description" (click)="$event.stopPropagation()"><div class="confirm-icon">!</div><h3 id="confirm-delete-title">Excluir campo?</h3><p id="confirm-delete-description">O campo <strong>{{selectedName}}</strong> será removido do schema. Essa ação não pode ser desfeita.</p><div class="confirm-actions"><button type="button" class="confirm-cancel" (click)="cancelDelete()">Cancelar</button><button type="button" class="confirm-danger" (click)="deleteConfirmed()">Excluir campo</button></div></section></div>
  </div>`
 })
 export class SchemaBuilderComponent implements OnChanges {
@@ -296,7 +309,10 @@ export class SchemaBuilderComponent implements OnChanges {
  showAddMenu=false;
  showAdvanced=false;
  editorTab:'property'|'validation'='property';
- confirmDeleteSelected(){if(typeof window!=='undefined' && window.confirm('Excluir este campo do schema?'))this.removeSelected();}
+ showDeleteConfirmation=false;
+ confirmDeleteSelected(){this.showDeleteConfirmation=true;}
+ cancelDelete(){this.showDeleteConfirmation=false;}
+ deleteConfirmed(){this.showDeleteConfirmation=false;this.removeSelected();}
  showStructure=false;
  palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'},{type:'array-object',label:'Lista agrupada',icon:'☷▣'}];
  get canvasFields(){
@@ -417,7 +433,7 @@ export class SchemaBuilderComponent implements OnChanges {
   return !!name&&!!parent?.required?.includes(name);
  }
  typeLabel(node:Schema){return Array.isArray(node.type)?node.type.join('|'):node.type||'livre';}
- select(path:string){this.selectedPath=path;this.editorTab='property';this.error='';}
+ select(path:string){this.showDeleteConfirmation=false;this.selectedPath=path;this.editorTab='property';this.error='';}
  private rebuild(){
   const rows:NodeRow[]=[];
   const walk=(node:Schema,path:string,label:string,depth:number,required=false)=>{
