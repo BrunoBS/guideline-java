@@ -291,7 +291,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   </aside>
   <section class="canvas" *ngIf="mode==='construction'">
    <div class="canvas-header">
-    <div><strong>{{activeContainerPath ? "Campos do agrupador" : "Campos do schema"}}</strong><p>{{activeContainerLabel}} · Selecione um card para editar seu contrato.</p><button type="button" *ngIf="!activeContainerPath" class="form-settings-button" (click)="openFormEditor()">✎ Configurar formulário</button></div>
+    <div><strong>{{activeContainerPath ? (getNodeAt(schema,activeContainerPath)?.title || activeContainerLabel) : (schema.title || 'Formulário sem título')}}</strong><p>{{activeContainerPath ? (getNodeAt(schema,activeContainerPath)?.description || '') : (schema.description || '')}}</p><button type="button" *ngIf="!activeContainerPath" class="form-settings-button" (click)="openFormEditor()">✎ Configurar formulário</button></div>
     <div class="builder-actions" style="margin:0">
      <button type="button" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar</button>
 
@@ -371,9 +371,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <div class="editor-heading"><strong>Editar campo · Grupo</strong></div>
     <label>Título do agrupador<input [ngModel]="group.title" (ngModelChange)="updateVisualGroup(group.id,'title',$event)"/></label>
     <label>Descrição<input [ngModel]="group.description||''" (ngModelChange)="updateVisualGroup(group.id,'description',$event)"/></label>
-    <p class="validation-help">Os campos estão organizados no agrupador à esquerda. Selecione um campo para editá-lo.</p>
-    <p class="validation-help">Com este grupo selecionado, escolha Texto, Inteiro, Decimal, Sim/Não, Objeto ou Lista em Adicionar componentes. O novo campo será incluído automaticamente aqui.</p>
-    <div class="visual-group-actions"><button type="button" class="visual-group-delete-button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
+
+
+
   </div>
   <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!editingForm && !selectedGroupId"><ng-container *ngIf="selected as node">
    <div class="editor-heading field-editor-heading"><strong>Editar campo</strong><div class="editor-field-type" *ngIf="mode==='construction' && selectedPath"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong></div></div>
