@@ -272,9 +272,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </div>
    <p class="validation-help" *ngIf="node.type==='array' && arrayItemType(node)==='object'">As propriedades e validações dos objetos são configuradas dentro da lista agrupada.</p>
    <label *ngIf="node.type==='object'" class="required-switch-label validation-switch"><span>Permitir propriedades adicionais</span><input type="checkbox" class="required-switch-input" [ngModel]="node.additionalProperties!==false" (ngModelChange)="setBoolean('additionalProperties',$event)" role="switch" [attr.aria-checked]="node.additionalProperties!==false"/><span class="required-switch-track" aria-hidden="true"></span></label>
-   <p class="validation-help" *ngIf="node.type==='boolean'">Este campo aceita verdadeiro ou falso. Você pode restringir os valores usando enum.</p>
-   <h4 class="rule-heading" *ngIf="node.type!=='object' && node.type!=='array'">Valores permitidos</h4>
-   <label *ngIf="node.type!=='object'&&node.type!=='array'">Enum (um valor JSON por linha)
+   <p class="validation-help" *ngIf="node.type==='boolean'">Este campo aceita apenas verdadeiro ou falso. Não há restrições adicionais necessárias para validar o tipo.</p>
+   <h4 class="rule-heading" *ngIf="node.type==='string' || node.type==='integer' || node.type==='number'">Valores permitidos</h4>
+   <label *ngIf="node.type==='string' || node.type==='integer' || node.type==='number'">Enum (um valor JSON por linha)
     <textarea [ngModel]="enumText(node)" (change)="setEnum($any($event.target).value)" placeholder="Exemplo:&#10;&quot;ATIVO&quot;&#10;&quot;INATIVO&quot;"></textarea>
    </label>
 
