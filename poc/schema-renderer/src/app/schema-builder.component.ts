@@ -109,6 +109,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .canvas-field-card .canvas-field.active{border:0!important}
  .canvas-field-card .canvas-field-delete{position:absolute;right:12px;top:12px;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border:0;border-radius:7px;background:transparent;color:#94a3b8;font-size:22px;cursor:pointer}
  .canvas-field-card .canvas-field-delete:hover,.canvas-field-card .canvas-field-delete:focus-visible{background:#fff0ef;color:#b42318}
+
+ .canvas-field-card .canvas-field{padding-right:16px}
+ .canvas-field-card .canvas-field-footer{display:flex;justify-content:flex-end;padding:0 14px 12px}
+ .canvas-field-card .canvas-field-delete{position:static;display:inline-flex;align-items:center;justify-content:center;width:auto;height:auto;padding:5px 7px;border:0;border-radius:6px;background:transparent;color:#b42318;font-size:13px;font-weight:500;cursor:pointer}
+ .canvas-field-card .canvas-field-delete:hover,.canvas-field-card .canvas-field-delete:focus-visible{background:#fff0ef;color:#912018}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
  .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
@@ -181,7 +186,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
       <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
       <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
      </button>
-     <button type="button" class="canvas-field-delete" [attr.aria-label]="'Excluir campo '+(field.schema.title||field.label)" title="Excluir campo" (click)="confirmDeleteField(field.path)"><span aria-hidden="true">×</span></button>
+     <div class="canvas-field-footer"><button type="button" class="canvas-field-delete" [attr.aria-label]="'Excluir campo '+(field.schema.title||field.label)" (click)="confirmDeleteField(field.path)">Excluir campo</button></div>
     </div>
    </div>
    <div class="canvas-empty" *ngIf="!canvasFields.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
