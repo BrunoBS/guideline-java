@@ -12,6 +12,10 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
  standalone:true,
  imports:[CommonModule,FormsModule,FieldComponent,SchemaBuilderComponent],
  styles:[`
+  .studio-tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #d7dfec;margin:18px 0 22px;padding-bottom:10px}
+  .studio-tabs button{border:1px solid transparent;border-radius:9px;padding:11px 16px;background:transparent;color:#4b5b75;cursor:pointer;font-weight:600}
+  .studio-tabs button.active{background:#eaf1ff;border-color:#b4c8ee;color:#003399}
+  .studio-json{white-space:pre-wrap;overflow-wrap:anywhere;max-height:65vh;overflow:auto}
   .home-intro{text-align:center;margin:30px auto 26px}
   .home-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:940px;margin:0 auto 36px}
   .home-card{display:flex;flex-direction:column;align-items:flex-start;gap:14px;text-align:left;border:1px solid #d7dfec;border-radius:16px;padding:28px;background:#fff;cursor:pointer;min-height:230px}
@@ -105,28 +109,36 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
     <div class="validation-summary" *ngIf="!valueError && errors.length"><h4>Validação contra o schema</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
   </section>
 
+  <nav class="studio-tabs" *ngIf="area==='builder'" aria-label="Abas do Schema Studio">
+    <button type="button" [class.active]="builderTab==='construction'" (click)="builderTab='construction'">Construção</button>
+    <button type="button" [class.active]="builderTab==='dev'" (click)="builderTab='dev'">Para Dev</button>
+    <button type="button" [class.active]="builderTab==='preview'" (click)="builderTab='preview'">Preview</button>
+    <button type="button" [class.active]="builderTab==='json'" (click)="builderTab='json'">JSON Schema</button>
+  </nav>
   <section class="panel tab-panel" *ngIf="area==='builder'">
-    <div class="section-heading"><div><h3>Visual Schema Builder</h3><p>Crie e edite propriedades visualmente. As alterações atualizam o JSON Schema e o formulário.</p></div></div>
+    <div class="section-heading"><div><h3>Schema Studio</h3><p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p></div></div>
     <p class="error callout" *ngIf="builderError">{{builderError}}</p>
     <div class="developer-actions">
       <button type="button" class="secondary" (click)="newBuilderSchema()">Novo schema</button>
-      <button type="button" class="secondary" (click)="builderPreview=!builderPreview">{{builderPreview?'Ocultar':'Mostrar'}} preview</button>
-      <button type="button" class="secondary" (click)="builderJson=!builderJson">{{builderJson?'Ocultar':'Mostrar'}} JSON</button>
+      <button type="button" class="secondary" (click)="builderTab='json';builderImport=!builderImport">Importar JSON Schema</button>
       <button type="button" class="secondary" (click)="downloadBuilderSchema()">Exportar JSON Schema</button>
-      <button type="button" class="secondary" (click)="builderImport=!builderImport">Importar JSON Schema</button>
     </div>
-    <div *ngIf="builderImport">
+    <div *ngIf="builderImport && builderTab==='json'">
       <label for="builder-import">Cole um JSON Schema Draft 2020-12</label>
       <textarea id="builder-import" class="editor" [(ngModel)]="builderImportSource"></textarea>
       <button type="button" (click)="importBuilderSchema()">Validar e importar</button>
     </div>
-    <app-schema-builder [schema]="schema" (schemaChange)="builderChanged($event)"></app-schema-builder>
-    <div *ngIf="builderJson" class="panel"><h4>JSON Schema gerado</h4><pre class="response-json">{{schema|json}}</pre></div>
-    <div *ngIf="builderPreview" class="panel">
+    <app-schema-builder *ngIf="builderTab==='construction'||builderTab==='dev'" [mode]="builderTab" [schema]="schema" (schemaChange)="builderChanged($event)"></app-schema-builder>
+    <div *ngIf="builderTab==='preview'">
       <h4>Preview do formulário</h4>
       <p class="error" *ngIf="errors.length">{{errors.length}} erro(s) de validação</p>
       <app-field [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
-      <h4>Resposta JSON</h4><pre class="response-json">{{value|json}}</pre>
+      <h4>Resposta JSON</h4><pre class="response-json studio-json">{{value|json}}</pre>
+    </div>
+    <div *ngIf="builderTab==='json'">
+      <h4>JSON Schema gerado</h4>
+      <p>O contrato abaixo é sincronizado com a Construção e o modo Para Dev.</p>
+      <pre class="response-json studio-json">{{schema|json}}</pre>
     </div>
   </section>
 
@@ -140,7 +152,8 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
 export class AppComponent {
  area:'home'|'builder'|'renderer'='home';
  activeTab=1;
- enterBuilder(){this.area='builder';this.openBuilder();}
+ builderTab:'construction'|'dev'|'preview'|'json'='construction';
+ enterBuilder(){this.area='builder';this.builderTab='construction';this.openBuilder();}
  enterRenderer(){this.area='renderer';this.activeTab=1;}
  builderError='';
  builderPreview=false;
