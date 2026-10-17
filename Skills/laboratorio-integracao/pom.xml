@@ -5,6 +5,7 @@
  <groupId>org.example.skills</groupId><artifactId>skills-integration-lab</artifactId><version>0.1.0-SNAPSHOT</version>
  <properties><maven.compiler.release>25</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><junit.version>5.11.4</junit.version><testcontainers.version>1.21.3</testcontainers.version></properties>
  <dependencies>
+  <dependency><groupId>com.nimbusds</groupId><artifactId>nimbus-jose-jwt</artifactId><version>9.47</version><scope>test</scope></dependency>
   <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>${junit.version}</version><scope>test</scope></dependency>
   <dependency><groupId>org.testcontainers</groupId><artifactId>mysql</artifactId><version>${testcontainers.version}</version><scope>test</scope></dependency>
   <dependency><groupId>org.testcontainers</groupId><artifactId>junit-jupiter</artifactId><version>${testcontainers.version}</version><scope>test</scope></dependency>
