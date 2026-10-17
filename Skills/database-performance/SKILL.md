@@ -1,34 +1,36 @@
 ---
 name: database-performance
-description: Orientações preliminares de Performance de banco para revisões e implementações da Golden Platform; usar quando a tarefa abordar este tema.
+description: Guia de performance de banco para implementação e revisão de APIs Java de alta escala com decisões verificáveis.
 ---
 
 # Performance de banco
 
-> DRAFT — proposta para revisão, não é política aprovada.
+Status: DRAFT v0.2; engenharia independente, sem substituir políticas Golden.
 
-## Quando usar
-Ao implementar, refatorar ou revisar mudanças que envolvam performance de banco.
+## Quando ativar
+Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas a performance de banco.
 
-## Instruções provisórias
-Analisar EXPLAIN, índices, cardinalidade, paginação, N+1, transações e contenção.
+## Procedimento
+1. Ler contratos, código, configuração, versões e testes relevantes; separar fatos de suposições.
+2. Definir comportamento esperado, requisitos não funcionais e possíveis regressões.
+3. Aplicar os critérios técnicos abaixo e comparar alternativas, inclusive não modificar.
+4. Planejar mudança mínima, validação, observabilidade e rollback.
+5. Produzir relatório de evidências, riscos e limitações.
 
-## Evitar
-Não alterar filtros de autorização, constraints ou migrations por otimização sem validação.
+## Critérios técnicos
+1. Obter SQL gerado, plano EXPLAIN, estatísticas, índices existentes, cardinalidade e frequência.
+2. Diagnosticar N+1, joins, predicados não sargáveis, sort/temp, lock waits e paginação profunda.
+3. Considerar índice composto e ordem de colunas pelo workload, não por regra fixa; contabilizar custo de escrita.
+4. Diferenciar EXPLAIN estimado de EXPLAIN ANALYZE executado; não executar análise custosa em produção sem autorização.
+5. Registrar alternativas (reescrita, projeção, keyset pagination, índice ou nenhuma mudança), benchmark e rollback.
 
-## Checklist de revisão
-- [ ] Conferir documentação Golden aplicável e versão das dependências.
-- [ ] Identificar contratos públicos e compatibilidade retroativa.
-- [ ] Verificar testes, observabilidade e riscos de regressão.
-- [ ] Justificar decisões com evidência técnica.
-- [ ] Registrar conflito em `../DIVERGENCIAS.md` antes de alterar convenções.
+## Entrega obrigatória
+- Contexto, hipóteses e evidências existentes.
+- Recomendação com justificativa e alternativas rejeitadas.
+- Impacto em compatibilidade, carga, segurança e operação.
+- Plano de teste, critérios de aceitação e reversão.
 
-## Documentos a confrontar
-MySQL 8, Flyway, authorization, schemas.
+## Fontes e cautelas
+Fonte: DHA jpa-patterns; documentação MySQL EXPLAIN; references/QUERY-REVIEW.md.
 
-## Referências externas candidatas
-- https://github.com/dunghoangcy-web/ai-skill-java-spring-boot
-- https://github.com/Marisha-Sahay/awesome-java-agent-skills
-- https://github.com/robsonkades/agent-skills
-
-> Fontes candidatas: ainda não incorporadas nem auditadas integralmente quanto a licença e compatibilidade.
+Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
