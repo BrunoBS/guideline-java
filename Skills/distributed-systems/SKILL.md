@@ -42,3 +42,8 @@ Ler [playbook especializado](references/IDEMPOTENCY-FAILURE-MATRIX.md) antes de 
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de idempotência e efeitos externos
+- Uma chave única e transação local comprovam apenas deduplicação do **efeito no banco local**. Não garantem exatamente uma execução de HTTP, e-mail, S3 ou mensageria.
+- Enumerar crash antes/depois do commit, publicação, ACK e replay; definir outbox/inbox, compensação ou reconciliação conforme cada fronteira.
+- Testar corrida de consumidores simultâneos e reprocessamento após ACK perdido; identificar semântica de ordenação e DLQ.
