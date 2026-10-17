@@ -99,6 +99,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .inspector-disabled{background:#f8fafc!important;border-color:#e2e8f0!important}
  .inspector-disabled .editor-heading{opacity:.55}
  .editor-empty{color:#8090a5;font-size:14px;line-height:1.6;padding:24px 6px;text-align:center}
+ .editor-field-type{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 16px;font-size:13px;color:#64748b}
+ .editor-field-type strong{padding:4px 9px;border-radius:7px;background:#eef2f8;color:#40516a;font-size:12px}
+ .editor-field-type small{flex-basis:100%;color:#94a3b8;font-size:11px}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
  .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
@@ -190,11 +193,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </label>
    <label>Título<input [ngModel]="node.title||''" (ngModelChange)="setAttribute('title',$event)"/></label>
    <label>Descrição<input [ngModel]="node.description||''" (ngModelChange)="setAttribute('description',$event)"/></label>
-   <label>Tipo
+   <label *ngIf="mode==='dev'">Tipo
     <select [ngModel]="node.type||'object'" (ngModelChange)="setType($event)">
      <option *ngFor="let t of types" [value]="t">{{t}}</option>
     </select>
    </label>
+   <div class="editor-field-type" *ngIf="mode==='construction'"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong><small>Definido ao adicionar o componente</small></div>
    <label *ngIf="selectedPath!=='' && !selectedPath.endsWith('/items')" style="display:flex;align-items:center;gap:8px">
     <input type="checkbox" style="width:auto" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)"/> Obrigatório
    </label>
