@@ -37,3 +37,8 @@ Não copiar código ou regras de fonte externa sem revisar versão, licença e a
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de decisão arquitetural
+- Registrar ADR com alternativas, ownership, custos e reversão.
+- Não propor microserviço sem avaliar fronteira de dados e falhas distribuídas.
+- Classificar findings em comprovado, provável ou hipótese.
