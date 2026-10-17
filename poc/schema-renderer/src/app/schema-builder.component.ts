@@ -95,7 +95,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <div class="builder-actions" style="margin:0">
      <button type="button" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar</button>
      <button type="button" *ngIf="selected?.type==='object' && selectedPath" (click)="openSelectedGroup()">Abrir agrupador</button>
-     <button type="button" *ngIf="selected?.type==='array' && arrayItemType(selected)==='object'" (click)="openArrayItems()">Abrir lista de objetos</button>
+     <button type="button" *ngIf="selected && selected.type==='array' && arrayItemType(selected)==='object'" (click)="openArrayItems()">Abrir lista de objetos</button>
      <span class="builder-help">{{canvasFields.length}} campos</span>
     </div>
    </div>
