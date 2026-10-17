@@ -227,6 +227,18 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified .schema-group .schema-group-select{appearance:none!important;background:transparent!important;color:#243b59!important;border:0!important;box-shadow:none!important;border-radius:8px!important;min-height:44px!important;padding:8px 10px!important;text-align:left!important;font-weight:650!important}
  .builder.simplified .schema-group .schema-group-select small{color:#64748b!important}
  .builder.simplified .schema-group .schema-group-select:hover{background:#eaf1fb!important}
+ /* Group header follows the same name/type/description hierarchy as object cards. */
+ .builder.simplified .schema-group .schema-group-header{display:flex;align-items:flex-start;gap:10px}
+ .builder.simplified .schema-group .schema-group-select{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:12px;min-height:68px!important;padding:8px 10px!important}
+ .builder.simplified .schema-group .group-heading-copy{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:6px;min-width:0;white-space:normal!important}
+ .builder.simplified .schema-group .group-heading-copy strong{font-size:16px;color:#243b59}
+ .builder.simplified .schema-group .group-heading-description{font-size:13px;font-weight:400;color:#68778f;white-space:normal!important}
+ .builder.simplified .schema-group .group-heading-type{flex-shrink:0;color:#243b59;font-weight:700;font-size:13px}
+ .builder.simplified .schema-group .schema-group-select:hover{background:transparent!important}
+ .builder.simplified .schema-group .order-actions button{background:#fff!important;color:#24446c!important;border:1px solid #d4ddeb!important;border-radius:8px!important;min-width:36px!important;height:36px!important;cursor:pointer}
+ .builder.simplified .schema-group .order-actions button:hover:not(:disabled){background:#edf4ff!important}
+ .builder.simplified .schema-group .order-actions button:disabled{opacity:.35;cursor:not-allowed}
+
  .builder.simplified .schema-group .schema-group-toggle{appearance:none!important;background:transparent!important;color:#243b59!important;border:0!important;box-shadow:none!important}
  .group-add-picker{grid-column:1/-1;border:1px solid #cbd8ea;border-radius:12px;padding:16px;background:#fff;margin:0 0 14px}
  .group-add-picker-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
@@ -290,7 +302,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-fields">
     <section class="schema-group" *ngFor="let group of visualGroups" [class.active]="selectedGroupId===group.id">
       <div class="schema-group-header">
-        <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)"><span>{{group.title||'Novo grupo'}}</span><small>{{group.fields.length}} campo(s)</small></button>
+        <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)"><span class="group-heading-copy"><strong>{{group.title||'Novo grupo'}}</strong><span class="group-heading-description">{{group.description||'Grupo de campos'}}</span></span><span class="group-heading-type">group</span></button>
         <div class="order-actions"><button type="button" (click)="moveGroup(group.id,-1)" [disabled]="visualGroups[0]?.id===group.id" aria-label="Subir grupo">↑</button><button type="button" (click)="moveGroup(group.id,1)" [disabled]="visualGroups[visualGroups.length-1]?.id===group.id" aria-label="Descer grupo">↓</button></div>
         <button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
       </div>
