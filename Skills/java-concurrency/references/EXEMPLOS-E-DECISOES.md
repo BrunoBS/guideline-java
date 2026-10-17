@@ -29,3 +29,7 @@ Relatório: diagnóstico; evidências; decisão; contraindicações; patch propo
 
 ### Referência
 Oracle Java 25 concurrency docs. Consultar inventário central em `Skills/PESQUISA-OFICIAL-E-GAPS-2026-10.md`. Não tratar este exemplo como certificação da API.
+
+### Evidência existente versus meta
+O laboratório `Skills/laboratorio-java` exercita um limite pequeno de concorrência, mas **não** executa as 1000 tarefas/20 chamadas do critério acima. Para comprovar saturação, usar mais workers que permissões, barreira de início, `AtomicInteger` de chamadas ativas e assert do pico; testar também interrupção durante espera e timeout de aquisição. Timeout do semáforo não impõe deadline ao I/O executado após adquirir permissão.
+Fonte oficial: https://docs.oracle.com/en/java/javase/25/core/virtual-threads.html
