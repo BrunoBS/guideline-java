@@ -161,7 +161,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <button type="button" *ngIf="selected && selected.type==='array' && arrayItemType(selected)==='object'" (click)="openArrayItems()">Abrir lista de objetos</button>
 
      <span class="builder-help">{{canvasFields.length}} campos</span>
-     <button type="button" class="canvas-close" *ngIf="selectedPath" (click)="select('')" aria-label="Fechar seleção do campo" title="Fechar seleção">×</button>
+     
     </div>
    </div>
    <div class="mobile-palette" *ngIf="false">
@@ -178,7 +178,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   </section>
 
   <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="selected as node">
-   <div class="editor-heading"><strong>Editar campo</strong><button type="button" *ngIf="selectedPath" class="editor-close" aria-label="Fechar edição" title="Fechar edição" (click)="select('')">×</button></div>
+   <div class="editor-heading"><strong>Editar campo</strong></div>
    <p class="editor-empty" *ngIf="mode==='construction' && !selectedPath">Selecione um campo em Campos do schema para editar suas propriedades e validações.</p>
    <div *ngIf="mode==='dev' || selectedPath">
    <div class="builder-actions" *ngIf="mode==='dev'">
