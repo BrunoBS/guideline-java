@@ -168,6 +168,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .confirm-danger{border:1px solid #b42318;background:#b42318;color:#fff}
  .confirm-cancel:hover{background:#f5f7fb}
  .confirm-danger:hover{background:#912018}
+
+ .builder.simplified .schema-group .schema-group-add,.builder.simplified .visual-group-inspector .visual-group-add-button{appearance:none!important;background:#f8fbff!important;color:#2455b5!important;border:1px dashed #a5b9d5!important;border-radius:9px!important;box-shadow:none!important;font-weight:600!important;font-size:14px!important;line-height:1.35!important;padding:12px 14px!important;text-align:left!important;min-height:44px!important;width:100%!important;cursor:pointer!important}
+ .builder.simplified .schema-group .schema-group-add:hover,.builder.simplified .visual-group-inspector .visual-group-add-button:hover{background:#edf4ff!important;border-color:#2455b5!important}
+ .builder.simplified .visual-group-inspector .visual-group-actions{display:flex!important;align-items:center;gap:12px;flex-wrap:wrap}
+ .builder.simplified .visual-group-inspector .visual-group-add-button{flex:1 1 230px;width:auto!important}
+ .builder.simplified .visual-group-inspector .visual-group-delete-button{appearance:none!important;background:transparent!important;color:#b42318!important;border:1px solid #e4c6c6!important;border-radius:9px!important;box-shadow:none!important;padding:12px 14px!important;font-weight:600!important;min-height:44px!important;cursor:pointer!important}
+ .builder.simplified .visual-group-inspector .visual-group-delete-button:hover{background:#fff3f2!important}
  `],
  template:`
  <div class="builder simplified">
@@ -235,7 +242,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <label>Título do agrupador<input [ngModel]="group.title" (ngModelChange)="updateVisualGroup(group.id,'title',$event)"/></label>
     <label>Descrição<input [ngModel]="group.description||''" (ngModelChange)="updateVisualGroup(group.id,'description',$event)"/></label>
     <p class="validation-help">Os campos estão organizados no agrupador à esquerda. Selecione um campo para editá-lo.</p>
-    <div class="visual-group-actions"><button type="button" (click)="showAddMenu=true">+ Adicionar campo ao grupo</button><button type="button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
+    <div class="visual-group-actions"><button type="button" class="visual-group-add-button" (click)="showAddMenu=true">+ Adicionar campo ao grupo</button><button type="button" class="visual-group-delete-button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
   </div>
   <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!selectedGroupId && selected as node">
    <div class="editor-heading"><strong>Editar campo</strong></div>
