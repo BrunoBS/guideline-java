@@ -220,7 +220,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-fields">
     <section class="schema-group" *ngFor="let group of visualGroups" [class.active]="selectedGroupId===group.id">
       <div class="schema-group-header">
-        <button type="button" class="schema-group-select" (click)="selectVisualGroup(group.id)">▣ {{group.title||'Novo grupo'}} <small>{{group.fields.length}} campo(s)</small></button>
+        <button type="button" class="schema-group-select" (click)="selectVisualGroup(group.id)">{{group.title||'Novo grupo'}} <small>{{group.fields.length}} campo(s)</small></button>
         <button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
       </div>
       <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)">
@@ -233,7 +233,6 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  <div class="canvas-field-footer"><button type="button" class="canvas-field-delete" (click)="confirmDeleteField(field.path)">Excluir campo</button></div>
 </div>
 
-        <button type="button" class="schema-group-add" (click)="openGroupAddPicker(group.id)">+ Adicionar campo ao grupo</button>
       </div>
     </section>
 <div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" [class.active]="selectedPath===field.path">
@@ -248,18 +247,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-empty" *ngIf="!canvasFields.length && !visualGroups.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
 
-  <div class="group-add-picker" *ngIf="mode==='construction' && groupAddPickerOpen">
-    <div class="group-add-picker-header"><strong>Adicionar campo ao grupo</strong><button type="button" (click)="groupAddPickerOpen=false">Fechar ×</button></div>
-    <div class="group-add-picker-options">
-      <button type="button" *ngFor="let item of groupFieldPalette" (click)="addFieldToSelectedGroup(item.type)"><span>{{item.icon}} {{item.label}}</span><span>+</span></button>
-    </div>
-  </div>
   <div class="inspector visual-group-inspector" *ngIf="mode==='construction' && selectedVisualGroup as group">
     <div class="editor-heading"><strong>Editar campo · Grupo</strong></div>
     <label>Título do agrupador<input [ngModel]="group.title" (ngModelChange)="updateVisualGroup(group.id,'title',$event)"/></label>
     <label>Descrição<input [ngModel]="group.description||''" (ngModelChange)="updateVisualGroup(group.id,'description',$event)"/></label>
     <p class="validation-help">Os campos estão organizados no agrupador à esquerda. Selecione um campo para editá-lo.</p>
-    <div class="visual-group-actions"><button type="button" class="visual-group-add-button" (click)="openGroupAddPicker(group.id)">+ Adicionar campo ao grupo</button><button type="button" class="visual-group-delete-button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
+    <p class="validation-help">Com este grupo selecionado, escolha Texto, Inteiro, Decimal, Sim/Não, Objeto ou Lista em Adicionar componentes. O novo campo será incluído automaticamente aqui.</p>
+    <div class="visual-group-actions"><button type="button" class="visual-group-delete-button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
   </div>
   <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!selectedGroupId && selected as node">
    <div class="editor-heading"><strong>Editar campo</strong></div>
