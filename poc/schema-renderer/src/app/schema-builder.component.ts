@@ -134,6 +134,14 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .inline-object{margin:8px 12px 12px;padding:12px;border:1px solid #dce4ef;border-radius:10px;background:#f8fbff}
  .inline-object-heading{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px;font-size:13px}
  .inline-object-heading span{color:#64748b}
+ .builder.simplified:not(.developer-mode) .schema-group{padding:10px 12px;margin-bottom:10px}
+ .builder.simplified:not(.developer-mode) .schema-group-header{min-height:44px;gap:10px}
+ .builder.simplified:not(.developer-mode) .schema-group-select{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;flex:1;padding:6px 8px!important}
+ .builder.simplified:not(.developer-mode) .schema-group-select span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .builder.simplified:not(.developer-mode) .schema-group-select small{white-space:nowrap}
+ .builder.simplified:not(.developer-mode) .schema-group-fields{padding:6px 4px 2px 8px;gap:8px}
+ .builder.simplified:not(.developer-mode) .schema-group .canvas-field-card{margin:0}
+ .builder.simplified:not(.developer-mode) .schema-group .inline-object-actions{margin-top:8px}
  .inline-object-child{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #e3e9f2}
  .inline-object-child button:first-child{display:flex;justify-content:space-between;gap:12px;flex:1;border:0;background:transparent;text-align:left;cursor:pointer;color:#243b59}
  .inline-object-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
@@ -255,7 +263,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-fields">
     <section class="schema-group" *ngFor="let group of visualGroups" [class.active]="selectedGroupId===group.id">
       <div class="schema-group-header">
-        <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)">{{group.title||'Novo grupo'}} <small>{{group.fields.length}} campo(s)</small></button>
+        <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)"><span>{{group.title||'Novo grupo'}}</span><small>{{group.fields.length}} campo(s)</small></button>
         <div class="order-actions"><button type="button" (click)="moveGroup(group.id,-1)" [disabled]="visualGroups[0]?.id===group.id" aria-label="Subir grupo">↑</button><button type="button" (click)="moveGroup(group.id,1)" [disabled]="visualGroups[visualGroups.length-1]?.id===group.id" aria-label="Descer grupo">↓</button></div>
         <button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
       </div>
@@ -513,7 +521,8 @@ export class SchemaBuilderComponent implements OnChanges {
  selectGroupField(key:string){this.selectedGroupId='';this.select((this.activeContainerPath||'')+'/properties/'+this.escape(key));}
  fieldTitle(key:string){return this.getNodeAt(this.schema,(this.activeContainerPath||'')+'/properties/'+this.escape(key))?.title||key;}
 
- addFieldToGroup(id:string,type:string){const path=this.activeContainerPath;this.commit(root=>{const target=this.getNodeAt(root,path);const group=target?.['x-ui']?.groups?.find((g:any)=>g.id===id);if(!target||!group)return;target.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(target.properties,key))key='campo'+i++;target.properties[key]=type==='object'?{type:'object',title:key,description:'Objeto JSON.',properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};group.fields??=[];group.fields.push(key);});}
+ private preserveScrollAfter(action:()=>void){const x=window.scrollX,y=window.scrollY;action();requestAnimationFrame(()=>window.scrollTo(x,y));}
+ addFieldToGroup(id:string,type:string){const path=this.activeContainerPath;this.preserveScrollAfter(()=>this.commit(root=>{const target=this.getNodeAt(root,path);const group=target?.['x-ui']?.groups?.find((g:any)=>g.id===id);if(!target||!group)return;target.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(target.properties,key))key='campo'+i++;target.properties[key]=type==='object'?{type:'object',title:key,description:'Objeto JSON.',properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};group.fields??=[];group.fields.push(key);}));}
  moveGroup(id:string,direction:number){const path=this.activeContainerPath;this.commit(root=>{const groups=this.getNodeAt(root,path)?.['x-ui']?.groups;if(!groups)return;const i=groups.findIndex((g:any)=>g.id===id),j=i+direction;if(i<0||j<0||j>=groups.length)return;[groups[i],groups[j]]=[groups[j],groups[i]];});}
  private canvasSiblingPaths(path:string):string[]{const key=this.segments(path).at(-1);const group=this.visualGroups.find((g:any)=>(g.fields||[]).includes(key));return (group?this.groupFields(group):this.ungroupedCanvasFields).map(row=>row.path);}
  canMoveCanvasField(path:string,direction:number){const paths=this.canvasSiblingPaths(path),i=paths.indexOf(path);return i>=0&&i+direction>=0&&i+direction<paths.length;}
@@ -585,7 +594,7 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  inlineTypes=[{type:'string',label:'Texto'},{type:'integer',label:'Inteiro'},{type:'number',label:'Decimal'},{type:'boolean',label:'Sim/Não'},{type:'array',label:'Lista'}];
  objectChildren(path:string){const node=this.getNodeAt(this.schema,path);return Object.entries(node?.properties||{}).map(([key,schema])=>({path:path+'/properties/'+this.escape(key),label:key,schema:schema as Schema}));}
- addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||!this.isObjectSchema(node))return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;});}
+ addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.preserveScrollAfter(()=>this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||!this.isObjectSchema(node))return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;}));}
  addTypedProperty(type:string){
   const targetPath=this.activeContainerPath;
   const node=this.getNodeAt(this.schema,targetPath);
