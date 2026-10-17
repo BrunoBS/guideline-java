@@ -125,6 +125,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .required-switch-input:checked+.required-switch-track:after{transform:translateX(16px)}
  .required-switch-input:focus-visible+.required-switch-track{outline:3px solid #93c5fd;outline-offset:2px}
  .validation-switch{display:flex!important;justify-content:space-between;width:100%;margin:14px 0!important}
+ .visual-groups{grid-column:1/-1;display:grid;gap:12px;margin-bottom:12px}
+ .visual-group-card{border:1px solid #cbd8ea;border-radius:12px;padding:16px;background:#f8fbff}
+ .visual-group-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+ .visual-group-heading button{border:0;background:transparent;color:#b42318;cursor:pointer;font-size:13px}
+ .visual-group-members{padding:5px 0}
+ .visual-group-members .required-switch-label{display:flex!important;justify-content:space-between}
  .validation-help{font-size:12px;line-height:1.5;color:#718096;margin:0 0 14px}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
@@ -191,7 +197,18 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="mobile-palette" *ngIf="false">
     <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
    </div>
-   <div class="canvas-fields">
+   <div class="visual-groups" *ngIf="mode==='construction' && visualGroups.length">
+   <section class="visual-group-card" *ngFor="let group of visualGroups">
+    <div class="visual-group-heading"><strong>Grupo visual</strong><button type="button" (click)="deleteVisualGroup(group.id)">Excluir grupo</button></div>
+    <label>Título<input [ngModel]="group.title" (ngModelChange)="updateVisualGroup(group.id,'title',$event)"/></label>
+    <label>Descrição<input [ngModel]="group.description||''" (ngModelChange)="updateVisualGroup(group.id,'description',$event)"/></label>
+    <label>Campos do grupo</label>
+    <div class="visual-group-members" *ngFor="let field of canvasFields">
+     <label class="required-switch-label"><span>{{field.schema.title||field.label}}</span><input type="checkbox" class="required-switch-input" [ngModel]="group.fields.includes(field.label)" (ngModelChange)="toggleVisualGroupField(group.id,field.label,$event)" role="switch"/><span class="required-switch-track" aria-hidden="true"></span></label>
+    </div>
+   </section>
+  </div>
+  <div class="canvas-fields">
     <div class="canvas-field-card" *ngFor="let field of canvasFields" [class.active]="selectedPath===field.path">
      <button type="button" class="canvas-field" (click)="select(field.path)">
       <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
@@ -362,6 +379,10 @@ export class SchemaBuilderComponent implements OnChanges {
  deleteConfirmed(){this.showDeleteConfirmation=false;this.removeSelected();}
  showStructure=false;
  palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
+ get visualGroups():any[]{return this.getNodeAt(this.schema,this.activeContainerPath)?.['x-ui']?.groups||[];}
+ updateVisualGroup(id:string,key:'title'|'description',value:string){const path=this.activeContainerPath;this.commit(root=>{const g=this.getNodeAt(root,path)?.['x-ui']?.groups?.find((x:any)=>x.id===id);if(g)g[key]=value;});}
+ toggleVisualGroupField(id:string,field:string,enabled:boolean){const path=this.activeContainerPath;this.commit(root=>{const groups=this.getNodeAt(root,path)?.['x-ui']?.groups||[];for(const g of groups)g.fields=(g.fields||[]).filter((x:string)=>x!==field);if(enabled){const g=groups.find((x:any)=>x.id===id);if(g)g.fields.push(field);}});}
+ deleteVisualGroup(id:string){const path=this.activeContainerPath;this.commit(root=>{const node=this.getNodeAt(root,path)!;node['x-ui'].groups=node['x-ui'].groups.filter((g:any)=>g.id!==id);if(!node['x-ui'].groups.length)delete node['x-ui'];});}
  get canvasFields(){
   const prefix=this.activeContainerPath?this.activeContainerPath+'/properties/':'/properties/';
   return this.rows.filter(row=>row.path.startsWith(prefix)&&!row.path.slice(prefix.length).includes('/'));
@@ -408,13 +429,17 @@ export class SchemaBuilderComponent implements OnChanges {
   const node=this.getNodeAt(this.schema,targetPath);
   if(!node||node.type!=='object'){this.error='Selecione um objeto para adicionar campos.';return;}
   this.error='';
+  if(type==='group'){
+   this.commit(root=>{const target=this.getNodeAt(root,targetPath)!;target['x-ui']??={};target['x-ui'].groups??=[];const groups=target['x-ui'].groups;groups.push({id:'grupo-'+Date.now().toString(36)+'-'+groups.length,title:'Novo grupo',description:'',fields:[]});});
+   this.showAddMenu=false;return;
+  }
   this.commit(root=>{
    const target=this.getNodeAt(root,targetPath)!;
    target.properties??={};
    let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(target.properties,key))key='campo'+i++;
-   const objectType=type==='object'||type==='group';
+   const objectType=type==='object';
    target.properties[key]=objectType
-     ?{type:'object',title:key,description:type==='group'?'Agrupador de propriedades.':'Objeto JSON.',properties:{}}
+     ?{type:'object',title:key,description:'Objeto JSON.',properties:{}}
      :type==='array'?{type:'array',items:{type:'string'},title:key}:{type,title:key};
    this.selectedPath=targetPath+'/properties/'+this.escape(key);
   });
@@ -660,6 +685,7 @@ export class SchemaBuilderComponent implements OnChanges {
    if(!parent)return;
    if(kind==='properties'){
     delete parent.properties?.[key];
+    for(const group of parent['x-ui']?.groups||[])group.fields=(group.fields||[]).filter((field:string)=>field!==key);
     if(parent.required){parent.required=parent.required.filter((x:string)=>x!==key);if(!parent.required.length)delete parent.required;}
    }else if(kind==='items')delete parent.items;
    else if(kind==='conditional')delete parent[key];
