@@ -94,6 +94,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .editor-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0 18px;border-bottom:1px solid #dce4ef;padding-bottom:10px}
  .editor-tabs button{border:1px solid #dce4ef;border-radius:8px;padding:11px 8px;background:#f7f9fd;color:#40536d;cursor:pointer;font-weight:600}
  .editor-tabs button.active{background:#eaf1ff;border-color:#86a9e6;color:#16468e}
+ .canvas-close{border:0;background:transparent;color:#64748b;font-size:24px;line-height:1;padding:3px 8px;border-radius:6px;cursor:pointer}
+ .canvas-close:hover,.canvas-close:focus-visible{background:#eaf1ff;color:#17448c}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
  .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
@@ -153,6 +155,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <button type="button" *ngIf="selected && selected.type==='array' && arrayItemType(selected)==='object'" (click)="openArrayItems()">Abrir lista de objetos</button>
 
      <span class="builder-help">{{canvasFields.length}} campos</span>
+     <button type="button" class="canvas-close" *ngIf="selectedPath" (click)="select('')" aria-label="Fechar seleção do campo" title="Fechar seleção">×</button>
     </div>
    </div>
    <div class="mobile-palette" *ngIf="false">
