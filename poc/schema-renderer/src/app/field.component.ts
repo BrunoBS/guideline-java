@@ -30,7 +30,7 @@ import {
     <ng-container *ngIf="viewSchema(s) as v">
       <div class="free-value" *ngIf="isFreeSchema(v); else typedRenderer">
         <div class="field-heading">
-          <label>{{v.title||name||'Valor livre'}} {{required?'*':''}}</label>
+          <label>{{v.title||name||'Valor livre'}} {{required?'*':''}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span></label>
           <label *ngIf="showNullToggle(s)" class="nullable-toggle" title="Definir como nulo">
             <span>Definir como nulo</span>
             <input type="checkbox" [checked]="isNullState()" (change)="setNull($any($event.target).checked,s)" />
@@ -48,7 +48,7 @@ import {
 
       <ng-template #typedRenderer>
         <fieldset *ngIf="primaryType(v)==='object'||hasProperties(v); else nonObject" [disabled]="v.readOnly" [class.invalid-fieldset]="isInvalid(path)">
-          <legend>{{v.title||name||'Objeto'}}</legend>
+          <legend>{{v.title||name||'Objeto'}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span></legend>
           <div class="container-nullable-row" *ngIf="showNullToggle(s)">
             <label class="nullable-toggle" title="Definir como nulo">
               <span>Definir como nulo</span>
@@ -58,7 +58,7 @@ import {
           </div>
 
           <ng-container *ngIf="!isNullState(); else nullObjectState">
-            <p class="muted" *ngIf="v.description">{{v.description}}</p>
+            
             <div class="annotation-row" *ngIf="v.readOnly || v.writeOnly"><span *ngIf="v.readOnly">Somente leitura</span><span *ngIf="v.writeOnly">Somente escrita</span></div>
 
             <section *ngFor="let group of visualGroups(v)" class="visual-form-group">
@@ -152,7 +152,7 @@ import {
 
         <ng-template #nonObject>
           <fieldset *ngIf="primaryType(v)==='array'; else scalar" [disabled]="v.readOnly" [class.invalid-fieldset]="isInvalid(path)">
-            <legend>{{v.title||name||'Lista'}} ({{arrayValue.length}}<ng-container *ngIf="v.maxItems!==undefined"> / {{v.maxItems}}</ng-container>)</legend>
+            <legend>{{v.title||name||'Lista'}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span> ({{arrayValue.length}}<ng-container *ngIf="v.maxItems!==undefined"> / {{v.maxItems}}</ng-container>)</legend>
             <div class="container-nullable-row" *ngIf="showNullToggle(s)">
               <label class="nullable-toggle" title="Definir como nulo">
                 <span>Definir como nulo</span>
@@ -160,7 +160,7 @@ import {
                 <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
               </label>
             </div>
-            <p class="muted" *ngIf="v.description && !isNullState() && primaryType(v)!=='string' && primaryType(v)!=='integer' && primaryType(v)!=='number'">{{v.description}}</p>
+            
 
             <ng-container *ngIf="!isNullState(); else nullArrayState">
               <ng-container *ngIf="isMultiSelect(v); else regularArray">
@@ -197,7 +197,7 @@ import {
           <ng-template #scalar>
             <div class="control" [class.invalid-control]="isInvalid(path)">
               <div class="field-heading">
-                <label>{{v.title||name||'Valor'}} {{required?'*':''}}</label>
+                <label>{{v.title||name||'Valor'}} {{required?'*':''}} <span *ngIf="v.description" class="field-info" tabindex="0" [attr.aria-label]="v.description" [title]="v.description">ⓘ</span></label>
                 <label *ngIf="showNullToggle(s)" class="nullable-toggle" title="Definir como nulo">
                   <span>Definir como nulo</span>
                   <input type="checkbox" [checked]="isNullState()" (change)="setNull($any($event.target).checked,s)" />
@@ -215,7 +215,7 @@ import {
               <input *ngIf="!v.enum && v.const===undefined && primaryType(v)==='string' && !isNullState()" [type]="inputType(v)" [ngModel]="formattedInputValue(v)" [disabled]="v.readOnly" [attr.minlength]="v.minLength ?? null" [attr.maxlength]="v.maxLength ?? null" [attr.pattern]="v.pattern ?? null" [placeholder]="placeholder(v)" (ngModelChange)="formattedInputChanged(v,$event)"/>
               <div class="null-value-state" *ngIf="isNullState() && showNullToggle(s)">{{nullStateLabel(s)}}</div>
               <div class="annotation-row" *ngIf="v.readOnly || v.writeOnly"><span *ngIf="v.readOnly">Somente leitura</span><span *ngIf="v.writeOnly">Somente escrita</span></div>
-              <div class="muted" *ngIf="v.description">{{v.description}}</div><p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
+              <p class="error" *ngIf="firstError(path)">{{firstError(path)}}</p>
             </div>
           </ng-template>
         </ng-template>
@@ -467,7 +467,7 @@ export class FieldComponent {
   this.emit(value);
  }
  inputType(s:Schema){switch(s.format){case 'password':return 'password';case 'email':return 'email';case 'date':return 'date';case 'date-time':return 'datetime-local';case 'time':return 'time';case 'uri':case 'url':return 'url';default:return 'text';}}
- placeholder(s:Schema){const example=Array.isArray(s.examples)?s.examples[0]:s.example;return s.description || (example===undefined?'':typeof example==='string'?example:JSON.stringify(example));}
+ placeholder(s:Schema){const example=Array.isArray(s.examples)?s.examples[0]:s.example;return example===undefined?'':typeof example==='string'?example:JSON.stringify(example);}
  jsonValue(value:any){try{return JSON.stringify(value,null,2)??'';}catch{return String(value??'');}}
  freeChanged(input:HTMLTextAreaElement){try{this.emit(JSON.parse(input.value));input.setCustomValidity('');}catch{input.setCustomValidity('JSON inválido');input.reportValidity();}}
 
