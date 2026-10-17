@@ -1,34 +1,36 @@
 ---
 name: java-25-best-practices
-description: Orientações preliminares de Java 25 para revisões e implementações da Golden Platform; usar quando a tarefa abordar este tema.
+description: Guia de java 25 para implementação e revisão de APIs Java de alta escala com decisões verificáveis.
 ---
 
 # Java 25
 
-> DRAFT — proposta para revisão, não é política aprovada.
+Status: DRAFT v0.2; engenharia independente, sem substituir políticas Golden.
 
-## Quando usar
-Ao implementar, refatorar ou revisar mudanças que envolvam java 25.
+## Quando ativar
+Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas a java 25.
 
-## Instruções provisórias
-Preferir recursos estáveis da linguagem; justificar records, sealed types e virtual threads por necessidade; evitar preview sem aprovação.
+## Procedimento
+1. Ler contratos, código, configuração, versões e testes relevantes; separar fatos de suposições.
+2. Definir comportamento esperado, requisitos não funcionais e possíveis regressões.
+3. Aplicar os critérios técnicos abaixo e comparar alternativas, inclusive não modificar.
+4. Planejar mudança mínima, validação, observabilidade e rollback.
+5. Produzir relatório de evidências, riscos e limitações.
 
-## Evitar
-Não introduzir APIs de Java 21 como limite de versão nem recursos preview por padrão.
+## Critérios técnicos
+1. Conferir runtime JDK vendor/build, toolchain Maven, bytecode e dependências antes de sugerir recursos novos.
+2. Preferir records para carriers imutáveis, sealed types para hierarquias fechadas e pattern matching quando clareia regras; não transformar entidades JPA em records indiscriminadamente.
+3. Virtual threads beneficiam espera bloqueante, não trabalho CPU-bound; impor limites de concorrência em recursos escassos.
+4. Distinguir recursos finalizados, preview e incubator na versão real; não habilitar preview por suposição.
+5. Medir alocação, latência e throughput antes de alterar estruturas, streams ou coleções.
 
-## Checklist de revisão
-- [ ] Conferir documentação Golden aplicável e versão das dependências.
-- [ ] Identificar contratos públicos e compatibilidade retroativa.
-- [ ] Verificar testes, observabilidade e riscos de regressão.
-- [ ] Justificar decisões com evidência técnica.
-- [ ] Registrar conflito em `../DIVERGENCIAS.md` antes de alterar convenções.
+## Entrega obrigatória
+- Contexto, hipóteses e evidências existentes.
+- Recomendação com justificativa e alternativas rejeitadas.
+- Impacto em compatibilidade, carga, segurança e operação.
+- Plano de teste, critérios de aceitação e reversão.
 
-## Documentos a confrontar
-platform-build, parent POM, CI JDK 25.
+## Fontes e cautelas
+Fonte: JDK 25 Oracle docs; Awesome Java Clean Code (Java 21, revisão crítica); JVM Expert java-performance.
 
-## Referências externas candidatas
-- https://github.com/dunghoangcy-web/ai-skill-java-spring-boot
-- https://github.com/Marisha-Sahay/awesome-java-agent-skills
-- https://github.com/robsonkades/agent-skills
-
-> Fontes candidatas: ainda não incorporadas nem auditadas integralmente quanto a licença e compatibilidade.
+Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
