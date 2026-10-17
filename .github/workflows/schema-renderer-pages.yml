@@ -20,8 +20,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Schema Studio
         uses: actions/checkout@v4
+        with:
+          ref: feature/poc-schema-renderer
       - name: Checkout Portal Manager POC
         uses: actions/checkout@v4
         with:
@@ -46,7 +48,7 @@ jobs:
       - name: Build for GitHub Pages
         working-directory: poc/schema-renderer
         run: pnpm exec ng build --base-href /guideline-java/
-      # Angular 22 requires Node >=22.22.3 and TypeScript 6.0.x.
+      # Portal Manager uses Angular 22 with TypeScript 6.0.x.
       - name: Install Portal Manager dependencies
         working-directory: portal-source/workspace-mfe
         run: npm install --no-audit --no-fund
