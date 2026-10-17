@@ -235,6 +235,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified .schema-group .group-heading-description{font-size:13px;font-weight:400;color:#68778f;white-space:normal!important}
  .builder.simplified .schema-group .group-heading-type{flex-shrink:0;color:#243b59;font-weight:700;font-size:13px}
  .builder.simplified .schema-group .group-inner-panel{margin-top:16px;padding:12px 14px;border:1px solid #dce4ef;border-radius:10px;background:#f8fbff}
+ .builder.simplified .canvas-field-card:has(> .inline-object){padding:12px;background:#f8fbff;border-color:#cbd8ea;overflow:visible}
+ .builder.simplified .canvas-field-card:has(> .inline-object).active{border-color:#2455b5}
+ .builder.simplified .canvas-field-card:has(> .inline-object) > .canvas-field{padding:8px 10px 12px!important;min-height:68px}
+ .builder.simplified .canvas-field-card:has(> .inline-object) > .inline-object{margin:16px 0 0;padding:12px 14px;background:#f8fbff}
+ .builder.simplified .canvas-field-card:has(> .inline-object) > .field-card-tools{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding:6px 4px}
+ .builder.simplified .canvas-field-card:has(> .inline-object) > .canvas-field .canvas-field-meta:last-child{display:none}
+
  .builder.simplified .schema-group .group-inner-panel .inline-object-heading{display:flex;align-items:center;gap:12px}
  .builder.simplified .schema-group .group-inner-panel .inline-object-heading .object-heading-select{flex:1;text-align:left}
  .builder.simplified .schema-group .group-inner-panel .schema-group-fields{padding:12px 0 0}
