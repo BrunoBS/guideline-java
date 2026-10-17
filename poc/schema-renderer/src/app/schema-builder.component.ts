@@ -142,6 +142,24 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .group-field-select small{font-size:12px;color:#475569}
  .group-field-main .field-card-tools{padding:0;flex-shrink:0}
  .group-nested-object{margin:4px 0 8px}
+ /* Keep grouped fields visually consistent with object attribute rows. */
+ .builder.simplified .group-field-select,
+ .builder.simplified .group-field-select:hover,
+ .builder.simplified .group-field-select:focus,
+ .builder.simplified .group-field-select:active{background:transparent!important;color:#243b59!important;border:0!important;box-shadow:none!important;outline-offset:2px}
+ .builder.simplified .group-field-row:hover{background:#edf4ff}
+ .builder.simplified .group-field-main .field-card-tools button[aria-label^="Subir"],
+ .builder.simplified .group-field-main .field-card-tools button[aria-label^="Descer"],
+ .builder.simplified .inline-object-child .field-card-tools button[aria-label^="Subir"],
+ .builder.simplified .inline-object-child .field-card-tools button[aria-label^="Descer"]{min-width:36px!important;width:36px!important;height:36px!important;padding:0!important}
+ .builder.simplified .group-field-main .field-card-tools button:disabled,
+ .builder.simplified .inline-object-child .field-card-tools button:disabled{opacity:.35;cursor:not-allowed}
+ .object-heading-select{flex:1;min-width:0;text-align:left;border:0!important;background:transparent!important;color:#243b59!important;cursor:pointer;padding:4px 0}
+ .object-toggle{border:0!important;background:transparent!important;color:#243b59!important;font-size:20px;cursor:pointer;padding:3px 10px}
+ .builder.simplified .inline-object-heading{display:flex;align-items:center;gap:12px;min-height:38px;margin-bottom:0}
+ .builder.simplified .object-contents{padding-top:8px}
+ .builder.simplified .inline-object{padding:10px 12px}
+
 
  .builder.simplified:not(.developer-mode) .schema-group{padding:10px 12px;margin-bottom:10px}
  .builder.simplified:not(.developer-mode) .schema-group-header{min-height:44px;gap:10px}
@@ -283,12 +301,14 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="field-card-tools"><button type="button" (click)="moveCanvasField(field.path,-1)" [disabled]="!canMoveCanvasField(field.path,-1)" aria-label="Subir campo">↑</button><button type="button" (click)="moveCanvasField(field.path,1)" [disabled]="!canMoveCanvasField(field.path,1)" aria-label="Descer campo">↓</button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
   </div>
   <div class="inline-object group-nested-object" *ngIf="isObjectSchema(field.schema)">
-   <div class="inline-object-heading"><strong>Atributos do objeto</strong><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
+   <div class="inline-object-heading"><button type="button" class="object-heading-select" (click)="openFieldEditor(field.path)"><strong>{{field.schema.title||field.label}}</strong></button><span>{{objectChildren(field.path).length}} atributo(s)</span><button type="button" class="object-toggle" (click)="toggleObjectExpanded(field.path)" [attr.aria-expanded]="!collapsedObjects.has(field.path)" [attr.aria-label]="collapsedObjects.has(field.path)?'Mostrar atributos':'Ocultar atributos'">{{collapsedObjects.has(field.path)?'▸':'▾'}}</button></div>
+  <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
    <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
     <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
     <div class="field-card-tools"><button type="button" (click)="moveObjectAttribute(child.path,-1)" [disabled]="!canMoveObjectAttribute(child.path,-1)" aria-label="Subir atributo">↑</button><button type="button" (click)="moveObjectAttribute(child.path,1)" [disabled]="!canMoveObjectAttribute(child.path,1)" aria-label="Descer atributo">↓</button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
    </div>
    <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(field.path,kind.type)">+ {{kind.label}}</button></div>
+  </div>
   </div>
  </div>
         <div class="inline-object-actions"><button type="button" *ngFor="let kind of groupFieldPalette" (click)="addFieldToGroup(group.id,kind.type)">+ {{kind.label}}</button></div>
@@ -301,13 +321,14 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
  </button>
   <div class="inline-object" *ngIf="this.isObjectSchema(field.schema)">
-  <div class="inline-object-heading"><strong>Atributos do objeto</strong><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
+  <div class="inline-object-heading"><button type="button" class="object-heading-select" (click)="openFieldEditor(field.path)"><strong>{{field.schema.title||field.label}}</strong></button><span>{{objectChildren(field.path).length}} atributo(s)</span><button type="button" class="object-toggle" (click)="toggleObjectExpanded(field.path)" [attr.aria-expanded]="!collapsedObjects.has(field.path)" [attr.aria-label]="collapsedObjects.has(field.path)?'Mostrar atributos':'Ocultar atributos'">{{collapsedObjects.has(field.path)?'▸':'▾'}}</button></div>
+  <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
   <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
    <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
    <div class="field-card-tools"><button type="button" (click)="moveObjectAttribute(child.path,-1)" [disabled]="!canMoveObjectAttribute(child.path,-1)" aria-label="Subir atributo">↑</button><button type="button" (click)="moveObjectAttribute(child.path,1)" [disabled]="!canMoveObjectAttribute(child.path,1)" aria-label="Descer atributo">↓</button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
   </div>
   <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(field.path,kind.type)">+ {{kind.label}}</button></div>
-  <p class="validation-help">Objeto dentro de objeto está desabilitado no editor visual.</p>
+  <p class="validation-help">Objeto dentro de objeto está desabilitado no editor visual.</p></div>
  </div>
 
  <div class="field-card-tools"><button type="button" (click)="moveCanvasField(field.path,-1)" [disabled]="!canMoveCanvasField(field.path,-1)" aria-label="Subir campo">↑</button><button type="button" (click)="moveCanvasField(field.path,1)" [disabled]="!canMoveCanvasField(field.path,1)" aria-label="Descer campo">↓</button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span>Excluir</span></button></div>
@@ -501,6 +522,8 @@ export class SchemaBuilderComponent implements OnChanges {
  openGroupAddPicker(id:string){this.selectVisualGroup(id);this.groupAddPickerOpen=true;}
  addFieldToSelectedGroup(type:string){if(!this.selectedGroupId)return;this.addFieldToGroup(this.selectedGroupId,type);this.groupAddPickerOpen=false;}
  collapsedGroups=new Set<string>();
+ collapsedObjects=new Set<string>();
+ toggleObjectExpanded(path:string){const next=new Set(this.collapsedObjects);if(next.has(path))next.delete(path);else next.add(path);this.collapsedObjects=next;}
  activeContainerPath='';
  containerHistory:string[]=[];
  error='';
