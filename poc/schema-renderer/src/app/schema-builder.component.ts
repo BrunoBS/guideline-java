@@ -341,42 +341,6 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
    </div>
    <div class="canvas-fields">
-    <section class="schema-group" *ngFor="let group of visualGroups" [style.order]="canvasPosition('group:'+group.id)" [class.active]="selectedGroupId===group.id">
-      <div class="schema-group-header">
-        <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)"><span class="group-heading-copy"><strong>{{group.title||'Novo grupo'}}</strong><span class="group-heading-description">{{group.description||'Grupo de campos'}}</span></span></button>
-        <div class="group-heading-controls"><span class="group-heading-type">group</span><button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)" [attr.aria-label]="collapsedGroups.has(group.id)?'Expandir grupo':'Recolher grupo'">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button></div>
-      </div>
-      <div class="inline-object group-inner-panel">
-        <div class="inline-object-heading">
-          
-          <span>{{groupFields(group).length}} campo(s)</span>
-        </div>
-        <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)">
- <div class="group-field-row" *ngFor="let field of groupFields(group)" [class.active]="selectedPath===field.path">
-  <div class="group-field-main">
-   <button type="button" class="group-field-select" (click)="openFieldEditor(field.path)" title="Clique para configurar"><strong>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></strong><small>{{typeLabel(field.schema)}}</small></button>
-   <div class="field-card-tools"><button type="button" (click)="moveCanvasField(field.path,-1)" [disabled]="!canMoveCanvasField(field.path,-1)" aria-label="Subir campo">↑</button><button type="button" (click)="moveCanvasField(field.path,1)" [disabled]="!canMoveCanvasField(field.path,1)" aria-label="Descer campo">↓</button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
-  </div>
-  <div class="inline-object group-nested-object" *ngIf="isObjectSchema(field.schema)">
-   <div class="inline-object-heading"><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
-  <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
-   <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
-    <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
-    <div class="field-card-tools"><button type="button" (click)="moveObjectAttribute(child.path,-1)" [disabled]="!canMoveObjectAttribute(child.path,-1)" aria-label="Subir atributo">↑</button><button type="button" (click)="moveObjectAttribute(child.path,1)" [disabled]="!canMoveObjectAttribute(child.path,1)" aria-label="Descer atributo">↓</button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
-   </div>
-   <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(field.path,kind.type)">+ {{kind.label}}</button></div>
-  </div>
-  </div>
- </div>
-        <div class="inline-object-actions"><button type="button" *ngFor="let kind of groupFieldPalette" (click)="addFieldToGroup(group.id,kind.type)">+ {{kind.label}}</button></div>
-        </div>
-      </div>
-      <div class="group-footer-actions field-card-tools">
-        <button type="button" (click)="moveGroup(group.id,-1)" [disabled]="!canMoveRootItem('group:'+group.id,-1)" aria-label="Subir grupo">↑</button>
-        <button type="button" (click)="moveGroup(group.id,1)" [disabled]="!canMoveRootItem('group:'+group.id,1)" aria-label="Descer grupo">↓</button>
-        <button type="button" (click)="deleteVisualGroup(group.id)" aria-label="Excluir grupo"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button>
-      </div>
-    </section>
 <div class="canvas-field-card" [class.schema-group]="isObjectSchema(field.schema)" *ngFor="let field of ungroupedCanvasFields" [style.order]="canvasPosition('field:'+propertyKey(field.path))" [class.active]="selectedPath===field.path">
  <div class="schema-group-header" *ngIf="isObjectSchema(field.schema); else regularFieldHeader">
    <button type="button" class="schema-group-select" (click)="openFieldEditor(field.path)"><span class="group-heading-copy"><strong>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></strong><span class="group-heading-description">{{field.schema.description||''}}</span></span></button>
@@ -409,20 +373,6 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 
   <div class="editor-modal-backdrop" *ngIf="mode==='construction' && editorModalOpen" (click)="cancelEditor()"></div>
   <div class="editor-modal-shell" *ngIf="mode==='dev' || editorModalOpen" role="dialog" [attr.aria-modal]="mode==='construction' ? 'true' : null" aria-label="Configuração do campo">
-  <div class="inspector visual-group-inspector" *ngIf="mode==='construction' && editingForm">
-    <div class="editor-heading"><strong>Configurar formulário</strong></div>
-    <label>Título do formulário<input [ngModel]="schema.title||''" (ngModelChange)="updateForm('title',$event)" placeholder="Ex.: Configuração da aplicação"/></label>
-    <label>Descrição<textarea rows="3" [ngModel]="schema.description||''" (ngModelChange)="updateForm('description',$event)" placeholder="Descreva a finalidade do formulário"></textarea></label>
-    <p class="validation-help">O título e a descrição serão salvos no JSON Schema e utilizados pelo formulário renderizado.</p>
-  </div>
-  <div class="inspector visual-group-inspector" *ngIf="mode==='construction' && selectedVisualGroup as group">
-    <div class="editor-heading"><strong>Editar campo · Grupo</strong></div>
-    <label>Título do agrupador<input [ngModel]="group.title" (ngModelChange)="updateVisualGroup(group.id,'title',$event)"/></label>
-    <label>Descrição<input [ngModel]="group.description||''" (ngModelChange)="updateVisualGroup(group.id,'description',$event)"/></label>
-
-
-
-  </div>
   <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!editingForm && !selectedGroupId"><ng-container *ngIf="selected as node">
    <div class="editor-heading field-editor-heading"><strong>Editar campo</strong><div class="editor-field-type" *ngIf="mode==='construction' && selectedPath"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong></div></div>
    <p class="editor-empty" *ngIf="mode==='construction' && !selectedPath">Selecione um campo em Campos do schema para editar suas propriedades e validações.</p>
@@ -483,15 +433,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <option value="string">Texto</option><option value="integer">Inteiro</option><option value="number">Decimal</option><option value="boolean">Sim / Não</option><option value="object">Objeto / agrupador</option><option value="array">Lista</option>
     </select>
    </label>
-   <div class="field-options-card" *ngIf="node.type==='array'">
-    <strong class="field-options-title">Apresentação da lista</strong>
-    <label>Componente<select [ngModel]="arrayWidget(node)" (ngModelChange)="setArrayWidget($event)"><option value="list">Lista dinâmica</option><option value="multiselect">Multiselect</option><option value="checkboxes">Grupo de checkboxes</option></select></label>
-    <ng-container *ngIf="arrayWidget(node)!=='list'">
-      <p class="validation-help">Cadastre opções estáticas. Cada linha representa um valor e seu rótulo, separados por |.</p>
-      <label>Opções (valor | rótulo)<textarea rows="5" [ngModel]="arrayOptionsText(node)" (change)="setArrayOptions($any($event.target).value)" placeholder="READ | Leitura&#10;WRITE | Escrita&#10;ADMIN | Administração"></textarea></label>
-      <p class="validation-help" *ngIf="arrayItemType(node)==='object'||arrayItemType(node)==='array'||arrayItemType(node)==='boolean'">Para multiselect, utilize itens do tipo Texto, Inteiro ou Decimal.</p>
-    </ng-container>
-   </div>
+   <div class="field-options-card" *ngIf="node.type==='array'"><strong>Valores permitidos (items.enum)</strong><label>Um valor por linha<textarea [ngModel]="arrayOptionsText(node)" (change)="setArrayOptions($any($event.target).value)"></textarea></label></div>
    <label *ngIf="node.type==='array'" class="required-switch-label validation-switch"><span>Itens únicos</span><input type="checkbox" class="required-switch-input" [ngModel]="!!node.uniqueItems" (ngModelChange)="setBoolean('uniqueItems',$event)" role="switch" [attr.aria-checked]="!!node.uniqueItems"/><span class="required-switch-track" aria-hidden="true"></span></label>
    <div class="rule-grid" *ngIf="this.isObjectSchema(node)">
     <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
@@ -610,7 +552,7 @@ export class SchemaBuilderComponent implements OnChanges {
  cancelDelete(){this.showDeleteConfirmation=false;}
  deleteConfirmed(){this.showDeleteConfirmation=false;this.removeSelected();}
  showStructure=false;
- palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
+ palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo (objeto)',icon:'▣'},{type:'array',label:'Lista',icon:'☷'}];
  get selectedVisualGroup():any{return this.visualGroups.find((g:any)=>g.id===this.selectedGroupId);}
  selectForm(){this.editingForm=true;this.selectedGroupId='';this.selectedPath='';}
  updateForm(key:'title'|'description',value:string){this.commit(root=>{if(value)root[key]=value;else delete root[key];});}
@@ -619,33 +561,29 @@ export class SchemaBuilderComponent implements OnChanges {
  fieldTitle(key:string){return this.getNodeAt(this.schema,(this.activeContainerPath||'')+'/properties/'+this.escape(key))?.title||key;}
 
  private preserveScrollAfter(action:()=>void){const x=window.scrollX,y=window.scrollY;action();requestAnimationFrame(()=>window.scrollTo(x,y));}
- addFieldToGroup(id:string,type:string){const path=this.activeContainerPath;this.preserveScrollAfter(()=>this.commit(root=>{const target=this.getNodeAt(root,path);const group=target?.['x-ui']?.groups?.find((g:any)=>g.id===id);if(!target||!group)return;target.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(target.properties,key))key='campo'+i++;target.properties[key]=type==='object'?{type:'object',title:key,description:'Objeto JSON.',properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};group.fields??=[];group.fields.push(key);}));}
- get canvasOrder():string[]{const node=this.getNodeAt(this.schema,this.activeContainerPath);const groups=(node?.['x-ui']?.groups||[]).map((g:any)=>'group:'+g.id);const assigned=new Set((node?.['x-ui']?.groups||[]).flatMap((g:any)=>g.fields||[]));const fields=Object.keys(node?.properties||{}).filter(key=>!assigned.has(key)).map(key=>'field:'+key);const available=[...groups,...fields];const saved: string[]=node?.['x-ui']?.canvasOrder||[];return [...saved.filter(item=>available.includes(item)),...available.filter(item=>!saved.includes(item))];}
- canvasPosition(token:string){const index=this.canvasOrder.indexOf(token);return index<0?9999:index;}
- canMoveRootItem(token:string,direction:number){const i=this.canvasOrder.indexOf(token);return i>=0&&i+direction>=0&&i+direction<this.canvasOrder.length;}
- moveRootItem(token:string,direction:number){if(!this.canMoveRootItem(token,direction))return;const order=[...this.canvasOrder],i=order.indexOf(token);[order[i],order[i+direction]]=[order[i+direction],order[i]];const path=this.activeContainerPath;this.commit(root=>{const node=this.getNodeAt(root,path);if(!node)return;node['x-ui']??={};node['x-ui'].canvasOrder=order;});}
- moveGroup(id:string,direction:number){this.moveRootItem('group:'+id,direction);}
- private canvasSiblingPaths(path:string):string[]{const key=this.segments(path).at(-1);const group=this.visualGroups.find((g:any)=>(g.fields||[]).includes(key));return (group?this.groupFields(group):this.ungroupedCanvasFields).map(row=>row.path);}
- canMoveCanvasField(path:string,direction:number){const key=this.propertyKey(path);const isGrouped=this.visualGroups.some((g:any)=>(g.fields||[]).includes(key));if(!isGrouped)return this.canMoveRootItem('field:'+key,direction);const paths=this.canvasSiblingPaths(path),i=paths.indexOf(path);return i>=0&&i+direction>=0&&i+direction<paths.length;}
- moveCanvasField(path:string,direction:number){if(!this.canMoveCanvasField(path,direction))return;const key=this.propertyKey(path);if(!this.visualGroups.some((g:any)=>(g.fields||[]).includes(key))){this.moveRootItem('field:'+key,direction);return;}const paths=this.canvasSiblingPaths(path),keys=paths.map(p=>this.segments(p).at(-1)!);const i=paths.indexOf(path);[keys[i],keys[i+direction]]=[keys[i+direction],keys[i]];const container=this.activeContainerPath;const group=this.visualGroups.find((g:any)=>(g.fields||[]).includes(key));this.commit(root=>{const node=this.getNodeAt(root,container);if(!node)return;node['x-ui']??={};if(group){const target=node['x-ui'].groups?.find((g:any)=>g.id===group.id);if(target)target.fields=keys;}else node['x-ui'].rootOrder=keys;});}
- private objectAttributePaths(path:string){const segments=this.segments(path),key=segments.pop();if(segments.pop()!=='properties'||!key)return {parent:'',keys:[],index:-1};const parent='/'+segments.map(x=>this.escape(x)).join('/');const keys=Object.keys(this.getNodeAt(this.schema,parent)?.properties||{});return {parent,keys,index:keys.indexOf(key)};}
- canMoveObjectAttribute(path:string,direction:number){const {keys,index}=this.objectAttributePaths(path);return index>=0&&index+direction>=0&&index+direction<keys.length;}
- moveObjectAttribute(path:string,direction:number){if(!this.canMoveObjectAttribute(path,direction))return;const {parent,keys,index}=this.objectAttributePaths(path);[keys[index],keys[index+direction]]=[keys[index+direction],keys[index]];this.commit(root=>{const node=this.getNodeAt(root,parent);if(!node?.properties)return;node.properties=Object.fromEntries(keys.map(key=>[key,node.properties![key]]));});}
- get visualGroups():any[]{return this.getNodeAt(this.schema,this.activeContainerPath)?.['x-ui']?.groups||[];}
- updateVisualGroup(id:string,key:'title'|'description',value:string){const path=this.activeContainerPath;this.commit(root=>{const g=this.getNodeAt(root,path)?.['x-ui']?.groups?.find((x:any)=>x.id===id);if(g)g[key]=value;});}
- toggleVisualGroupField(id:string,field:string,enabled:boolean){const path=this.activeContainerPath;this.commit(root=>{const groups=this.getNodeAt(root,path)?.['x-ui']?.groups||[];for(const g of groups)g.fields=(g.fields||[]).filter((x:string)=>x!==field);if(enabled){const g=groups.find((x:any)=>x.id===id);if(g)g.fields.push(field);}});}
- deleteVisualGroup(id:string){this.selectedGroupId='';const path=this.activeContainerPath;this.commit(root=>{const node=this.getNodeAt(root,path)!;node['x-ui'].groups=node['x-ui'].groups.filter((g:any)=>g.id!==id);if(!node['x-ui'].groups.length)delete node['x-ui'];});}
+ addFieldToGroup(id:string,type:string){this.addTypedProperty(type);}
+ get canvasOrder():string[]{return Object.keys(this.getNodeAt(this.schema,this.activeContainerPath)?.properties||{}).map(k=>'field:'+k);}
+ canvasPosition(t:string){return this.canvasOrder.indexOf(t);}
+ canMoveRootItem(t:string,d:number){const i=this.canvasOrder.indexOf(t);return i>=0&&i+d>=0&&i+d<this.canvasOrder.length;}
+ moveRootItem(t:string,d:number){if(!this.canMoveRootItem(t,d))return;const keys=this.canvasOrder.map(x=>x.slice(6));const i=keys.indexOf(t.slice(6));[keys[i],keys[i+d]]=[keys[i+d],keys[i]];this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath);if(node?.properties)node.properties=Object.fromEntries(keys.map(k=>[k,node.properties![k]]));});}
+ moveGroup(id:string,d:number){this.moveRootItem('field:'+id,d);}
+ private canvasSiblingPaths(path:string):string[]{return this.canvasFields.map(x=>x.path);}
+ canMoveCanvasField(path:string,d:number){return this.canMoveRootItem('field:'+this.propertyKey(path),d);}
+ moveCanvasField(path:string,d:number){this.moveRootItem('field:'+this.propertyKey(path),d);}
+ get visualGroups():any[]{return [];}
+ updateVisualGroup(id:string,key:'title'|'description',value:string){}
+ toggleVisualGroupField(id:string,field:string,enabled:boolean){}
+ deleteVisualGroup(id:string){}
  toggleVisualGroupExpanded(id:string){const next=new Set(this.collapsedGroups);next.has(id)?next.delete(id):next.add(id);this.collapsedGroups=next;}
- groupFields(group:any){const keys=new Set(group.fields||[]);return [...this.canvasFields.filter(field=>keys.has(this.segments(field.path).at(-1)||''))].sort((a,b)=>group.fields.indexOf(this.segments(a.path).at(-1))-group.fields.indexOf(this.segments(b.path).at(-1)));}
- get ungroupedCanvasFields(){const assigned=new Set(this.visualGroups.flatMap((g:any)=>g.fields||[]));const fields=this.canvasFields.filter(field=>!assigned.has(this.segments(field.path).at(-1)||''));const order=this.getNodeAt(this.schema,this.activeContainerPath)?.['x-ui']?.rootOrder||[];return fields.sort((a,b)=>{const x=order.indexOf(this.segments(a.path).at(-1)),y=order.indexOf(this.segments(b.path).at(-1));return (x<0?9999:x)-(y<0?9999:y);});}
-
+ groupFields(group:any):NodeRow[]{return [];}
+ get ungroupedCanvasFields(){return this.canvasFields;}
  propertyKey(path:string){return this.segments(path).at(-1)||'';}
  dragSource='';
  dragField(path:string,event:DragEvent){this.dragSource='field:'+path;event.stopPropagation();event.dataTransfer?.setData('text/plain',this.dragSource);}
  dragGroup(id:string,event:DragEvent){this.dragSource='group:'+id;event.stopPropagation();event.dataTransfer?.setData('text/plain',this.dragSource);}
  dragOver(event:DragEvent){event.preventDefault();event.stopPropagation();}
- dropGroup(id:string,event:DragEvent){this.dragOver(event);const source=this.dragSource;if(source.startsWith('field:')){this.dropField(id,null,event);return;}if(!source.startsWith('group:'))return;const moving=source.slice(6);this.dragSource='';if(moving===id)return;this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath)!;const groups=node['x-ui']?.groups||[];const index=groups.findIndex((g:any)=>g.id===moving),target=groups.findIndex((g:any)=>g.id===id);if(index<0||target<0)return;const [group]=groups.splice(index,1);groups.splice(groups.findIndex((g:any)=>g.id===id),0,group);});}
- dropField(groupId:string|null,before:string|null,event:DragEvent){this.dragOver(event);const source=this.dragSource;this.dragSource='';if(!source.startsWith('field:'))return;const path=source.slice(6);const prefix=(this.activeContainerPath||'')+'/properties/';if(!path.startsWith(prefix)||path.slice(prefix.length).includes('/'))return;const key=this.segments(path).at(-1)!;if(before===key)return;this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath)!;const ui=node['x-ui']??={};const groups=ui.groups||[];for(const group of groups)group.fields=(group.fields||[]).filter((x:string)=>x!==key);if(groupId){const group=groups.find((g:any)=>g.id===groupId);if(!group)return;const i=before?group.fields.indexOf(before):-1;if(i>=0)group.fields.splice(i,0,key);else group.fields.push(key);}else{const order=(ui.rootOrder||Object.keys(node.properties||{})).filter((x:string)=>x!==key);const i=before?order.indexOf(before):-1;if(i>=0)order.splice(i,0,key);else order.push(key);ui.rootOrder=order;}});}
+ dropGroup(id:string,event:DragEvent){this.dragOver(event);}
+ dropField(groupId:string|null,before:string|null,event:DragEvent){this.dragOver(event);const source=this.dragSource;this.dragSource='';if(!source.startsWith('field:'))return;const path=source.slice(6),key=this.propertyKey(path),prefix=(this.activeContainerPath||'')+'/properties/';if(!path.startsWith(prefix)||path.slice(prefix.length).includes('/'))return;this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath);if(!node?.properties||!node.properties[key])return;const keys=Object.keys(node.properties).filter(k=>k!==key),i=before?keys.indexOf(before):-1;if(i<0)keys.push(key);else keys.splice(i,0,key);node.properties=Object.fromEntries(keys.map(k=>[k,node.properties![k]]));});}
  get canvasFields(){
   const prefix=this.activeContainerPath?this.activeContainerPath+'/properties/':'/properties/';
   return this.rows.filter(row=>row.path.startsWith(prefix)&&!row.path.slice(prefix.length).includes('/'));
@@ -672,10 +610,10 @@ export class SchemaBuilderComponent implements OnChanges {
   this.openContainer(this.selectedPath+'/items');
  }
  goToParentContainer(){this.selectedGroupId='';this.activeContainerPath=this.containerHistory.pop()||'';}
- arrayWidget(node:Schema):string{return node['x-ui']?.widget||'list';}
- setArrayWidget(widget:string){this.commit(root=>{const node=this.current(root)!;node['x-ui']??={};node['x-ui'].widget=widget;if(widget!=='list'){node.uniqueItems=true;if(!['string','integer','number'].includes(this.arrayItemType(node)))node.items={type:'string'};const item=node.items as Schema;const options=node['x-ui']?.options||[];if(item&&typeof item==='object'&&options.length)item.enum=options.map((option:any)=>option.value);}});}
- arrayOptionsText(node:Schema):string{const options=node['x-ui']?.options||[];return options.map((option:any)=>String(option.value)+' | '+String(option.label)).join('\n');}
- setArrayOptions(text:string){this.commit(root=>{const node=this.current(root)!;const item=node.items as Schema;const type=this.arrayItemType(node);const options=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{const [raw,...label]=line.split('|');const value=raw.trim();return {value:type==='integer'||type==='number'?Number(value):value,label:label.join('|').trim()||value};}).filter(option=>option.value!==''&&(typeof option.value!=='number'||Number.isFinite(option.value)));node['x-ui']??={};node['x-ui'].options=options;if(item&&typeof item==='object')item.enum=[...new Set(options.map(option=>option.value))];});}
+ arrayWidget(node:Schema):string{return 'list';}
+ setArrayWidget(widget:string){}
+ arrayOptionsText(node:Schema):string{const item=node.items;return item&&typeof item==='object'&&!Array.isArray(item)&&Array.isArray(item.enum)?item.enum.map(v=>String(v)).join('\n'):'';}
+ setArrayOptions(text:string){this.commit(root=>{const node=this.current(root)!,item=node.items;if(!item||typeof item!=='object'||Array.isArray(item))return;const type=this.arrayItemType(node);const values=text.split(/\r?\n/).map(v=>v.trim()).filter(Boolean).map(v=>type==='integer'||type==='number'?Number(v):v).filter(v=>typeof v!=='number'||Number.isFinite(v));if(values.length)item.enum=[...new Set(values)];else delete item.enum;});}
  arrayItemType(node:Schema):string{
   const item=node.items;
   if(item===true||item===undefined)return 'string';
@@ -692,7 +630,7 @@ export class SchemaBuilderComponent implements OnChanges {
     :type==='array'
      ?{type:'array',title:'Item',items:{type:'string'}}
      :{type,title:'Item'};
-   if(this.arrayWidget(node)!=='list'){node['x-ui']??={};node['x-ui'].options=[];}
+
   });
  }
  inlineTypes=[{type:'string',label:'Texto'},{type:'integer',label:'Inteiro'},{type:'number',label:'Decimal'},{type:'boolean',label:'Sim/Não'},{type:'array',label:'Lista'}];
@@ -703,10 +641,7 @@ export class SchemaBuilderComponent implements OnChanges {
   const node=this.getNodeAt(this.schema,targetPath);
   if(!node||!this.isObjectSchema(node)){this.error='Selecione um objeto para adicionar campos.';return;}
   this.error='';
-  if(type==='group'){
-   this.commit(root=>{const target=this.getNodeAt(root,targetPath)!;target['x-ui']??={};target['x-ui'].groups??=[];const groups=target['x-ui'].groups;groups.push({id:'grupo-'+Date.now().toString(36)+'-'+groups.length,title:'Novo grupo',description:'',fields:[]});this.selectedGroupId='';this.selectedPath='';});
-   this.showAddMenu=false;return;
-  }
+  if(type==='group')type='object';
   this.commit(root=>{
    const target=this.getNodeAt(root,targetPath)!;
    target.properties??={};
@@ -947,8 +882,7 @@ export class SchemaBuilderComponent implements OnChanges {
    const entries=Object.entries(target.properties).map(([k,v])=>[k===old?name:k,v]);
    target.properties=Object.fromEntries(entries);
    if(target.required)target.required=target.required.map((k:string)=>k===old?name:k);
-   const ui=target['x-ui'];
-   if(ui){for(const group of ui.groups||[])group.fields=(group.fields||[]).map((key:string)=>key===old?name:key);if(Array.isArray(ui.rootOrder))ui.rootOrder=ui.rootOrder.map((key:string)=>key===old?name:key);}
+
    this.selectedPath=parentPath+'/properties/'+this.escape(name);
   });
  }
@@ -973,7 +907,7 @@ export class SchemaBuilderComponent implements OnChanges {
    if(!parent)return;
    if(kind==='properties'){
     delete parent.properties?.[key];
-    for(const group of parent['x-ui']?.groups||[])group.fields=(group.fields||[]).filter((field:string)=>field!==key);
+
     if(parent.required){parent.required=parent.required.filter((x:string)=>x!==key);if(!parent.required.length)delete parent.required;}
    }else if(kind==='items')delete parent.items;
    else if(kind==='conditional')delete parent[key];
