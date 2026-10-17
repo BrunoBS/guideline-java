@@ -288,6 +288,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <span>Obrigatório</span><input type="checkbox" class="required-switch-input" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)" role="switch" [attr.aria-checked]="selectedRequired"/><span class="required-switch-track" aria-hidden="true"></span>
     </label>
    </div>
+   <label *ngIf="selectedPath!=='' && (mode==='dev' || editorTab==='property')" class="required-switch-label validation-switch"><span>Permitir nulo</span><input type="checkbox" class="required-switch-input" [ngModel]="isNullableField(node)" (ngModelChange)="setNullableField($event)" role="switch" [attr.aria-checked]="isNullableField(node)"/><span class="required-switch-track" aria-hidden="true"></span></label>
    <label *ngIf="mode==='dev' && selectedPath!=='' && !selectedPath.endsWith('/items')" class="required-switch-label"><span>Obrigatório</span><input type="checkbox" class="required-switch-input" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)" role="switch" [attr.aria-checked]="selectedRequired"/><span class="required-switch-track" aria-hidden="true"></span></label>
    </div>
    <div *ngIf="mode==='dev' || editorTab==='validation'">
@@ -563,6 +564,8 @@ export class SchemaBuilderComponent implements OnChanges {
  private escape(key:string){return key.replace(/~/g,'~0').replace(/\//g,'~1');}
  private getNode(root:Schema,path:string):Schema|undefined {return this.getNodeAt(root,path);}
  get selected(){return this.getNode(this.schema,this.selectedPath);}
+ isNullableField(node:Schema){return Array.isArray(node.type)&&node.type.includes('null');}
+ setNullableField(enabled:boolean){this.commit(root=>{const node=this.current(root);if(!node)return;const types=Array.isArray(node.type)?node.type.filter((type:string)=>type!=='null'):node.type?[node.type]:[];node.type=enabled?[...types,'null']:types.length===1?types[0]:types;});}
  get selectedName(){return this.segments(this.selectedPath).at(-1)||'';}
  get selectedRequired(){
   const parts=this.segments(this.selectedPath),name=parts.pop();
