@@ -29,3 +29,7 @@ Relatório: diagnóstico; evidências; decisão; contraindicações; patch propo
 
 ### Referência
 Spring Boot 4 observability docs. Consultar inventário central em `Skills/PESQUISA-OFICIAL-E-GAPS-2026-10.md`. Não tratar este exemplo como certificação da API.
+
+### Pré-requisito e limite do snippet
+`Observation.createNotStarted(...)` pressupõe um `ObservationRegistry` configurado e a dependência Micrometer compatível com o BOM; o exemplo não prova exportação de métricas nem spans. Confirmar nome da API e dependências no projeto real, executar teste de observação e inspecionar cardinalidade de tags. Nunca inserir `workspaceId` ou `userId` em low-cardinality keys.
+Fonte oficial: https://docs.spring.io/spring-boot/4.0/reference/actuator/observability.html
