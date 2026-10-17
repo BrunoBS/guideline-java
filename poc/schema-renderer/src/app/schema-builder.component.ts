@@ -184,7 +184,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .validation-help{font-size:12px;line-height:1.5;color:#718096;margin:0 0 14px}
  /* Construction layout: component palette full width, fields and editor in equal columns. */
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
- .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
+ .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
  .builder.simplified:not(.developer-mode) .palette.desktop-palette>strong,.builder.simplified:not(.developer-mode) .palette.desktop-palette>.builder-help{grid-column:1/-1;margin:0}
  .builder.simplified:not(.developer-mode) .palette.desktop-palette .palette-item{width:100%;margin:0;box-sizing:border-box}
  .builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2;order:unset}
