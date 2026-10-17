@@ -358,6 +358,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
   <div class="inline-object-child" *ngFor="let child of objectChildren(objectAttributesPath(field.path))">
    <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
+   <button type="button" *ngIf="isObjectSchema(child.schema) || isArrayOfObjects(child.schema)" (click)="openContainer(objectAttributesPath(child.path))" aria-label="Abrir atributos do objeto">Abrir atributos →</button>
    <div class="field-card-tools"><button type="button" (click)="moveObjectAttribute(child.path,-1)" [disabled]="!canMoveObjectAttribute(child.path,-1)" aria-label="Subir atributo">↑</button><button type="button" (click)="moveObjectAttribute(child.path,1)" [disabled]="!canMoveObjectAttribute(child.path,1)" aria-label="Descer atributo">↓</button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
   </div>
   <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(objectAttributesPath(field.path),kind.type)">+ {{kind.label}}</button></div>
