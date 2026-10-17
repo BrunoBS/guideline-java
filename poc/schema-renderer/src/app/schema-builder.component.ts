@@ -218,13 +218,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
    </div>
    <div class="canvas-fields">
-    <section class="schema-group" *ngFor="let group of visualGroups" [class.active]="selectedGroupId===group.id">
+    <section class="schema-group" *ngFor="let group of visualGroups" draggable="true" (dragstart)="dragGroup(group.id,$event)" (dragover)="dragOver($event)" (drop)="dropGroup(group.id,$event)" [class.active]="selectedGroupId===group.id">
       <div class="schema-group-header">
         <button type="button" class="schema-group-select" (click)="selectVisualGroup(group.id)">{{group.title||'Novo grupo'}} <small>{{group.fields.length}} campo(s)</small></button>
         <button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
       </div>
-      <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)">
-<div class="canvas-field-card" *ngFor="let field of groupFields(group)" [class.active]="selectedPath===field.path">
+      <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)" (dragover)="dragOver($event)" (drop)="dropField(group.id,null,$event)">
+<div class="canvas-field-card" *ngFor="let field of groupFields(group)" draggable="true" (dragstart)="dragField(field.path,$event)" (dragover)="dragOver($event)" (drop)="dropField(group.id,field.label,$event)" [class.active]="selectedPath===field.path">
  <button type="button" class="canvas-field" (click)="select(field.path)">
   <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
@@ -235,7 +235,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 
       </div>
     </section>
-<div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" [class.active]="selectedPath===field.path">
+<div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" draggable="true" (dragstart)="dragField(field.path,$event)" (dragover)="dragOver($event)" (drop)="dropField(null,field.label,$event)" [class.active]="selectedPath===field.path">
  <button type="button" class="canvas-field" (click)="select(field.path)">
   <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
@@ -244,6 +244,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  <div class="canvas-field-footer"><button type="button" class="canvas-field-delete" (click)="confirmDeleteField(field.path)">Excluir campo</button></div>
 </div>
    </div>
+   <div class="schema-drop-root" (dragover)="dragOver($event)" (drop)="dropField(null,null,$event)">Solte aqui para mover para a raiz</div>
    <div class="canvas-empty" *ngIf="!canvasFields.length && !visualGroups.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
 
@@ -428,8 +429,15 @@ export class SchemaBuilderComponent implements OnChanges {
  toggleVisualGroupField(id:string,field:string,enabled:boolean){const path=this.activeContainerPath;this.commit(root=>{const groups=this.getNodeAt(root,path)?.['x-ui']?.groups||[];for(const g of groups)g.fields=(g.fields||[]).filter((x:string)=>x!==field);if(enabled){const g=groups.find((x:any)=>x.id===id);if(g)g.fields.push(field);}});}
  deleteVisualGroup(id:string){this.selectedGroupId='';const path=this.activeContainerPath;this.commit(root=>{const node=this.getNodeAt(root,path)!;node['x-ui'].groups=node['x-ui'].groups.filter((g:any)=>g.id!==id);if(!node['x-ui'].groups.length)delete node['x-ui'];});}
  toggleVisualGroupExpanded(id:string){const next=new Set(this.collapsedGroups);next.has(id)?next.delete(id):next.add(id);this.collapsedGroups=next;}
- groupFields(group:any){const keys=new Set(group.fields||[]);return this.canvasFields.filter(field=>keys.has(this.segments(field.path).at(-1)||''));}
- get ungroupedCanvasFields(){const assigned=new Set(this.visualGroups.flatMap((g:any)=>g.fields||[]));return this.canvasFields.filter(field=>!assigned.has(this.segments(field.path).at(-1)||''));}
+ groupFields(group:any){const keys=new Set(group.fields||[]);return [...this.canvasFields.filter(field=>keys.has(this.segments(field.path).at(-1)||''))].sort((a,b)=>group.fields.indexOf(this.segments(a.path).at(-1))-group.fields.indexOf(this.segments(b.path).at(-1)));}
+ get ungroupedCanvasFields(){const assigned=new Set(this.visualGroups.flatMap((g:any)=>g.fields||[]));const fields=this.canvasFields.filter(field=>!assigned.has(this.segments(field.path).at(-1)||''));const order=this.getNodeAt(this.schema,this.activeContainerPath)?.['x-ui']?.rootOrder||[];return fields.sort((a,b)=>{const x=order.indexOf(this.segments(a.path).at(-1)),y=order.indexOf(this.segments(b.path).at(-1));return (x<0?9999:x)-(y<0?9999:y);});}
+
+ dragSource='';
+ dragField(path:string,event:DragEvent){this.dragSource='field:'+path;event.stopPropagation();event.dataTransfer?.setData('text/plain',this.dragSource);}
+ dragGroup(id:string,event:DragEvent){this.dragSource='group:'+id;event.stopPropagation();event.dataTransfer?.setData('text/plain',this.dragSource);}
+ dragOver(event:DragEvent){event.preventDefault();event.stopPropagation();}
+ dropGroup(id:string,event:DragEvent){this.dragOver(event);const source=this.dragSource;if(source.startsWith('field:')){this.dropField(id,null,event);return;}if(!source.startsWith('group:'))return;const moving=source.slice(6);this.dragSource='';if(moving===id)return;this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath)!;const groups=node['x-ui']?.groups||[];const index=groups.findIndex((g:any)=>g.id===moving),target=groups.findIndex((g:any)=>g.id===id);if(index<0||target<0)return;const [group]=groups.splice(index,1);groups.splice(groups.findIndex((g:any)=>g.id===id),0,group);});}
+ dropField(groupId:string|null,before:string|null,event:DragEvent){this.dragOver(event);const source=this.dragSource;this.dragSource='';if(!source.startsWith('field:'))return;const path=source.slice(6);const prefix=(this.activeContainerPath||'')+'/properties/';if(!path.startsWith(prefix)||path.slice(prefix.length).includes('/'))return;const key=this.segments(path).at(-1)!;if(before===key)return;this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath)!;const ui=node['x-ui']??={};const groups=ui.groups||[];for(const group of groups)group.fields=(group.fields||[]).filter((x:string)=>x!==key);if(groupId){const group=groups.find((g:any)=>g.id===groupId);if(!group)return;const i=before?group.fields.indexOf(before):-1;if(i>=0)group.fields.splice(i,0,key);else group.fields.push(key);}else{const order=(ui.rootOrder||Object.keys(node.properties||{})).filter((x:string)=>x!==key);const i=before?order.indexOf(before):-1;if(i>=0)order.splice(i,0,key);else order.push(key);ui.rootOrder=order;}});}
  get canvasFields(){
   const prefix=this.activeContainerPath?this.activeContainerPath+'/properties/':'/properties/';
   return this.rows.filter(row=>row.path.startsWith(prefix)&&!row.path.slice(prefix.length).includes('/'));
