@@ -15,6 +15,12 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
   .builder-vertical{display:flex;flex-direction:column;gap:24px}
   .builder-live-form,.builder-construction{border:1px solid #d7dfec;border-radius:14px;padding:22px;background:#fff;min-width:0}
   .builder-live-form{min-height:160px}
+  .studio-preview-overlay{position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.6);display:flex;align-items:center;justify-content:center;padding:3vh 3vw}
+  .studio-preview-modal{width:min(1100px,94vw);max-height:94vh;display:flex;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.25);overflow:hidden}
+  .studio-preview-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 26px;border-bottom:1px solid #d7dfec}
+  .studio-preview-header h3{margin:0}.studio-preview-header p{margin:5px 0 0;color:#64748b}
+  .studio-preview-body{padding:24px 26px;overflow-y:auto;min-height:0}
+  @media(max-width:600px){.studio-preview-overlay{padding:0}.studio-preview-modal{width:100vw;max-height:100vh;height:100vh;border-radius:0}.studio-preview-header,.studio-preview-body{padding:16px}}
   .studio-tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #d7dfec;margin:18px 0 22px;padding-bottom:10px}
   .studio-tabs button{border:1px solid transparent;border-radius:9px;padding:11px 16px;background:transparent;color:#4b5b75;cursor:pointer;font-weight:600}
   .studio-tabs button.active{background:#eaf1ff;border-color:#b4c8ee;color:#003399}
@@ -121,14 +127,20 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
     <div class="validation-summary" *ngIf="!valueError && errors.length"><h4>Validação contra o schema</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
   </section>
 
+  <div class="studio-preview-overlay" *ngIf="area==='builder' && previewOpen" (click)="previewOpen=false" (keydown.escape)="previewOpen=false" role="presentation">
+    <section class="studio-preview-modal" role="dialog" aria-modal="true" aria-label="Preview do formulário" (click)="$event.stopPropagation()">
+      <div class="studio-preview-header"><div><h3>Preview do formulário</h3><p>Teste os campos e as validações do schema atual.</p></div><button type="button" class="secondary" (click)="previewOpen=false" aria-label="Fechar preview">✕ Fechar</button></div>
+      <div class="studio-preview-body"><app-field *ngIf="schema" [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
+      <div class="validation-summary" *ngIf="errors.length"><h4>Validação</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div></div>
+    </section>
+  </div>
   <nav class="studio-tabs" *ngIf="area==='builder'" aria-label="Abas do Schema Studio">
     <button type="button" [class.active]="builderTab==='construction'" (click)="builderTab='construction'">Construção</button>
     <button type="button" [class.active]="builderTab==='dev'" (click)="builderTab='dev'">Para Dev</button>
-    <button type="button" [class.active]="builderTab==='preview'" (click)="builderTab='preview'">Preview</button>
     <button type="button" [class.active]="builderTab==='json'" (click)="builderTab='json'">JSON Schema</button>
   </nav>
   <section class="panel tab-panel" *ngIf="area==='builder'">
-    <div class="section-heading"><div><h3>Schema Studio</h3><p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p></div></div>
+    <div class="section-heading"><div><h3>Schema Studio</h3><p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p></div><button type="button" (click)="previewOpen=true" aria-haspopup="dialog">◉ Visualizar formulário</button></div>
     <p class="error callout" *ngIf="builderError">{{builderError}}</p>
     <div class="developer-actions">
       <button type="button" class="secondary" (click)="newBuilderSchema()">Novo schema</button>
@@ -141,11 +153,6 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
       <button type="button" (click)="importBuilderSchema()">Validar e importar</button>
     </div>
     <div class="builder-vertical" *ngIf="builderTab==='construction'">
-      <section class="builder-live-form" aria-label="Formulário em tempo real">
-        <div class="section-heading"><div><h4>Formulário em tempo real</h4><p>Veja como o formulário ficará enquanto adiciona e configura os campos.</p></div></div>
-        <app-field *ngIf="schema" [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
-        <div class="validation-summary" *ngIf="errors.length"><h4>Validação</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
-      </section>
       <section class="builder-construction" aria-label="Opções de construção">
         <div class="section-heading"><div><h4>Construir formulário</h4><p>Adicione campos, agrupadores e listas. Selecione um campo para configurar suas regras.</p></div></div>
         <app-schema-builder mode="construction" [schema]="schema" (schemaChange)="builderChanged($event)"></app-schema-builder>
@@ -172,12 +179,6 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
         <div class="validation-summary" *ngIf="errors.length"><h4>Validação</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
       </aside>
     </div>
-    <div *ngIf="builderTab==='preview'">
-      <h4>Preview do formulário</h4>
-      <p class="error" *ngIf="errors.length">{{errors.length}} erro(s) de validação</p>
-      <app-field [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
-      <h4>Resposta JSON</h4><pre class="response-json studio-json">{{value|json}}</pre>
-    </div>
     <div *ngIf="builderTab==='json'">
       <h4>JSON Schema gerado</h4>
       <p>O contrato abaixo é sincronizado com a Construção e o modo Para Dev.</p>
@@ -195,7 +196,8 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
 export class AppComponent {
  area:'home'|'builder'|'renderer'='home';
  activeTab=1;
- builderTab:'construction'|'dev'|'preview'|'json'='construction';
+ builderTab:'construction'|'dev'|'json'='construction';
+ previewOpen=false;
  builderSource='';
  builderSchemaError='';
  enterBuilder(){this.area='builder';this.builderTab='construction';this.openBuilder();this.builderSource=JSON.stringify(this.schema,null,2);}
