@@ -37,3 +37,6 @@ Não copiar código ou regras de fonte externa sem revisar versão, licença e a
 
 ## Exemplo e critério de decisão
 Antes de orientar implementação, ler [EXEMPLOS-E-DECISOES.md](references/EXEMPLOS-E-DECISOES.md). O exemplo é ilustrativo, **não** foi compilado; produzir código completo e testes específicos ao projeto quando solicitado. Verificar documentação oficial na versão real. Não declarar execução, performance ou compatibilidade sem evidência.
+
+## Contrato operacional e exemplos
+Antes de recomendar ou implementar, aplicar o [contrato comum dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e consultar [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Os exemplos são didáticos, não foram compilados no stack-alvo. Confirmar documentação oficial e versões reais; executar testes, registrar evidências e nunca alegar eficácia sem medições.
