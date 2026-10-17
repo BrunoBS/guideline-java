@@ -373,17 +373,17 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 
   <div class="editor-modal-backdrop" *ngIf="mode==='construction' && editorModalOpen" (click)="cancelEditor()"></div>
   <div class="editor-modal-shell" *ngIf="mode==='dev' || editorModalOpen" role="dialog" [attr.aria-modal]="mode==='construction' ? 'true' : null" aria-label="Configuração do campo">
-  <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath" *ngIf="!editingForm && !selectedGroupId"><ng-container *ngIf="selected as node">
-   <div class="editor-heading field-editor-heading"><strong>Editar campo</strong><div class="editor-field-type" *ngIf="mode==='construction' && selectedPath"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong></div></div>
-   <p class="editor-empty" *ngIf="mode==='construction' && !selectedPath">Selecione um campo em Campos do schema para editar suas propriedades e validações.</p>
-   <div *ngIf="mode==='dev' || selectedPath">
+  <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath && !editingForm" *ngIf="!selectedGroupId"><ng-container *ngIf="selected as node">
+   <div class="editor-heading field-editor-heading"><strong>{{editingForm ? 'Configurar formulário' : 'Editar campo'}}</strong><div class="editor-field-type" *ngIf="mode==='construction' && selectedPath"><span>Tipo do campo</span><strong>{{typeLabel(node)}}</strong></div></div>
+   <p class="editor-empty" *ngIf="mode==='construction' && !selectedPath && !editingForm">Selecione um campo em Campos do schema para editar suas propriedades e validações.</p>
+   <div *ngIf="mode==='dev' || selectedPath || editingForm">
    <div class="builder-actions" *ngIf="mode==='dev'">
     <button type="button" *ngIf="this.isObjectSchema(node)" (click)="addProperty()">+ Propriedade</button>
     <button type="button" *ngIf="node.type==='array'" (click)="addItems()">+ Definir items</button>
     <button type="button" *ngIf="selectedPath!==''" (click)="removeSelected()">Excluir nó</button>
    </div>
-   <nav class="editor-tabs" *ngIf="mode==='construction'" aria-label="Seções do editor"><button type="button" [class.active]="editorTab==='property'" (click)="editorTab='property'">Propriedade</button><button type="button" [class.active]="editorTab==='validation'" (click)="editorTab='validation'">Validações</button></nav>
-   <div *ngIf="mode==='dev' || editorTab==='property'">
+   <nav class="editor-tabs" *ngIf="mode==='construction' && !editingForm" aria-label="Seções do editor"><button type="button" [class.active]="editorTab==='property'" (click)="editorTab='property'">Propriedade</button><button type="button" [class.active]="editorTab==='validation'" (click)="editorTab='validation'">Validações</button></nav>
+   <div *ngIf="mode==='dev' || editingForm || editorTab==='property'">
    <label *ngIf="isPropertySelected">Nome da propriedade
     <input [ngModel]="propertyNameDraft ?? selectedName" (ngModelChange)="onPropertyNameInput($event)" (blur)="validatePropertyName()" (keydown.enter)="$event.preventDefault(); validatePropertyName()" [attr.aria-invalid]="propertyNameError ? 'true' : null"/>
     <small class="builder-error" *ngIf="propertyNameError">{{propertyNameError}}</small>
@@ -401,7 +401,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <label class="required-switch-label"><span>Permitir nulo</span><input type="checkbox" class="required-switch-input" [ngModel]="isNullableField(node)" (ngModelChange)="setNullableField($event)" role="switch" [attr.aria-checked]="isNullableField(node)"/><span class="required-switch-track" aria-hidden="true"></span></label>
    </div>
    </div>
-   <div *ngIf="mode==='dev' || editorTab==='validation'">
+   <div *ngIf="mode==='dev' || (!editingForm && editorTab==='validation')">
    <h4 class="rule-heading">Validações de {{typeLabel(node)}}</h4>
    <p class="validation-help" *ngIf="mode==='construction'">Configure apenas as regras aplicáveis a este tipo de campo.</p>
    <ng-container *ngIf="node.type==='string'">
