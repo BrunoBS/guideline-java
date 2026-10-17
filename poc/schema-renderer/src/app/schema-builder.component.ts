@@ -186,6 +186,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .group-add-picker-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px}
  .builder.simplified .group-add-picker-options button{display:flex;justify-content:space-between;gap:8px;align-items:center;background:#f8fbff!important;color:#243b59!important;border:1px solid #dce4ef!important;border-radius:8px!important;padding:12px!important;cursor:pointer!important;box-shadow:none!important;font-weight:600!important}
  .builder.simplified .group-add-picker-options button:hover{background:#edf4ff!important;border-color:#2455b5!important}
+
+ .schema-drop-root{border:1px dashed #a5b9d5;border-radius:9px;padding:12px;text-align:center;color:#64748b;background:#f8fbff;font-size:13px;margin-top:12px}
+ .schema-group[draggable],.canvas-field-card[draggable]{cursor:grab}
+ .schema-group[draggable]:active,.canvas-field-card[draggable]:active{cursor:grabbing}
+ .schema-group-fields{min-height:36px}
  `],
  template:`
  <div class="builder simplified">
@@ -224,7 +229,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
         <button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
       </div>
       <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)" (dragover)="dragOver($event)" (drop)="dropField(group.id,null,$event)">
-<div class="canvas-field-card" *ngFor="let field of groupFields(group)" draggable="true" (dragstart)="dragField(field.path,$event)" (dragover)="dragOver($event)" (drop)="dropField(group.id,field.label,$event)" [class.active]="selectedPath===field.path">
+<div class="canvas-field-card" *ngFor="let field of groupFields(group)" draggable="true" (dragstart)="dragField(field.path,$event)" (dragover)="dragOver($event)" (drop)="dropField(group.id,propertyKey(field.path),$event)" [class.active]="selectedPath===field.path">
  <button type="button" class="canvas-field" (click)="select(field.path)">
   <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
@@ -235,7 +240,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 
       </div>
     </section>
-<div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" draggable="true" (dragstart)="dragField(field.path,$event)" (dragover)="dragOver($event)" (drop)="dropField(null,field.label,$event)" [class.active]="selectedPath===field.path">
+<div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" draggable="true" (dragstart)="dragField(field.path,$event)" (dragover)="dragOver($event)" (drop)="dropField(null,propertyKey(field.path),$event)" [class.active]="selectedPath===field.path">
  <button type="button" class="canvas-field" (click)="select(field.path)">
   <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
@@ -432,6 +437,7 @@ export class SchemaBuilderComponent implements OnChanges {
  groupFields(group:any){const keys=new Set(group.fields||[]);return [...this.canvasFields.filter(field=>keys.has(this.segments(field.path).at(-1)||''))].sort((a,b)=>group.fields.indexOf(this.segments(a.path).at(-1))-group.fields.indexOf(this.segments(b.path).at(-1)));}
  get ungroupedCanvasFields(){const assigned=new Set(this.visualGroups.flatMap((g:any)=>g.fields||[]));const fields=this.canvasFields.filter(field=>!assigned.has(this.segments(field.path).at(-1)||''));const order=this.getNodeAt(this.schema,this.activeContainerPath)?.['x-ui']?.rootOrder||[];return fields.sort((a,b)=>{const x=order.indexOf(this.segments(a.path).at(-1)),y=order.indexOf(this.segments(b.path).at(-1));return (x<0?9999:x)-(y<0?9999:y);});}
 
+ propertyKey(path:string){return this.segments(path).at(-1)||'';}
  dragSource='';
  dragField(path:string,event:DragEvent){this.dragSource='field:'+path;event.stopPropagation();event.dataTransfer?.setData('text/plain',this.dragSource);}
  dragGroup(id:string,event:DragEvent){this.dragSource='group:'+id;event.stopPropagation();event.dataTransfer?.setData('text/plain',this.dragSource);}
