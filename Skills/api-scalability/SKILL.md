@@ -37,3 +37,8 @@ DHA architecture, performance-testing, openapi-contract.
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de capacidade de ponta a ponta
+- Separar taxa oferecida, aceita, concluída e rejeitada; medir gargalo compartilhado.
+- Exigir limites de filas, conexões, fanout e retries.
+- Comparar p95/p99, erros e goodput com gerador não saturado.
