@@ -90,6 +90,16 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .inspector .checkline{display:flex;align-items:center;gap:8px;font-weight:500}
  .inspector .checkline input{width:auto}
  @media(max-width:760px){.builder{grid-template-columns:1fr}.tree,.inspector{padding:14px}.rule-grid{grid-template-columns:1fr}}
+
+ /* Construction layout: component palette full width, fields and editor in equal columns. */
+ .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+ .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:flex;flex-wrap:wrap;gap:9px;grid-column:1/-1;grid-row:1;order:unset;position:static}
+ .builder.simplified:not(.developer-mode) .palette.desktop-palette>strong,.builder.simplified:not(.developer-mode) .palette.desktop-palette>.builder-help{flex:0 0 100%;margin:0}
+ .builder.simplified:not(.developer-mode) .palette.desktop-palette .palette-item{flex:1 1 125px;width:auto;margin:0}
+ .builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2;order:unset}
+ .builder.simplified:not(.developer-mode) .inspector{grid-column:2;grid-row:2;order:unset;position:static;transform:none;width:100%;max-height:none;overflow:visible;box-shadow:none}
+ .builder.simplified:not(.developer-mode):not(:has(.inspector)) .canvas{grid-column:1/-1}
+ @media(max-width:760px){.builder.simplified:not(.developer-mode){grid-template-columns:1fr}.builder.simplified:not(.developer-mode) .palette.desktop-palette{grid-column:1;grid-row:1;display:flex}.builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2}.builder.simplified:not(.developer-mode) .inspector{grid-column:1;grid-row:3}}
  `],
  template:`
  <div class="builder simplified">
