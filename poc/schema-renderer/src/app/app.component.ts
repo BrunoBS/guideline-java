@@ -78,31 +78,15 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
         <span class="schema-example-tooltip" role="tooltip">{{selectedExampleDescription}}</span>
       </span>
     </div>
-    <div class="schema-preview-layout">
-      <div class="schema-editor-column">
-        <label for="schema-source">Cole ou edite o JSON Schema</label>
-        <textarea id="schema-source" class="editor" [ngModel]="source" (ngModelChange)="schemaSourceChanged($event)" aria-label="Editor JSON Schema"></textarea>
-      </div>
-      <aside class="schema-live-preview" aria-label="Preview do formulário">
-        <div class="section-heading">
-          <div><h4>Preview do formulário</h4><p>Atualizado automaticamente conforme o schema válido.</p></div>
-          <span class="status valid" *ngIf="!parseError">Preview atualizado</span>
-          <span class="status invalid" *ngIf="parseError">Aguardando schema válido</span>
-        </div>
-        <app-field *ngIf="!parseError && schema" [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
-        <p class="schema-preview-placeholder" *ngIf="parseError">Corrija o JSON Schema para atualizar o preview. A mensagem de erro aparece abaixo do editor.</p>
-        <div class="validation-summary" *ngIf="!parseError && errors.length">
-          <h4>Validação do preview</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul>
-        </div>
-      </aside>
-    </div>
+    <label for="schema-source">Cole ou edite o JSON Schema</label>
+    <textarea id="schema-source" class="editor" [ngModel]="source" (ngModelChange)="schemaSourceChanged($event)" aria-label="Editor JSON Schema"></textarea>
     <div class="opposite-actions developer-actions">
       <span class="status valid" *ngIf="schemaValidated && !parseError">✓ Sintaxe JSON e estrutura do schema válidas</span>
       <span></span>
       <div>
         <button type="button" class="secondary" (click)="validateSchemaJson()">Validar JSON</button>
         <button type="button" class="secondary" (click)="formatSchemaJson()">Formatar JSON</button>
-        <button type="button" (click)="apply()">Abrir formulário completo →</button>
+        <button type="button" (click)="apply()">Renderizar schema</button>
       </div>
     </div>
     <p class="error callout" *ngIf="parseError">{{parseError}}</p>
@@ -153,7 +137,28 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
       <textarea id="builder-import" class="editor" [(ngModel)]="builderImportSource"></textarea>
       <button type="button" (click)="importBuilderSchema()">Validar e importar</button>
     </div>
-    <app-schema-builder *ngIf="builderTab==='construction'||builderTab==='dev'" [mode]="builderTab" [schema]="schema" (schemaChange)="builderChanged($event)"></app-schema-builder>
+    <app-schema-builder *ngIf="builderTab==='construction'" mode="construction" [schema]="schema" (schemaChange)="builderChanged($event)"></app-schema-builder>
+    <div class="schema-preview-layout" *ngIf="builderTab==='dev'">
+      <div class="schema-editor-column">
+        <div class="section-heading">
+          <div><h4>Para Dev</h4><p>Cole ou edite um JSON Schema. O preview acompanha as alterações válidas.</p></div>
+          <span class="status valid" *ngIf="!builderSchemaError">Schema válido</span>
+          <span class="status invalid" *ngIf="builderSchemaError">Schema inválido</span>
+        </div>
+        <label for="builder-schema-source">JSON Schema</label>
+        <textarea id="builder-schema-source" class="editor" [ngModel]="builderSource" (ngModelChange)="builderSchemaSourceChanged($event)" aria-label="Editor de JSON Schema para desenvolvedores"></textarea>
+        <p class="error callout" *ngIf="builderSchemaError">{{builderSchemaError}}</p>
+      </div>
+      <aside class="schema-live-preview" aria-label="Preview do formulário gerado">
+        <div class="section-heading">
+          <div><h4>Preview do formulário</h4><p>Renderização do último schema válido.</p></div>
+          <span class="status valid" *ngIf="!builderSchemaError">Preview atualizado</span>
+          <span class="status invalid" *ngIf="builderSchemaError">Aguardando schema válido</span>
+        </div>
+        <app-field *ngIf="schema" [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
+        <div class="validation-summary" *ngIf="errors.length"><h4>Validação</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
+      </aside>
+    </div>
     <div *ngIf="builderTab==='preview'">
       <h4>Preview do formulário</h4>
       <p class="error" *ngIf="errors.length">{{errors.length}} erro(s) de validação</p>
@@ -178,7 +183,9 @@ export class AppComponent {
  area:'home'|'builder'|'renderer'='home';
  activeTab=1;
  builderTab:'construction'|'dev'|'preview'|'json'='construction';
- enterBuilder(){this.area='builder';this.builderTab='construction';this.openBuilder();}
+ builderSource='';
+ builderSchemaError='';
+ enterBuilder(){this.area='builder';this.builderTab='construction';this.openBuilder();this.builderSource=JSON.stringify(this.schema,null,2);}
  enterRenderer(){this.area='renderer';this.activeTab=1;}
  builderError='';
  builderPreview=false;
@@ -228,10 +235,23 @@ export class AppComponent {
  builderChanged(next:Schema):boolean{
   try{
    ajv.compile(next);
-   this.schema=next;this.source=JSON.stringify(next,null,2);this.selectedExample='';
+   this.schema=next;this.source=JSON.stringify(next,null,2);this.builderSource=JSON.stringify(next,null,2);this.builderSchemaError='';this.selectedExample='';
    this.value=reconcileValue(next,this.value,next);
    this.parseError='';this.builderError='';this.schemaValidated=true;this.valueError='';this.developerValidated=false;this.sync(true);return true;
   }catch(error){this.builderError=this.schemaErrorMessage(error);return false;}
+ }
+ builderSchemaSourceChanged(text:string){
+  this.builderSource=text;
+  try{
+   const parsed=JSON.parse(text);
+   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Schema deve ser um objeto JSON.');
+   ajv.compile(parsed);
+   this.schema=parsed;this.source=JSON.stringify(parsed,null,2);this.selectedExample='';
+   this.value=initial(parsed,parsed);this.builderSchemaError='';this.builderError='';
+   this.parseError='';this.valueError='';this.developerValidated=false;this.schemaValidated=true;this.sync(true);
+  }catch(error){
+   this.builderSchemaError=this.schemaErrorMessage(error);
+  }
  }
  loadExample(id:string){
   this.selectedExample=id;
