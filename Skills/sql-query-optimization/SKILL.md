@@ -42,3 +42,8 @@ Ler [playbook especializado](references/DIAGNOSTICO-MYSQL.md) antes de emitir re
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de comprovação de desempenho
+- `EXPLAIN` estimado gera hipótese, não prova melhoria; comparar consultas sob parâmetros representativos e carga equivalente, com p95/p99, leituras e custo DML.
+- Nunca aplicar `EXPLAIN ANALYZE` custoso em produção sem aprovação; avaliar execução segura em ambiente controlado.
+- Para paginação com `JOIN FETCH` de coleção, não confiar em `LIMIT/OFFSET` na consulta de coleção; validar estratégia em duas fases ou projeção.
