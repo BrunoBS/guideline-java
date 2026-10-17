@@ -40,3 +40,8 @@ Antes de orientar implementação, ler [EXEMPLOS-E-DECISOES.md](references/EXEMP
 
 ## Contrato operacional e exemplos
 Antes de recomendar ou implementar, aplicar o [contrato comum dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e consultar [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Os exemplos são didáticos, não foram compilados no stack-alvo. Confirmar documentação oficial e versões reais; executar testes, registrar evidências e nunca alegar eficácia sem medições.
+
+## Gate de seleção de padrão
+- Documentar problema concreto, alternativa simples, custos e reversão.
+- Para Outbox/Saga, distinguir transação local de coordenação distribuída e testar replay.
+- Exigir prova de substituição quando recomendar Strategy ou Adapter.
