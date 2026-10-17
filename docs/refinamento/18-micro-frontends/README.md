@@ -288,7 +288,7 @@ sequenceDiagram
 ```
 
 ## 12. Design System e experiência
-Design System corporativo compartilhado: tokens de cor, tipografia, espaçamento, radius, sombras, densidade, ícones, grid e breakpoints; componentes de botão, input, select, modal, toast, badge, card, tabela, paginação, breadcrumb, skeleton, empty/error state, navegação e acessibilidade. Alvo WCAG 2.2 AA, foco visível, teclado, contraste, semântica, labels, suporte a zoom e leitores de tela. Inspirar-se na experiência visual corporativa sem copiar ativos proprietários não licenciados. Shell entrega layout e tema; MFEs consomem biblioteca versionada, evitando CSS global que vaze entre remotes. Formulários dinâmicos JSON Schema usam renderer com adaptadores do Design System, mantendo validação definitiva no backend. Estratégia de internacionalização PT-BR/EN e timezone por usuário deve ser refinada.
+**Decisão definida: adotar o Design System corporativo oficial, sem criar um Design System próprio.** Consumir seus tokens de cor, tipografia, espaçamento, radius, sombras, densidade, ícones, grid e breakpoints e seus componentes disponíveis (botão, input, select, modal, toast, badge, card, tabela, paginação, breadcrumb, skeleton, empty/error state, navegação e acessibilidade). Componentes não disponíveis devem seguir o processo de extensão e governança corporativa, não forks locais independentes. Alvo WCAG 2.2 AA, foco visível, teclado, contraste, semântica, labels, suporte a zoom e leitores de tela. Inspirar-se na experiência visual corporativa sem copiar ativos proprietários não licenciados. Shell entrega layout e tema; MFEs consomem biblioteca versionada, evitando CSS global que vaze entre remotes. Formulários dinâmicos JSON Schema usam renderer com adaptadores do Design System, mantendo validação definitiva no backend. Estratégia de internacionalização PT-BR/EN e timezone por usuário deve ser refinada.
 
 ## 13. Observabilidade e SRE
 - Instrumentar frontend com Web Vitals (LCP, INP, CLS), tempo de bootstrap do Shell, tempo de carregamento do remote, erro de chunk, falha de navegação, latência de BFF e falha de autenticação.
@@ -337,7 +337,7 @@ Dependências: Shell/DS/contratos antecedem Workspace; Workspace depende do BFF 
 ## 17. Pontos abertos para refinamento
 - Versões exatas de Angular, Native Federation, Node, TypeScript e política de suporte.
 - Monorepo de MFEs versus múltiplos repositórios; processo de publicação/manifest.
-- Qual DS corporativo poderá ser utilizado/licenciado e governança de componentes.
+- Confirmar pacote, versão, documentação, acesso e política de atualização do **Design System corporativo já definido como obrigatório**.
 - Política de cookie SameSite conforme domínios efetivos, CSRF, refresh/idle/absolute timeout, SSO/logout global.
 - Modelo de autenticação do MCP, delegação de usuário, autorização de tools e aprovação de mutações.
 - TTL e invalidação de authz, estratégia fail-closed/fallback, separação futura do Redis.
@@ -376,7 +376,7 @@ portal-manager-frontend/
 │   ├── mfe-navigation/          # menus e rotas
 │   └── mfe-rules/               # regras
 ├── libs/
-│   ├── design-system/           # componentes, temas, tokens e acessibilidade
+│   ├── corporate-ui-adapters/   # integração/adaptadores do Design System corporativo
 │   ├── shell-contracts/         # contratos públicos de contexto, rotas e eventos
 │   ├── api-client/              # cliente BFF e contratos HTTP
 │   ├── observability/           # instrumentação frontend
@@ -430,7 +430,7 @@ portal-api-client
 2. Nx project boundaries impedem dependências diretas entre MFEs; `libs/` expõe apenas APIs públicas e segue regras de ownership.
 3. Shell carrega remotes via manifesto/versionamento; publicar um remote compatível **não** exige rebuild do Shell.
 4. Contratos Shell–MFE são versionados e sujeitos a testes de compatibilidade; breaking changes exigem janela de migração.
-5. Design System compartilhado pode iniciar como biblioteca interna do monorepo; se a organização passar a ter outros repositórios consumidores, avaliar publicação em registry privado.
+5. O **Design System corporativo é obrigatório e a fonte oficial** de componentes, tokens, temas e padrões. Bibliotecas locais contêm somente adaptadores e integrações quando necessários, sem recriar componentes oficiais. O consumo deve seguir o canal de distribuição, versionamento e licenciamento corporativo.
 6. CI executa lint, typecheck, testes, security scanning e build somente nos projetos afetados, mais verificações transversais necessárias.
 7. Cada remote gera artefato imutável, é distribuído independentemente e possui monitoramento por nome e versão.
 8. Dependências globais (Angular, Native Federation, Nx) seguem política de atualização e validação de compatibilidade.
@@ -467,3 +467,6 @@ flowchart TD
 **Preferir a Estratégia A — monorepo `portal-manager-frontend` com Nx, Angular e Native Federation**, com `apps/` para Shell e MFEs e `libs/` para Design System e contratos. **Não** incluir BFF/MCP como apps frontend. A opção multirepositório permanece válida e documentada para futura decisão organizacional. Critérios de revisão: número de times, requisitos de permissão, duração de builds, frequência de alterações transversais, maturidade das pipelines e necessidade de stacks distintas.
 
 **Status da decisão:** favorita para implementação inicial; formalizar ADR após POC de Federation, build seletivo e deploy independente.
+
+### 19.8 Decisão complementar — Design System corporativo
+**Definido:** Shell, Workspace e todos os MFEs utilizarão o Design System corporativo oficial como fonte de verdade para identidade visual, componentes e acessibilidade. Não será criado um Design System próprio do Portal Manager. A pasta `libs/corporate-ui-adapters` (se necessária) conterá apenas wrappers técnicos, integração com Angular, composição de componentes e adaptações aprovadas; não substituirá nem duplicará o catálogo corporativo. Confirmar os pacotes oficiais, distribuição, versão suportada, tokens disponíveis e diretrizes de contribuição antes da implementação.
