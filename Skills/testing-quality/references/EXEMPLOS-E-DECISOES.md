@@ -29,3 +29,7 @@ Relatório: diagnóstico; evidências; decisão; contraindicações; patch propo
 
 ### Referência
 Spring Boot 4 testing docs. Consultar inventário central em `Skills/PESQUISA-OFICIAL-E-GAPS-2026-10.md`. Não tratar este exemplo como certificação da API.
+
+### Pré-requisito do exemplo
+O snippet referencia `ConfigurationKey` e imports JUnit, portanto **não é uma classe de teste independente**. O laboratório `Skills/laboratorio-java` contém testes executáveis de chave, mas não comprova este snippet JUnit em isolamento. Quando solicitado código de produção, fornecer classe, imports, dependências, teste negativo/positivo e comando de execução completos.
+Fonte oficial: https://docs.junit.org/current/user-guide/
