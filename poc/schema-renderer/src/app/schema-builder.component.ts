@@ -204,7 +204,17 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .schema-group[draggable],.canvas-field-card[draggable]{cursor:grab}
  .schema-group[draggable]:active,.canvas-field-card[draggable]:active{cursor:grabbing}
  .schema-group-fields{min-height:36px}
- `],
+ 
+ .builder.simplified:not(.developer-mode){display:flex!important;flex-direction:column!important;gap:16px!important}
+ .builder.simplified:not(.developer-mode) .palette,.builder.simplified:not(.developer-mode) .canvas{width:100%!important;grid-column:1/-1!important;grid-row:auto!important}
+ .editor-modal-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.6)}
+ .builder.simplified:not(.developer-mode) .editor-modal-shell{position:fixed;z-index:1001;left:50%;top:4vh;transform:translateX(-50%);width:min(800px,94vw);max-height:92vh;overflow-y:auto;background:white;border-radius:16px;box-shadow:0 24px 75px rgba(0,0,0,.3);padding:22px;box-sizing:border-box}
+ .builder.simplified:not(.developer-mode) .editor-modal-shell .inspector{position:static!important;transform:none!important;width:100%!important;max-height:none!important;overflow:visible!important;box-shadow:none!important;grid-column:auto!important;grid-row:auto!important}
+ .editor-modal-actions{display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:white;padding:14px 0;border-top:1px solid #d9dfe9}
+ .field-card-tools{display:flex;justify-content:flex-end;gap:8px;padding:6px 12px}
+ .field-card-tools button{border:1px solid #d4ddeb;background:#fff;border-radius:8px;padding:7px 11px;cursor:pointer}
+ .field-card-tools button:last-child{color:#a52332}
+`],
  template:`
  <div class="builder simplified">
   <aside class="palette" [class.desktop-palette]="mode==='construction'" *ngIf="mode==='construction' || mode==='dev'">
@@ -222,7 +232,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   </aside>
   <section class="canvas" *ngIf="mode==='construction'">
    <div class="canvas-header">
-    <div><strong>{{activeContainerPath ? "Campos do agrupador" : "Campos do schema"}}</strong><p>{{activeContainerLabel}} · Selecione um card para editar seu contrato.</p><button type="button" *ngIf="!activeContainerPath" class="form-settings-button" (click)="selectForm()">✎ Configurar formulário</button></div>
+    <div><strong>{{activeContainerPath ? "Campos do agrupador" : "Campos do schema"}}</strong><p>{{activeContainerLabel}} · Selecione um card para editar seu contrato.</p><button type="button" *ngIf="!activeContainerPath" class="form-settings-button" (click)="openFormEditor()">✎ Configurar formulário</button></div>
     <div class="builder-actions" style="margin:0">
      <button type="button" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar</button>
 
@@ -238,12 +248,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="canvas-fields">
     <section class="schema-group" *ngFor="let group of visualGroups" draggable="true" (dragstart)="dragGroup(group.id,$event)" (dragover)="dragOver($event)" (drop)="dropGroup(group.id,$event)" [class.active]="selectedGroupId===group.id">
       <div class="schema-group-header">
-        <button type="button" class="schema-group-select" (click)="selectVisualGroup(group.id)">{{group.title||'Novo grupo'}} <small>{{group.fields.length}} campo(s)</small></button>
+        <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)">{{group.title||'Novo grupo'}} <small>{{group.fields.length}} campo(s)</small></button>
         <button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
       </div>
       <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)" (dragover)="dragOver($event)" (drop)="dropField(group.id,null,$event)">
 <div class="canvas-field-card" *ngFor="let field of groupFields(group)" draggable="true" (dragstart)="dragField(field.path,$event)" (dragover)="dragOver($event)" (drop)="dropField(group.id,propertyKey(field.path),$event)" [class.active]="selectedPath===field.path">
- <button type="button" class="canvas-field" (click)="select(field.path)">
+ <button type="button" class="canvas-field" (click)="openFieldEditor(field.path)">
   <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
   <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
@@ -251,30 +261,32 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <div class="inline-object" *ngIf="this.isObjectSchema(field.schema)">
   <div class="inline-object-heading"><strong>Atributos do objeto</strong><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
   <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
-   <button type="button" (click)="select(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
+   <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
    <button type="button" class="canvas-field-delete" (click)="confirmDeleteField(child.path)">Excluir</button>
   </div>
   <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(field.path,kind.type)">+ {{kind.label}}</button></div>
   <p class="validation-help">Objeto dentro de objeto está desabilitado no editor visual.</p>
  </div>
-<div class="canvas-field-footer"><button type="button" class="canvas-field-delete" (click)="confirmDeleteField(field.path)">Excluir campo</button></div>
+<div class="field-card-tools"><button type="button" (click)="openFieldEditor(field.path)" title="Configurar campo" aria-label="Configurar campo">⚙</button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo">🗑</button></div>
 </div>
 
       </div>
     </section>
 <div class="canvas-field-card" *ngFor="let field of ungroupedCanvasFields" draggable="true" (dragstart)="dragField(field.path,$event)" (dragover)="dragOver($event)" (drop)="dropField(null,propertyKey(field.path),$event)" [class.active]="selectedPath===field.path">
- <button type="button" class="canvas-field" (click)="select(field.path)">
+ <button type="button" class="canvas-field" (click)="openFieldEditor(field.path)">
   <span class="canvas-field-title"><span>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></span><small>{{typeLabel(field.schema)}}</small></span>
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
   <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
  </button>
- <div class="canvas-field-footer"><button type="button" class="canvas-field-delete" (click)="confirmDeleteField(field.path)">Excluir campo</button></div>
+ <div class="field-card-tools"><button type="button" (click)="openFieldEditor(field.path)" title="Configurar campo" aria-label="Configurar campo">⚙</button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo">🗑</button></div>
 </div>
    </div>
    <div class="schema-drop-root" (dragover)="dragOver($event)" (drop)="dropField(null,null,$event)">Solte aqui para mover para a raiz</div>
    <div class="canvas-empty" *ngIf="!canvasFields.length && !visualGroups.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
 
+  <div class="editor-modal-backdrop" *ngIf="mode==='construction' && editorModalOpen" (click)="cancelEditor()"></div>
+  <div class="editor-modal-shell" *ngIf="mode==='dev' || editorModalOpen" role="dialog" [attr.aria-modal]="mode==='construction' ? 'true' : null" aria-label="Configuração do campo">
   <div class="inspector visual-group-inspector" *ngIf="mode==='construction' && editingForm">
     <div class="editor-heading"><strong>Configurar formulário</strong></div>
     <label>Título do formulário<input [ngModel]="schema.title||''" (ngModelChange)="updateForm('title',$event)" placeholder="Ex.: Configuração da aplicação"/></label>
@@ -429,6 +441,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </div>
    </ng-container>
   </div>
+  <div class="editor-modal-actions" *ngIf="mode==='construction'"><button type="button" (click)="cancelEditor()">Cancelar</button><button type="button" (click)="saveEditor()">Salvar alterações</button></div>
+  </div>
   <div class="confirm-overlay" *ngIf="showDeleteConfirmation" (click)="cancelDelete()"><section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title" aria-describedby="confirm-delete-description" (click)="$event.stopPropagation()"><div class="confirm-icon">!</div><h3 id="confirm-delete-title">Excluir campo?</h3><p id="confirm-delete-description">O campo <strong>{{selectedName}}</strong> será removido do schema. Essa ação não pode ser desfeita.</p><div class="confirm-actions"><button type="button" class="confirm-cancel" (click)="cancelDelete()">Cancelar</button><button type="button" class="confirm-danger" (click)="deleteConfirmed()">Excluir campo</button></div></section></div>
  </div>`
 })
@@ -437,6 +451,13 @@ export class SchemaBuilderComponent implements OnChanges {
  @Input() mode:'construction'|'dev'='construction';
  @Output() schemaChange=new EventEmitter<Schema>();
  selectedPath='';
+ editorModalOpen=false;
+ private editorSnapshot:Schema|null=null;
+ openFieldEditor(path:string){this.editorSnapshot=structuredClone(this.schema);this.select(path);this.editorModalOpen=true;}
+ openFormEditor(){this.editorSnapshot=structuredClone(this.schema);this.selectForm();this.editorModalOpen=true;}
+ openVisualGroupEditor(id:string){this.editorSnapshot=structuredClone(this.schema);this.selectVisualGroup(id);this.editorModalOpen=true;}
+ saveEditor(){this.editorModalOpen=false;this.editorSnapshot=null;this.editingForm=false;this.selectedGroupId='';}
+ cancelEditor(){if(this.editorSnapshot){this.schema=structuredClone(this.editorSnapshot);this.schemaChange.emit(this.schema);this.rebuild();}this.editorModalOpen=false;this.editorSnapshot=null;this.editingForm=false;this.selectedGroupId='';}
  selectedGroupId='';
  editingForm=false;
  groupAddPickerOpen=false;
