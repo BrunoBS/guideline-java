@@ -1,34 +1,36 @@
 ---
 name: testing-quality
-description: Orientações preliminares de Qualidade e testes para revisões e implementações da Golden Platform; usar quando a tarefa abordar este tema.
+description: Guia de qualidade e testes para implementação e revisão de APIs Java de alta escala com decisões verificáveis.
 ---
 
 # Qualidade e testes
 
-> DRAFT — proposta para revisão, não é política aprovada.
+Status: DRAFT v0.2; engenharia independente, sem substituir políticas Golden.
 
-## Quando usar
-Ao implementar, refatorar ou revisar mudanças que envolvam qualidade e testes.
+## Quando ativar
+Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas a qualidade e testes.
 
-## Instruções provisórias
-Usar JUnit, testes de contrato, integração e Testcontainers, priorizando os módulos platform-testing existentes.
+## Procedimento
+1. Ler contratos, código, configuração, versões e testes relevantes; separar fatos de suposições.
+2. Definir comportamento esperado, requisitos não funcionais e possíveis regressões.
+3. Aplicar os critérios técnicos abaixo e comparar alternativas, inclusive não modificar.
+4. Planejar mudança mínima, validação, observabilidade e rollback.
+5. Produzir relatório de evidências, riscos e limitações.
 
-## Evitar
-Não duplicar fixtures ou subir containers em testes unitários sem necessidade.
+## Critérios técnicos
+1. Selecionar testes unitários para regras puras, slice para wiring, integração para banco/mensageria e contratos para interfaces públicas.
+2. Usar banco real via Testcontainers quando dialeto, constraints, isolamento ou migrations importam.
+3. Cobrir falhas: timeout, concorrência, autorização negada, rollback, duplicidade, ordering e reprocessamento.
+4. Evitar mocks excessivos, testes frágeis e percentuais arbitrários de cobertura como substituto de qualidade.
+5. Exigir fixtures determinísticas, evidência de execução e testes de regressão do bug.
 
-## Checklist de revisão
-- [ ] Conferir documentação Golden aplicável e versão das dependências.
-- [ ] Identificar contratos públicos e compatibilidade retroativa.
-- [ ] Verificar testes, observabilidade e riscos de regressão.
-- [ ] Justificar decisões com evidência técnica.
-- [ ] Registrar conflito em `../DIVERGENCIAS.md` antes de alterar convenções.
+## Entrega obrigatória
+- Contexto, hipóteses e evidências existentes.
+- Recomendação com justificativa e alternativas rejeitadas.
+- Impacto em compatibilidade, carga, segurança e operação.
+- Plano de teste, critérios de aceitação e reversão.
 
-## Documentos a confrontar
-platform-testing-core/authorization/http/kafka/database/aws/azure.
+## Fontes e cautelas
+Fonte: DHA testing; Awesome Java junit5-mockito-testcontainers; módulos platform-testing apenas na fase Golden.
 
-## Referências externas candidatas
-- https://github.com/dunghoangcy-web/ai-skill-java-spring-boot
-- https://github.com/Marisha-Sahay/awesome-java-agent-skills
-- https://github.com/robsonkades/agent-skills
-
-> Fontes candidatas: ainda não incorporadas nem auditadas integralmente quanto a licença e compatibilidade.
+Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
