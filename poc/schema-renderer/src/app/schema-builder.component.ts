@@ -9,6 +9,15 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  standalone:true,
  imports:[CommonModule,FormsModule],
  styles:[`
+ .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+ .builder.simplified:not(.developer-mode) .palette.desktop-palette{display:block;grid-column:1/-1;grid-row:1;order:unset;position:static}
+ .builder.simplified:not(.developer-mode) .palette .palette-item{display:inline-flex;width:auto;min-width:0;flex:1 1 125px;margin:0}
+ .builder.simplified:not(.developer-mode) .palette{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+ .builder.simplified:not(.developer-mode) .palette>strong,.builder.simplified:not(.developer-mode) .palette>.builder-help{flex:0 0 100%;margin:0}
+ .builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2;order:unset}
+ .builder.simplified:not(.developer-mode) .inspector{grid-column:2;grid-row:2;order:unset;position:static;transform:none;width:100%;max-height:none;overflow:visible;box-shadow:none}
+ .builder.simplified:not(.developer-mode):not(:has(.inspector)) .canvas{grid-column:1/-1}
+ @media(max-width:760px){.builder.simplified:not(.developer-mode){grid-template-columns:1fr}.builder.simplified:not(.developer-mode) .palette.desktop-palette{grid-column:1;grid-row:1;display:flex}.builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2}.builder.simplified:not(.developer-mode) .inspector{grid-column:1;grid-row:3}}
  .builder.simplified:has(.canvas):has(.inspector){grid-template-columns:minmax(330px,1fr) minmax(320px,1fr)}
  .builder.simplified:not(.developer-mode){display:grid;grid-template-columns:minmax(0,1.3fr) minmax(240px,.7fr);gap:16px;align-items:start}
  .builder.simplified{display:flex;flex-direction:column;gap:16px}
@@ -104,11 +113,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <button type="button" *ngIf="activeContainerPath" (click)="goToParentContainer()">← Voltar</button>
      <button type="button" *ngIf="selected?.type==='object' && selectedPath" (click)="openSelectedGroup()">Abrir agrupador</button>
      <button type="button" *ngIf="selected && selected.type==='array' && arrayItemType(selected)==='object'" (click)="openArrayItems()">Abrir lista de objetos</button>
-     <button type="button" class="canvas-add-top" (click)="toggleAddMenu()">{{showAddMenu?'Fechar':'＋ Adicionar campo'}}</button>
+
      <span class="builder-help">{{canvasFields.length}} campos</span>
     </div>
    </div>
-   <div class="mobile-palette" *ngIf="showAddMenu">
+   <div class="mobile-palette" *ngIf="false">
     <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
    </div>
    <div class="canvas-fields">
@@ -120,8 +129,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </div>
    <div class="canvas-empty" *ngIf="!canvasFields.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
   </section>
-  <div class="modal-backdrop" *ngIf="mode==='construction' && selectedPath" (click)="select('')"></div>
-  <div class="inspector" [class.field-modal]="mode==='construction'" role="dialog" aria-label="Editar campo" *ngIf="(selectedPath || mode==='dev') && selected as node">
+
+  <div class="inspector" [class.field-modal]="false" *ngIf="(selectedPath || mode==='dev') && selected as node">
    <div class="canvas-header"><strong>Editar campo</strong><button type="button" (click)="select('')">Fechar</button></div>
    <div class="builder-actions">
     <button type="button" *ngIf="node.type==='object'" (click)="addProperty()">+ Propriedade</button>
