@@ -234,6 +234,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified .schema-group .group-heading-copy strong{font-size:16px;color:#243b59}
  .builder.simplified .schema-group .group-heading-description{font-size:13px;font-weight:400;color:#68778f;white-space:normal!important}
  .builder.simplified .schema-group .group-heading-type{flex-shrink:0;color:#243b59;font-weight:700;font-size:13px}
+ .builder.simplified .schema-group .group-inner-panel{margin-top:16px;padding:12px 14px;border:1px solid #dce4ef;border-radius:10px;background:#f8fbff}
+ .builder.simplified .schema-group .group-inner-panel .inline-object-heading{display:flex;align-items:center;gap:12px}
+ .builder.simplified .schema-group .group-inner-panel .inline-object-heading .object-heading-select{flex:1;text-align:left}
+ .builder.simplified .schema-group .group-inner-panel .schema-group-fields{padding:12px 0 0}
+
  .builder.simplified .schema-group .group-heading-controls{display:flex;align-items:center;gap:8px;flex-shrink:0;min-height:44px}
  .builder.simplified .schema-group .group-heading-controls .schema-group-toggle{display:inline-flex;align-items:center;justify-content:center;width:32px;height:36px;padding:0!important;line-height:1}
  .builder.simplified .schema-group .schema-group-select{justify-content:flex-start!important;flex:1;min-width:0}
@@ -312,9 +317,15 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <section class="schema-group" *ngFor="let group of visualGroups" [style.order]="canvasPosition('group:'+group.id)" [class.active]="selectedGroupId===group.id">
       <div class="schema-group-header">
         <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)"><span class="group-heading-copy"><strong>{{group.title||'Novo grupo'}}</strong><span class="group-heading-description">{{group.description||'Grupo de campos'}}</span></span></button>
-        <div class="group-heading-controls"><span class="group-heading-type">group</span><button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)" [attr.aria-label]="collapsedGroups.has(group.id)?'Expandir grupo':'Recolher grupo'">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button></div>
+        <span class="group-heading-type">group</span>
       </div>
-      <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)">
+      <div class="inline-object group-inner-panel">
+        <div class="inline-object-heading">
+          <button type="button" class="object-heading-select" (click)="openVisualGroupEditor(group.id)"><strong>{{group.title||'Novo grupo'}}</strong></button>
+          <span>{{groupFields(group).length}} campo(s)</span>
+          <button type="button" class="object-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)" [attr.aria-label]="collapsedGroups.has(group.id)?'Expandir grupo':'Recolher grupo'">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
+        </div>
+        <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)">
  <div class="group-field-row" *ngFor="let field of groupFields(group)" [class.active]="selectedPath===field.path">
   <div class="group-field-main">
    <button type="button" class="group-field-select" (click)="openFieldEditor(field.path)" title="Clique para configurar"><strong>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></strong><small>{{typeLabel(field.schema)}}</small></button>
@@ -332,6 +343,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   </div>
  </div>
         <div class="inline-object-actions"><button type="button" *ngFor="let kind of groupFieldPalette" (click)="addFieldToGroup(group.id,kind.type)">+ {{kind.label}}</button></div>
+        </div>
       </div>
       <div class="group-footer-actions field-card-tools">
         <button type="button" (click)="moveGroup(group.id,-1)" [disabled]="!canMoveRootItem('group:'+group.id,-1)" aria-label="Subir grupo">↑</button>
