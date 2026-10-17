@@ -467,17 +467,20 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  </div>`
 })
 export class SchemaBuilderComponent implements OnChanges {
- @Input() schema:Schema={type:'object',properties:{}};
+ private persistedSchema:Schema={type:'object',properties:{}};
+ private editorDraft:Schema|null=null;
+ @Input() set schema(value:Schema){this.persistedSchema=value;}
+ get schema():Schema{return this.editorDraft??this.persistedSchema;}
  @Input() mode:'construction'|'dev'='construction';
  @Output() schemaChange=new EventEmitter<Schema>();
  selectedPath='';
  editorModalOpen=false;
- private editorSnapshot:Schema|null=null;
- openFieldEditor(path:string){this.editorSnapshot=structuredClone(this.schema);this.select(path);this.editorModalOpen=true;}
- openFormEditor(){this.editorSnapshot=structuredClone(this.schema);this.selectForm();this.editorModalOpen=true;}
- openVisualGroupEditor(id:string){this.editorSnapshot=structuredClone(this.schema);this.selectVisualGroup(id);this.editorModalOpen=true;}
- saveEditor(){this.editorModalOpen=false;this.editorSnapshot=null;this.editingForm=false;this.selectedGroupId='';}
- cancelEditor(){if(this.editorSnapshot){this.schema=structuredClone(this.editorSnapshot);this.schemaChange.emit(this.schema);this.rebuild();}this.editorModalOpen=false;this.editorSnapshot=null;this.editingForm=false;this.selectedGroupId='';}
+ private beginEditor(){this.editorDraft=structuredClone(this.persistedSchema);this.propertyNameDraft=null;this.propertyNameError='';}
+ openFieldEditor(path:string){this.beginEditor();this.select(path);this.editorModalOpen=true;}
+ openFormEditor(){this.beginEditor();this.selectForm();this.editorModalOpen=true;}
+ openVisualGroupEditor(id:string){this.beginEditor();this.selectVisualGroup(id);this.editorModalOpen=true;}
+ saveEditor(){if(this.propertyNameDraft!==null)this.commitPropertyName();if(this.propertyNameError)return;const draft=this.editorDraft;if(!draft)return;this.editorModalOpen=false;this.editorDraft=null;this.editingForm=false;this.selectedGroupId='';this.persistedSchema=draft;this.rebuild();this.schemaChange.emit(draft);}
+ cancelEditor(){this.editorModalOpen=false;this.editorDraft=null;this.propertyNameDraft=null;this.propertyNameError='';this.editingForm=false;this.selectedGroupId='';this.rebuild();}
  selectedGroupId='';
  editingForm=false;
  groupAddPickerOpen=false;
@@ -689,7 +692,7 @@ export class SchemaBuilderComponent implements OnChanges {
   walk(this.schema,'','Schema',0);
   this.rows=rows;
   if(!this.getNode(this.schema,this.selectedPath))this.selectedPath='';
-  if(this.activeContainerPath&&this.getNodeAt(this.schema,this.activeContainerPath)?.type!=='object'){this.activeContainerPath='';this.containerHistory=[];}
+  if(this.activeContainerPath&&!this.isObjectSchema(this.getNodeAt(this.schema,this.activeContainerPath))){this.activeContainerPath='';this.containerHistory=[];}
  }
  private getNodeAt(root:Schema,path:string):Schema|undefined {
   if(!path||path==='/')return root;
@@ -709,7 +712,8 @@ export class SchemaBuilderComponent implements OnChanges {
  private commit(edit:(root:Schema)=>void){
   const next=structuredClone(this.schema);
   edit(next);
-  this.schema=next;
+  if(this.editorModalOpen&&this.editorDraft){this.editorDraft=next;this.rebuild();return;}
+  this.persistedSchema=next;
   this.rebuild();
   this.schemaChange.emit(next);
  }
