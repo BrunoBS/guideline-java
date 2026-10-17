@@ -37,3 +37,8 @@ DHA security/pentest-readiness; OWASP API Security Top 10.
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de segurança obrigatório
+- Verificar autorização **no acesso ao objeto e na query**, com testes de tenant A→B, identificador enumerado, contexto ausente e troca de contexto entre requisições.
+- Escolher 403/404 conforme contrato de ocultação de existência; não vazar existência, IDs ou detalhes de outro workspace em respostas, logs ou métricas.
+- Rejeitar headers de identidade/tenant não autenticados; exigir proveniência verificável e validar permissões no servidor.
