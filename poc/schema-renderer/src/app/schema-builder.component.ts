@@ -341,13 +341,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <section class="schema-group" *ngFor="let group of visualGroups" [style.order]="canvasPosition('group:'+group.id)" [class.active]="selectedGroupId===group.id">
       <div class="schema-group-header">
         <button type="button" class="schema-group-select" (click)="openVisualGroupEditor(group.id)"><span class="group-heading-copy"><strong>{{group.title||'Novo grupo'}}</strong><span class="group-heading-description">{{group.description||'Grupo de campos'}}</span></span></button>
-        <span class="group-heading-type">group</span>
+        <div class="group-heading-controls"><span class="group-heading-type">group</span><button type="button" class="schema-group-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)" [attr.aria-label]="collapsedGroups.has(group.id)?'Expandir grupo':'Recolher grupo'">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button></div>
       </div>
       <div class="inline-object group-inner-panel">
         <div class="inline-object-heading">
           <button type="button" class="object-heading-select" (click)="openVisualGroupEditor(group.id)"><strong>{{group.title||'Novo grupo'}}</strong></button>
           <span>{{groupFields(group).length}} campo(s)</span>
-          <button type="button" class="object-toggle" (click)="toggleVisualGroupExpanded(group.id)" [attr.aria-expanded]="!collapsedGroups.has(group.id)" [attr.aria-label]="collapsedGroups.has(group.id)?'Expandir grupo':'Recolher grupo'">{{collapsedGroups.has(group.id)?'▸':'▾'}}</button>
         </div>
         <div class="schema-group-fields" *ngIf="!collapsedGroups.has(group.id)">
  <div class="group-field-row" *ngFor="let field of groupFields(group)" [class.active]="selectedPath===field.path">
