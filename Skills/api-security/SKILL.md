@@ -34,3 +34,6 @@ Testes de acesso negado, IDOR/BOLA, contexto ausente, token expirado e rate limi
 DHA security/pentest-readiness; OWASP API Security Top 10.
 
 > Texto original de curadoria, não transcrição de Skill de terceiros. Verificar APIs e versões na documentação oficial antes de gerar código.
+
+## Contrato operacional e exemplos
+Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
