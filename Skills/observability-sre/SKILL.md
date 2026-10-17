@@ -37,3 +37,8 @@ Spring Boot 4 Actuator observability/tracing/metrics, OpenTelemetry, DHA logging
 
 ## Contrato operacional e exemplos
 Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
+
+## Gate de privacidade e cardinalidade
+- Não usar IDs de usuário ou workspace como labels de métricas.
+- Propagar trace context entre HTTP, async e mensagens sem registrar tokens.
+- Validar alertas com sintomas de usuário, orçamento de erro e runbook.
