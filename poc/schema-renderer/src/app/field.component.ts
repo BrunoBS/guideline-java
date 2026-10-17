@@ -419,11 +419,11 @@ export class FieldComponent {
  arrayWidget(s:Schema):string{return s['x-ui']?.widget||'list';}
  multiOptionLabel(s:Schema,option:any):string{return String((s['x-ui']?.options||[]).find((entry:any)=>Object.is(entry.value,option))?.label??option);}
  filteredMultiOptions(s:Schema):any[]{const options=this.multiSelectOptions(s);return this.arrayWidget(s)==='multiselect'&&this.multiSearch?options.filter(option=>this.multiOptionLabel(s,option).toLowerCase().includes(this.multiSearch.toLowerCase())):options;}
- isMultiSelect(s:Schema){const item=arrayItemSchema(s,0,this.root);return !s.prefixItems&&Array.isArray(item.enum)&&item.enum.length>0&&this.arrayWidget(s)!=='list';}
+ isMultiSelect(s:Schema){const item=arrayItemSchema(s,0,this.root);return !s.prefixItems&&this.arrayWidget(s)!=='list'&&Array.isArray(item.enum)&&item.enum.length>0;}
  multiSelectOptions(s:Schema):any[]{return arrayItemSchema(s,0,this.root).enum||[];}
  isMultiSelected(option:any){return this.arrayValue.some(value=>Object.is(value,option));}
  isMultiDisabled(s:Schema,option:any){return !this.isMultiSelected(option)&&s.maxItems!==undefined&&this.arrayValue.length>=s.maxItems;}
- toggleMultiSelect(option:any,checked:boolean){const next=checked?[...this.arrayValue.filter(value=>!Object.is(value,option)),option]:this.arrayValue.filter(value=>!Object.is(value,option));this.emit(next);}
+ toggleMultiSelect(option:any,checked:boolean){const selected=this.arrayValue.filter(value=>!Object.is(value,option));const next=checked?[...selected,option]:selected;this.emit(next);}
  itemSchema(s:Schema,index:number){return arrayItemSchema(s,index,this.root);}
  hasTuple(s:Schema){return Array.isArray(s.prefixItems)&&s.prefixItems.length>0;}
  canAddArrayItem(s:Schema){if(s.maxItems!==undefined&&this.arrayValue.length>=s.maxItems)return false;return !isFalseSchema(arrayItemSchema(s,this.arrayValue.length,this.root));}
