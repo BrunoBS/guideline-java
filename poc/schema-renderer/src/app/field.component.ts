@@ -65,11 +65,11 @@ import {
               <h3>{{group.title||'Grupo'}}</h3>
               <p *ngIf="group.description">{{group.description}}</p>
               <div *ngFor="let key of group.fields" class="field">
-                <app-field *ngIf="v.properties?.[key]" [name]="key" [schema]="v.properties[key]" [root]="root" [value]="objectValue?.[key]" [required]="(v.required||[]).includes(key)" [issues]="issues" [path]="childPath(key)" (valueChange)="updateKey(key,$event)"></app-field>
+                <app-field *ngIf="v.properties?.[key]" [name]="key" [schema]="v.properties[key]" [root]="root" [value]="objectValue[key]" [required]="(v.required||[]).includes(key)" [issues]="issues" [path]="childPath(key)" (valueChange)="updateKey(key,$event)"></app-field>
               </div>
             </section>
             <div *ngFor="let item of ungroupedEntries(v);trackBy:trackKey" class="field">
-              <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue?.[item[0]]" [required]="(v.required||[]).includes(item[0])" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
+              <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue[item[0]]" [required]="(v.required||[]).includes(item[0])" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
             </div>
 
             <section class="additional-properties-section" *ngIf="hasDynamicProperties(v)">
