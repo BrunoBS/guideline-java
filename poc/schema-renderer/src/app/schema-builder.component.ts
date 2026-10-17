@@ -103,6 +103,19 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified:not(.developer-mode) .inspector{grid-column:2;grid-row:2;order:unset;position:static;transform:none;width:100%;max-height:none;overflow:visible;box-shadow:none}
  .builder.simplified:not(.developer-mode):not(:has(.inspector)) .canvas{grid-column:1/-1}
  @media(max-width:760px){.builder.simplified:not(.developer-mode){grid-template-columns:1fr}.builder.simplified:not(.developer-mode) .palette.desktop-palette{grid-column:1;grid-row:1;display:flex}.builder.simplified:not(.developer-mode) .canvas{grid-column:1;grid-row:2}.builder.simplified:not(.developer-mode) .inspector{grid-column:1;grid-row:3}}
+
+ .builder.simplified:not(.developer-mode) .editor-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+ .builder.simplified:not(.developer-mode) .editor-heading strong{font-size:18px}
+ .builder.simplified:not(.developer-mode) .editor-close{background:transparent;border:0;color:#63738b;font-size:26px;line-height:1;padding:4px 8px;cursor:pointer;border-radius:6px}
+ .builder.simplified:not(.developer-mode) .editor-close:hover{background:#f1f4f9}
+ .builder.simplified:not(.developer-mode) .editor-tabs{display:flex;gap:18px;padding:0;border:0;border-bottom:1px solid #dce4ef;margin:0 0 18px}
+ .builder.simplified:not(.developer-mode) .editor-tabs button{background:transparent;border:0;border-bottom:2px solid transparent;border-radius:0;padding:11px 3px;font-size:14px;font-weight:500;color:#64748b;cursor:pointer}
+ .builder.simplified:not(.developer-mode) .editor-tabs button.active{background:transparent;border-bottom-color:#2455b5;color:#17448c;font-weight:700}
+ .builder.simplified:not(.developer-mode) .inspector{padding:20px}
+ .builder.simplified:not(.developer-mode) .inspector label{font-size:13px}
+ .builder.simplified:not(.developer-mode) .editor-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid #e5eaf2;padding-top:14px;margin-top:22px}
+ .builder.simplified:not(.developer-mode) .editor-footer span{font-size:12px;color:#718096}
+ .builder.simplified:not(.developer-mode) .editor-delete{background:transparent;border:0;padding:5px;color:#b42318;font-size:13px;cursor:pointer}
  `],
  template:`
  <div class="builder simplified">
@@ -144,13 +157,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   </section>
 
   <div class="inspector" [class.field-modal]="false" *ngIf="(selectedPath || mode==='dev') && selected as node">
-   <div class="canvas-header"><strong>Editar campo</strong><button type="button" (click)="select('')">Fechar</button></div>
-   <div class="builder-actions">
+   <div class="editor-heading"><strong>Editar campo</strong><button type="button" class="editor-close" aria-label="Fechar edição" title="Fechar edição" (click)="select('')">×</button></div>
+   <div class="builder-actions" *ngIf="mode==='dev'">
     <button type="button" *ngIf="node.type==='object'" (click)="addProperty()">+ Propriedade</button>
     <button type="button" *ngIf="node.type==='array'" (click)="addItems()">+ Definir items</button>
     <button type="button" *ngIf="selectedPath!==''" (click)="removeSelected()">Excluir nó</button>
    </div>
-   <nav class="editor-tabs" *ngIf="mode==='construction'" aria-label="Seções do editor"><button type="button" [class.active]="editorTab==='property'" (click)="editorTab='property'">Dados da propriedade</button><button type="button" [class.active]="editorTab==='validation'" (click)="editorTab='validation'">Validações</button></nav>
+   <nav class="editor-tabs" *ngIf="mode==='construction'" aria-label="Seções do editor"><button type="button" [class.active]="editorTab==='property'" (click)="editorTab='property'">Propriedade</button><button type="button" [class.active]="editorTab==='validation'" (click)="editorTab='validation'">Validações</button></nav>
    <div *ngIf="mode==='dev' || editorTab==='property'">
    <label *ngIf="isPropertySelected">Nome da propriedade
     <input [ngModel]="selectedName" (change)="renameSelected($any($event.target).value)"/>
@@ -263,6 +276,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <p class="builder-help">Os campos não suportados visualmente são preservados. Enum deve conter valores JSON válidos, um por linha.</p>
    </ng-container>
    <p class="builder-error" *ngIf="error">{{error}}</p>
+   <div class="editor-footer" *ngIf="mode==='construction' && selectedPath"><button type="button" class="editor-delete" (click)="confirmDeleteSelected()">♲ Excluir campo</button><span>Alterações salvas automaticamente</span></div>
   </div>
  </div>`
 })
@@ -282,6 +296,7 @@ export class SchemaBuilderComponent implements OnChanges {
  showAddMenu=false;
  showAdvanced=false;
  editorTab:'property'|'validation'='property';
+ confirmDeleteSelected(){if(typeof window!=='undefined' && window.confirm('Excluir este campo do schema?'))this.removeSelected();}
  showStructure=false;
  palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'group',label:'Grupo',icon:'▣'},{type:'array',label:'Lista',icon:'☷'},{type:'array-object',label:'Lista agrupada',icon:'☷▣'}];
  get canvasFields(){
