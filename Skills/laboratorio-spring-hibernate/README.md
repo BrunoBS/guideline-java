@@ -7,7 +7,7 @@ cd Skills/laboratorio-spring-hibernate
 mvn -B -ntp verify
 ```
 
-**Status inicial: NÃO EXECUTADO.** O teste `rollsBackTransactionalServiceOperationOnFailure` é explicitamente placeholder e não deve contar como validação de rollback. N+1 também **não foi implementado**; exige associação real e contagem de statements, sem usar Hibernate estatísticas como prova por si só.
+**Status inicial: NÃO EXECUTADO.** O teste `rollsBackTransactionalServiceOperationOnFailure` exercita um serviço `@Transactional` que executa `saveAndFlush` e lança exceção, verificando rollback. N+1 **não foi implementado**; exige associação real e contagem de statements, sem usar Hibernate estatísticas como prova por si só.
 
 ### Fontes primárias
 - https://docs.spring.io/spring-boot/4.0/reference/testing/index.html
