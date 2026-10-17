@@ -39,3 +39,6 @@ DHA architecture, Redis docs, distributed systems.
 TTL jitter não resolve hot key isolada; diferenciar single-flight local, coordenação distribuída e stale.
 
 Ler [playbook especializado](references/STAMPEDE-AND-CONSISTENCY.md) antes de emitir recomendação ou alterar código. Exigir evidência e critérios de aceitação específicos do playbook.
+
+## Contrato operacional e exemplos
+Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Exemplos didáticos: validar versão, imports, testes, segurança, rollback e evidências antes de recomendar adoção.
