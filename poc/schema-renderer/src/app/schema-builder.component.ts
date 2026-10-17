@@ -242,6 +242,10 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified .canvas-field-card:has(> .inline-object) > .field-card-tools{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding:6px 4px}
  .builder.simplified .canvas-field-card:has(> .inline-object) > .canvas-field .canvas-field-meta:last-child{display:none}
  .builder.simplified .canvas-field-card.schema-group{margin-bottom:12px}
+ .builder.simplified .canvas-field-card.schema-group.active{border:1px solid #2455b5;background:#f8fbff}
+ .builder.simplified .canvas-field-card.schema-group:not(.active){border:1px solid #cbd8ea;background:#f8fbff}
+ .builder.simplified .canvas-field-card.schema-group > .group-inner-panel{background:#f8fbff}
+
  .builder.simplified .canvas-field-card.schema-group > .schema-group-header{display:flex;align-items:flex-start;gap:10px}
  .builder.simplified .canvas-field-card.schema-group > .schema-group-header .schema-group-select{display:flex!important;flex:1;min-width:0;align-items:flex-start!important;justify-content:flex-start!important;padding:8px 10px!important;min-height:68px!important}
  .builder.simplified .canvas-field-card.schema-group > .schema-group-header .group-heading-copy{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0;white-space:normal}
