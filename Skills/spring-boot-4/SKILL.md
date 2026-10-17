@@ -1,34 +1,36 @@
 ---
 name: spring-boot-4
-description: Orientações preliminares de Spring Boot 4 para revisões e implementações da Golden Platform; usar quando a tarefa abordar este tema.
+description: Guia de spring boot 4 para implementação e revisão de APIs Java de alta escala com decisões verificáveis.
 ---
 
 # Spring Boot 4
 
-> DRAFT — proposta para revisão, não é política aprovada.
+Status: DRAFT v0.2; engenharia independente, sem substituir políticas Golden.
 
-## Quando usar
-Ao implementar, refatorar ou revisar mudanças que envolvam spring boot 4.
+## Quando ativar
+Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas a spring boot 4.
 
-## Instruções provisórias
-Verificar mudanças de starters, módulos, configurações e testes na documentação oficial antes de sugerir código.
+## Procedimento
+1. Ler contratos, código, configuração, versões e testes relevantes; separar fatos de suposições.
+2. Definir comportamento esperado, requisitos não funcionais e possíveis regressões.
+3. Aplicar os critérios técnicos abaixo e comparar alternativas, inclusive não modificar.
+4. Planejar mudança mínima, validação, observabilidade e rollback.
+5. Produzir relatório de evidências, riscos e limitações.
 
-## Evitar
-Não copiar exemplos de Boot 3 sem revisão de compatibilidade.
+## Critérios técnicos
+1. Ler parent/BOM e dependências efetivas; confirmar módulos e starters na documentação da versão alvo.
+2. Definir DTOs e validação nas fronteiras, separar contratos HTTP de domínio e persistência.
+3. Usar injeção por construtor; configuração tipada; evitar lógica de negócio em @Configuration e controllers.
+4. Revisar transações, proxies/AOP, propagação de contexto e efeitos de @Async.
+5. Garantir Actuator, readiness/liveness, métricas e tracing sem expor endpoints administrativos.
 
-## Checklist de revisão
-- [ ] Conferir documentação Golden aplicável e versão das dependências.
-- [ ] Identificar contratos públicos e compatibilidade retroativa.
-- [ ] Verificar testes, observabilidade e riscos de regressão.
-- [ ] Justificar decisões com evidência técnica.
-- [ ] Registrar conflito em `../DIVERGENCIAS.md` antes de alterar convenções.
+## Entrega obrigatória
+- Contexto, hipóteses e evidências existentes.
+- Recomendação com justificativa e alternativas rejeitadas.
+- Impacto em compatibilidade, carga, segurança e operação.
+- Plano de teste, critérios de aceitação e reversão.
 
-## Documentos a confrontar
-platform-parent, Spring modules, platform-libraries.
+## Fontes e cautelas
+Fonte: DHA spring-boot e openapi-contract; Spring Boot 4 reference.
 
-## Referências externas candidatas
-- https://github.com/dunghoangcy-web/ai-skill-java-spring-boot
-- https://github.com/Marisha-Sahay/awesome-java-agent-skills
-- https://github.com/robsonkades/agent-skills
-
-> Fontes candidatas: ainda não incorporadas nem auditadas integralmente quanto a licença e compatibilidade.
+Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
