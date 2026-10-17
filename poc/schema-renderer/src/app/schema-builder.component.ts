@@ -248,7 +248,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <span class="canvas-field-meta">{{field.schema.description||field.label}}</span>
   <span class="canvas-field-meta">{{field.required?'Obrigatório':'Opcional'}} · Clique para configurar</span>
  </button>
-  <div class="inline-object" *ngIf="field.schema.type==='object'">
+  <div class="inline-object" *ngIf="this.isObjectSchema(field.schema)">
   <div class="inline-object-heading"><strong>Atributos do objeto</strong><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
   <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
    <button type="button" (click)="select(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
@@ -294,7 +294,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <p class="editor-empty" *ngIf="mode==='construction' && !selectedPath">Selecione um campo em Campos do schema para editar suas propriedades e validações.</p>
    <div *ngIf="mode==='dev' || selectedPath">
    <div class="builder-actions" *ngIf="mode==='dev'">
-    <button type="button" *ngIf="node.type==='object'" (click)="addProperty()">+ Propriedade</button>
+    <button type="button" *ngIf="this.isObjectSchema(node)" (click)="addProperty()">+ Propriedade</button>
     <button type="button" *ngIf="node.type==='array'" (click)="addItems()">+ Definir items</button>
     <button type="button" *ngIf="selectedPath!==''" (click)="removeSelected()">Excluir nó</button>
    </div>
@@ -358,12 +358,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     </ng-container>
    </div>
    <label *ngIf="node.type==='array'" class="required-switch-label validation-switch"><span>Itens únicos</span><input type="checkbox" class="required-switch-input" [ngModel]="!!node.uniqueItems" (ngModelChange)="setBoolean('uniqueItems',$event)" role="switch" [attr.aria-checked]="!!node.uniqueItems"/><span class="required-switch-track" aria-hidden="true"></span></label>
-   <div class="rule-grid" *ngIf="node.type==='object'">
+   <div class="rule-grid" *ngIf="this.isObjectSchema(node)">
     <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
     <label>Máximo de propriedades<input type="number" min="0" step="1" [ngModel]="node.maxProperties" (ngModelChange)="setNumber('maxProperties',$event,0,true)"/></label>
    </div>
    <p class="validation-help" *ngIf="node.type==='array' && arrayItemType(node)==='object'">Para adicionar propriedades aos objetos, selecione a lista e clique em Abrir lista de objetos.</p>
-   <label *ngIf="node.type==='object'" class="required-switch-label validation-switch"><span>Permitir propriedades adicionais</span><input type="checkbox" class="required-switch-input" [ngModel]="node.additionalProperties!==false" (ngModelChange)="setBoolean('additionalProperties',$event)" role="switch" [attr.aria-checked]="node.additionalProperties!==false"/><span class="required-switch-track" aria-hidden="true"></span></label>
+   <label *ngIf="this.isObjectSchema(node)" class="required-switch-label validation-switch"><span>Permitir propriedades adicionais</span><input type="checkbox" class="required-switch-input" [ngModel]="node.additionalProperties!==false" (ngModelChange)="setBoolean('additionalProperties',$event)" role="switch" [attr.aria-checked]="node.additionalProperties!==false"/><span class="required-switch-track" aria-hidden="true"></span></label>
    <p class="validation-help" *ngIf="node.type==='boolean'">Este campo aceita apenas verdadeiro ou falso. Não há restrições adicionais necessárias para validar o tipo.</p>
    <h4 class="rule-heading" *ngIf="node.type==='string' || node.type==='integer' || node.type==='number'">Valores permitidos</h4>
    <label *ngIf="node.type==='string' || node.type==='integer' || node.type==='number'">Enum (um valor JSON por linha)
@@ -402,8 +402,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     </select>
    </label>
    <p class="builder-help">Referências externas existentes são preservadas. Para criá-las, use o editor avançado.</p>
-   <h4 class="rule-heading" *ngIf="node.type==='object'">Propriedades dinâmicas</h4>
-   <ng-container *ngIf="node.type==='object'">
+   <h4 class="rule-heading" *ngIf="this.isObjectSchema(node)">Propriedades dinâmicas</h4>
+   <ng-container *ngIf="this.isObjectSchema(node)">
     <div class="composition-actions"><input aria-label="Expressão regular da chave" placeholder="Ex.: ^custom_" [(ngModel)]="newPatternName"/><button type="button" (click)="addNamedSchema('patternProperties')">+ Padrão de chave</button></div>
     <div *ngFor="let entry of entries(node.patternProperties)" class="composition-row">
      <button type="button" class="tree-row" (click)="select(selectedPath+'/patternProperties/'+escapePath(entry[0]))">{{entry[0]}}</button>
@@ -494,7 +494,7 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  openContainer(path:string){
   const node=this.getNodeAt(this.schema,path);
-  if(node?.type!=='object'){this.error='Só é possível abrir um agrupador do tipo objeto.';return;}
+  if(!this.isObjectSchema(node)){this.error='Só é possível abrir um agrupador do tipo objeto.';return;}
   this.containerHistory.push(this.activeContainerPath);
   this.activeContainerPath=path;
   this.selectedGroupId='';
@@ -532,11 +532,11 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  inlineTypes=[{type:'string',label:'Texto'},{type:'integer',label:'Inteiro'},{type:'number',label:'Decimal'},{type:'boolean',label:'Sim/Não'},{type:'array',label:'Lista'}];
  objectChildren(path:string){const node=this.getNodeAt(this.schema,path);return Object.entries(node?.properties||{}).map(([key,schema])=>({path:path+'/properties/'+this.escape(key),label:key,schema:schema as Schema}));}
- addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||node.type!=='object')return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;});}
+ addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||!this.isObjectSchema(node))return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;});}
  addTypedProperty(type:string){
   const targetPath=this.activeContainerPath;
   const node=this.getNodeAt(this.schema,targetPath);
-  if(!node||node.type!=='object'){this.error='Selecione um objeto para adicionar campos.';return;}
+  if(!node||!this.isObjectSchema(node)){this.error='Selecione um objeto para adicionar campos.';return;}
   this.error='';
   if(type==='group'){
    this.commit(root=>{const target=this.getNodeAt(root,targetPath)!;target['x-ui']??={};target['x-ui'].groups??=[];const groups=target['x-ui'].groups;groups.push({id:'grupo-'+Date.now().toString(36)+'-'+groups.length,title:'Novo grupo',description:'',fields:[]});this.selectedGroupId=groups[groups.length-1].id;this.selectedPath='';});
@@ -609,6 +609,7 @@ export class SchemaBuilderComponent implements OnChanges {
  private segments(path:string){return path.split('/').slice(1).map(x=>x.replace(/~1/g,'/').replace(/~0/g,'~'));}
  private escape(key:string){return key.replace(/~/g,'~0').replace(/\//g,'~1');}
  private getNode(root:Schema,path:string):Schema|undefined {return this.getNodeAt(root,path);}
+ isObjectSchema(node:Schema|undefined):boolean{return !!node && (node.type==='object'||(Array.isArray(node.type)&&node.type.includes('object')));}
  get selected(){return this.getNode(this.schema,this.selectedPath);}
  isNullableField(node:Schema){return Array.isArray(node.type)&&node.type.includes('null');}
  setNullableField(enabled:boolean){this.commit(root=>{const node=this.current(root);if(!node)return;const types=Array.isArray(node.type)?node.type.filter((type:string)=>type!=='null'):node.type?[node.type]:[];node.type=enabled?[...types,'null']:types.length===1?types[0]:types;});}
@@ -626,7 +627,7 @@ export class SchemaBuilderComponent implements OnChanges {
   const walk=(node:Schema,path:string,label:string,depth:number,required=false)=>{
    if(depth>20)return;
    rows.push({path,label,depth,schema:node,required});
-   if(node.type==='object'&&node.properties)for(const [key,child] of Object.entries(node.properties)){
+   if(this.isObjectSchema(node)&&node.properties)for(const [key,child] of Object.entries(node.properties)){
     if(child&&typeof child==='object'&&!Array.isArray(child))walk(child as Schema,path+'/properties/'+this.escape(key),key,depth+1,(node.required||[]).includes(key));
    }
    if(node.type==='array'&&node.items&&typeof node.items==='object'&&!Array.isArray(node.items))walk(node.items,path+'/items','items',depth+1);
@@ -665,7 +666,7 @@ export class SchemaBuilderComponent implements OnChanges {
  private current(root:Schema){return this.getNodeAt(root,this.selectedPath);}
  addProperty(){
   this.error='';
-  const node=this.selected;if(!node||node.type!=='object')return;
+  const node=this.selected;if(!node||!this.isObjectSchema(node))return;
   this.commit(root=>{
    const target=this.current(root)!;
    target.properties??={};
