@@ -355,7 +355,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="field-card-tools"><button type="button" (click)="moveCanvasField(field.path,-1)" [disabled]="!canMoveCanvasField(field.path,-1)" aria-label="Subir campo">↑</button><button type="button" (click)="moveCanvasField(field.path,1)" [disabled]="!canMoveCanvasField(field.path,1)" aria-label="Descer campo">↓</button><button type="button" (click)="confirmDeleteField(field.path)" title="Excluir campo" aria-label="Excluir campo"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
   </div>
   <div class="inline-object group-nested-object" *ngIf="isObjectSchema(field.schema)">
-   <div class="inline-object-heading"><button type="button" class="object-heading-select" (click)="openFieldEditor(field.path)"><strong>{{field.schema.title||field.label}}</strong></button><span>{{objectChildren(field.path).length}} atributo(s)</span><button type="button" class="object-toggle" (click)="toggleObjectExpanded(field.path)" [attr.aria-expanded]="!collapsedObjects.has(field.path)" [attr.aria-label]="collapsedObjects.has(field.path)?'Mostrar atributos':'Ocultar atributos'">{{collapsedObjects.has(field.path)?'▸':'▾'}}</button></div>
+   <div class="inline-object-heading"><button type="button" class="object-heading-select" (click)="openFieldEditor(field.path)"><strong>{{field.schema.title||field.label}}</strong></button><span>{{objectChildren(field.path).length}} atributo(s)</span></div>
   <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
    <div class="inline-object-child" *ngFor="let child of objectChildren(field.path)">
     <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
@@ -377,7 +377,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 <div class="canvas-field-card" [class.schema-group]="isObjectSchema(field.schema)" *ngFor="let field of ungroupedCanvasFields" [style.order]="canvasPosition('field:'+propertyKey(field.path))" [class.active]="selectedPath===field.path">
  <div class="schema-group-header" *ngIf="isObjectSchema(field.schema); else regularFieldHeader">
    <button type="button" class="schema-group-select" (click)="openFieldEditor(field.path)"><span class="group-heading-copy"><strong>{{field.schema.title||field.label}} <span *ngIf="field.required">*</span></strong><span class="group-heading-description">{{field.schema.description||''}}</span></span></button>
-   <span class="group-heading-type">object</span>
+   <div class="group-heading-controls"><span class="group-heading-type">object</span><button type="button" class="schema-group-toggle" (click)="toggleObjectExpanded(field.path)" [attr.aria-expanded]="!collapsedObjects.has(field.path)" [attr.aria-label]="collapsedObjects.has(field.path)?'Mostrar atributos':'Ocultar atributos'">{{collapsedObjects.has(field.path)?'▸':'▾'}}</button></div>
  </div>
  <ng-template #regularFieldHeader>
    <button type="button" class="canvas-field" (click)="openFieldEditor(field.path)">
