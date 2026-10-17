@@ -10,13 +10,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  imports:[CommonModule,FormsModule],
  styles:[`
  .builder.simplified:has(.canvas):has(.inspector){grid-template-columns:minmax(330px,1fr) minmax(320px,1fr)}
- .builder.simplified{grid-template-columns:minmax(330px,1fr) minmax(320px,1fr)}
+ .builder.simplified{display:flex;flex-direction:column;gap:16px}
  .builder.simplified.developer-mode{grid-template-columns:minmax(260px,.8fr) minmax(360px,1.2fr)}
  .builder.simplified.developer-mode .palette{grid-column:1;grid-row:1}
  .builder.simplified.developer-mode .inspector{grid-column:2;grid-row:1}
- .builder.simplified .palette{grid-column:1;grid-row:2;position:static}
- .builder.simplified .canvas{grid-column:1;grid-row:1;min-height:340px}
- .builder.simplified .inspector{grid-column:2;grid-row:1 / span 2}
+ .builder.simplified .palette{order:2;position:static;width:100%;box-sizing:border-box}
+ .builder.simplified .canvas{order:1;min-height:0;width:100%;box-sizing:border-box}
+ .builder.simplified .inspector{order:3;position:static;max-height:none;width:100%;box-sizing:border-box}
  @media(max-width:760px){.builder.simplified.developer-mode{grid-template-columns:1fr}.builder.simplified.developer-mode .palette,.builder.simplified.developer-mode .inspector{grid-column:1;grid-row:auto}.builder.simplified{grid-template-columns:1fr}.builder.simplified .palette,.builder.simplified .canvas,.builder.simplified .inspector{grid-column:1;grid-row:auto}.builder.simplified .palette.desktop-palette{display:none}.builder.simplified .canvas-header{position:sticky;top:0;z-index:8;padding:8px;background:#fbfcff;border-bottom:1px solid #e3e9f2}.builder.simplified .canvas-header>.builder-actions{justify-content:flex-end}.builder.simplified .canvas-header .builder-help{display:none}.builder.simplified .canvas-add-top{white-space:nowrap}.builder.simplified .mobile-palette{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0 0 12px;padding:10px;border:1px solid #d9dfe9;border-radius:10px;background:#fff}.builder.simplified .mobile-palette .palette-item{margin:0;min-width:0;padding:9px 7px;font-size:13px}}
  .builder{display:grid;grid-template-columns:minmax(180px,.72fr) minmax(300px,1.4fr) minmax(280px,1.12fr);gap:16px;align-items:start}
  .palette,.canvas{border:1px solid #d9dfe9;border-radius:12px;padding:18px;background:#fff;min-width:0}
