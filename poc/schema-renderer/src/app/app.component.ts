@@ -12,6 +12,9 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
  standalone:true,
  imports:[CommonModule,FormsModule,FieldComponent,SchemaBuilderComponent],
  styles:[`
+  .builder-vertical{display:flex;flex-direction:column;gap:24px}
+  .builder-live-form,.builder-construction{border:1px solid #d7dfec;border-radius:14px;padding:22px;background:#fff;min-width:0}
+  .builder-live-form{min-height:160px}
   .studio-tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #d7dfec;margin:18px 0 22px;padding-bottom:10px}
   .studio-tabs button{border:1px solid transparent;border-radius:9px;padding:11px 16px;background:transparent;color:#4b5b75;cursor:pointer;font-weight:600}
   .studio-tabs button.active{background:#eaf1ff;border-color:#b4c8ee;color:#003399}
@@ -137,7 +140,17 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
       <textarea id="builder-import" class="editor" [(ngModel)]="builderImportSource"></textarea>
       <button type="button" (click)="importBuilderSchema()">Validar e importar</button>
     </div>
-    <app-schema-builder *ngIf="builderTab==='construction'" mode="construction" [schema]="schema" (schemaChange)="builderChanged($event)"></app-schema-builder>
+    <div class="builder-vertical" *ngIf="builderTab==='construction'">
+      <section class="builder-live-form" aria-label="Formulário em tempo real">
+        <div class="section-heading"><div><h4>Formulário em tempo real</h4><p>Veja como o formulário ficará enquanto adiciona e configura os campos.</p></div></div>
+        <app-field *ngIf="schema" [schema]="schema" [root]="schema" [value]="value" [required]="true" [issues]="issues" path="" (valueChange)="changed($event)"></app-field>
+        <div class="validation-summary" *ngIf="errors.length"><h4>Validação</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
+      </section>
+      <section class="builder-construction" aria-label="Opções de construção">
+        <div class="section-heading"><div><h4>Construir formulário</h4><p>Adicione campos, agrupadores e listas. Selecione um campo para configurar suas regras.</p></div></div>
+        <app-schema-builder mode="construction" [schema]="schema" (schemaChange)="builderChanged($event)"></app-schema-builder>
+      </section>
+    </div>
     <div class="schema-preview-layout" *ngIf="builderTab==='dev'">
       <div class="schema-editor-column">
         <div class="section-heading">
