@@ -42,3 +42,12 @@ Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e co
 - Verificar autorização **no acesso ao objeto e na query**, com testes de tenant A→B, identificador enumerado, contexto ausente e troca de contexto entre requisições.
 - Escolher 403/404 conforme contrato de ocultação de existência; não vazar existência, IDs ou detalhes de outro workspace em respostas, logs ou métricas.
 - Rejeitar headers de identidade/tenant não autenticados; exigir proveniência verificável e validar permissões no servidor.
+
+## Gate de autorização multi-contexto
+- Definir matriz `principal × workspace × application × environment × resource × action`; especificar herança de grupos, revogação e comportamento de acesso parcial antes de implementar.
+- Resolver identidade de JWT/OIDC validado (assinatura, issuer, audience, expiração e algoritmo permitido). Headers de workspace/aplicação/ambiente são contexto solicitado, nunca prova de autorização.
+- Verificar autorização em consulta, detalhe, listagem, count, export, cache, eventos e segunda fase de paginação; filtros globais não substituem testes negativos.
+- Para cada operação, testar usuário sem acesso, acesso a outro tenant, troca de contexto na mesma sessão, token expirado, recurso inexistente e permissão revogada.
+- Cache de permissões exige escopo por identidade/contexto, política explícita de invalidação/revogação e fail-closed quando apropriado.
+- Separar 401 (não autenticado), 403 (autenticado sem permissão) e 404 (ocultação de existência) conforme contrato; nunca usar 204 para encobrir erro de segurança sem decisão de produto documentada.
+- Evidência mínima: teste de cadeia de filtros Spring, consultas SQL com escopo, matriz de autorização e testes BOLA/IDOR negativos.
