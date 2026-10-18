@@ -476,12 +476,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     </div>
    </section>
 
-   <section class="condition-card" *ngFor="let alternative of canvasOneOfRules">
+   <section class="condition-card" *ngFor="let alternative of canvasOneOfRules; trackBy:trackOneOfRule">
     <div class="condition-title"><strong>Alternativas exclusivas — oneOf</strong><button type="button" (click)="removeOneOfRule(alternative.index)">Excluir</button></div>
     <p class="builder-help">Exatamente uma das alternativas precisa ser válida. Use valores diferentes do mesmo campo para torná-las exclusivas.</p>
     <label>Campo de escolha<select [ngModel]="oneOfField(alternative.schema)" (ngModelChange)="setOneOfField(alternative.index,$event)"><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
     <div class="condition-branches">
-     <div class="condition-branch" *ngFor="let option of oneOfOptions(alternative.schema); let i=index">
+     <div class="condition-branch" *ngFor="let option of oneOfOptions(alternative.schema); let i=index; trackBy:trackIndex">
       <strong>Alternativa {{i+1}}</strong>
       <label>Valor que identifica a alternativa<input [ngModel]="oneOfOptionValue(option)" (ngModelChange)="setOneOfValue(alternative.index,i,$event)"></label>
       <label>Campo obrigatório<select #requiredAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
@@ -800,7 +800,17 @@ export class SchemaBuilderComponent implements OnChanges {
  addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.preserveScrollAfter(()=>this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||!this.isObjectSchema(node))return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='object'?{type:'object',title:key,properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;}));}
 
 
- get canvasOneOfRules():{index:number;schema:Schema}[]{return (this.schema.oneOf? [{index:0,schema:this.schema}]:[]);}
+ private oneOfCacheSchema:Schema|undefined;
+ private oneOfCacheRules:{index:number;schema:Schema}[]=[];
+ get canvasOneOfRules():{index:number;schema:Schema}[]{
+  const schema=this.schema;
+  if(schema!==this.oneOfCacheSchema){
+   this.oneOfCacheSchema=schema;
+   this.oneOfCacheRules=Array.isArray(schema.oneOf)&&schema.oneOf.length?[{index:0,schema}]:[];
+  }
+  return this.oneOfCacheRules;
+ }
+ trackOneOfRule(_index:number,rule:{index:number;schema:Schema}){return rule.index;}
  addOneOfRule(){
   if(this.schema.oneOf){this.error='Já existe uma regra de alternativas. Edite as alternativas existentes.';return;}
   const field=this.conditionAvailableFields[0];if(!field)return;
