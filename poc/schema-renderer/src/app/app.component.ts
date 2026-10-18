@@ -234,12 +234,49 @@ export class AppComponent {
   try{const parsed=this.parseSchemaSource();this.schema=structuredClone(parsed);this.builderError='';this.area='builder';}
   catch(error){this.builderError=this.schemaErrorMessage(error);this.area='renderer';this.activeTab=1;this.parseError=this.builderError;}
  }
+ private normalizeImportedBuilderSchema(schema:Schema):Schema{
+  const result:Schema=structuredClone(schema);
+  if(result.type!=='object')return result;
+  result.properties??={};
+  // Campos presentes apenas nos ramos também fazem parte da estrutura
+  // do formulário. Com additionalProperties:false, eles precisam estar
+  // declarados em properties da raiz para serem aceitos pelo contrato.
+  const definitions=new Map<string,Schema[]>();
+  const visit=(node:any,depth=0)=>{
+   if(!node||typeof node!=='object'||depth>20)return;
+   for(const branch of ['then','else']){
+    const part=node[branch];
+    if(part&&typeof part==='object'){
+     for(const [key,definition] of Object.entries(part.properties||{})){
+      if(definition&&typeof definition==='object'&&!Array.isArray(definition)){
+       const list=definitions.get(key)||[];
+       list.push(definition as Schema);
+       definitions.set(key,list);
+      }
+     }
+     visit(part,depth+1);
+    }
+   }
+   for(const kind of ['allOf','oneOf','anyOf'])
+    if(Array.isArray(node[kind]))for(const child of node[kind])visit(child,depth+1);
+  };
+  visit(result);
+  for(const [key,variants] of definitions){
+   if(Object.prototype.hasOwnProperty.call(result.properties,key))continue;
+   // Se ramos diferentes definem contratos incompatíveis, a propriedade
+   // base permanece livre e as restrições específicas ficam em cada ramo.
+   const first=JSON.stringify(variants[0]);
+   result.properties[key]=variants.every(v=>JSON.stringify(v)===first)
+    ?structuredClone(variants[0]):{};
+  }
+  return result;
+ }
  importBuilderSchema(){
   try{
    const parsed=JSON.parse(this.builderImportSource);
    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error('Schema deve ser um objeto JSON.');
    ajv.compile(parsed);
-   if(!this.builderChanged(structuredClone(parsed)))return;
+   if(!this.builderChanged(this.normalizeImportedBuilderSchema(parsed)))return;
    this.builderImport=false;this.builderImportSource='';this.builderError='';
   }catch(error){this.builderError=this.schemaErrorMessage(error);}
  }
