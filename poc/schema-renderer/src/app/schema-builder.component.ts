@@ -840,10 +840,17 @@ export class SchemaBuilderComponent implements OnChanges {
  private editBranch(index:number,branch:'then'|'else',edit:(node:Schema)=>void){this.commit(root=>{const rule=this.editableCondition(root,index);if(!rule)return;rule[branch]??={};edit(rule[branch]);});}
  addExistingConditionField(index:number,branch:'then'|'else',key:string){
   if(!key||!this.conditionAvailableFields.includes(key))return;
-  this.editBranch(index,branch,node=>{
-   node.properties??={};
-   node.properties[key]??={};
+  this.commit(root=>{
+   const container=this.getNodeAt(root,this.activeContainerPath);
+   const rule=container?.allOf?.[index];
+   if(!container||!rule)return;
+   const node=rule[branch]??(rule[branch]={});
    node.required=[...new Set([...(node.required||[]),key])];
+   // A obrigatoriedade passa a ser condicional, nunca global.
+   if(container.required){
+    container.required=container.required.filter((name:string)=>name!==key);
+    if(!container.required.length)delete container.required;
+   }
   });
  }
  addConditionField(index:number,branch:'then'|'else'){this.editBranch(index,branch,node=>{node.properties??={};let key='campo',i=2;while(key in node.properties||key in (this.conditionContainer?.properties||{}))key='campo'+i++;node.properties[key]={type:'string',title:key};});}
