@@ -152,9 +152,9 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
     <p class="error callout" *ngIf="builderError">{{builderError}}</p>
     <div class="developer-actions">
       <button type="button" class="secondary" (click)="newBuilderSchema()">Novo schema</button>
-      <button type="button" class="secondary" (click)="builderTab='json';builderImport=!builderImport">Importar JSON Schema</button>
+      <button type="button" class="secondary" (click)="builderTab='construction';builderImport=!builderImport">Importar JSON Schema</button>
     </div>
-    <div *ngIf="builderImport && builderTab==='json'">
+    <div *ngIf="builderImport && builderTab==='construction'">
       <label for="builder-import">Cole um JSON Schema Draft 2020-12</label>
       <textarea id="builder-import" class="editor" [(ngModel)]="builderImportSource"></textarea>
       <button type="button" (click)="importBuilderSchema()">Validar e importar</button>
