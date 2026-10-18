@@ -31,6 +31,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .rules-canvas{min-height:320px}
  .rules-canvas label{display:grid;gap:6px;font-weight:600;margin:8px 0}
  .rules-canvas input,.rules-canvas select{padding:9px;border:1px solid #b8c9df;border-radius:7px;max-width:100%}
+ .enum-editor{display:grid;gap:10px;margin:12px 0}.enum-table{width:100%;border-collapse:collapse}.enum-table th{text-align:left;color:#475569;font-size:13px}.enum-table td,.enum-table th{padding:7px;border-bottom:1px solid #e2e8f0}.enum-table input{width:100%;min-width:0}.enum-table button,.enum-add{border:1px solid #cbd8ea;border-radius:7px;background:white;padding:8px 12px;cursor:pointer;color:#2455b5}.enum-add{justify-self:start}
  .logic-palette-title{display:block;flex-basis:100%;margin-top:12px;color:#003399}
  .condition-add{border:2px solid #2455b5!important;background:#eaf1ff!important;color:#003399!important}
  .condition-card{border:1px solid #cbd8ed;border-radius:12px;padding:16px;margin:14px 0;background:#fff}
@@ -533,9 +534,17 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <label *ngIf="this.isObjectSchema(node)" class="required-switch-label validation-switch"><span>Permitir propriedades adicionais</span><input type="checkbox" class="required-switch-input" [ngModel]="node.additionalProperties!==false" (ngModelChange)="setBoolean('additionalProperties',$event)" role="switch" [attr.aria-checked]="node.additionalProperties!==false"/><span class="required-switch-track" aria-hidden="true"></span></label>
    <p class="validation-help" *ngIf="node.type==='boolean'">Este campo aceita apenas verdadeiro ou falso. Não há restrições adicionais necessárias para validar o tipo.</p>
    <h4 class="rule-heading" *ngIf="node.type==='string' || node.type==='integer' || node.type==='number'">Valores permitidos</h4>
-   <label *ngIf="node.type==='string' || node.type==='integer' || node.type==='number'">Enum (um valor JSON por linha)
-    <textarea [ngModel]="enumText(node)" (change)="setEnum($any($event.target).value)" placeholder="Exemplo:&#10;&quot;ATIVO&quot;&#10;&quot;INATIVO&quot;"></textarea>
-   </label>
+   <div class="enum-editor" *ngIf="node.type==='string' || node.type==='integer' || node.type==='number'">
+    <p class="builder-help">Informe os valores aceitos e os nomes apresentados no formulário. O valor será enviado no JSON.</p>
+    <table class="enum-table"><thead><tr><th>Valor</th><th>Label</th><th>Ações</th></tr></thead><tbody>
+     <tr *ngFor="let entry of enumEntries(node);let i=index;trackBy:trackEnumIndex">
+      <td><input [ngModel]="enumValueText(entry.value,node)" (change)="updateEnumEntry(i,'value',$any($event.target).value)" [attr.aria-label]="'Valor '+(i+1)"/></td>
+      <td><input [ngModel]="entry.label" (change)="updateEnumEntry(i,'label',$any($event.target).value)" [attr.aria-label]="'Label '+(i+1)"/></td>
+      <td><button type="button" (click)="removeEnumEntry(i)" [attr.aria-label]="'Remover valor '+(i+1)">Excluir</button></td>
+     </tr>
+    </tbody></table>
+    <button type="button" class="enum-add" (click)="addEnumEntry()">+ Adicionar valor</button>
+   </div>
 
    </div>
    <ng-container *ngIf="mode==='dev'">
@@ -1001,6 +1010,34 @@ export class SchemaBuilderComponent implements OnChanges {
   this.setOptional('pattern',value);
  }
  setBoolean(key:string,value:boolean){this.error='';this.commit(root=>{this.current(root)![key]=value;});}
+ trackEnumIndex(index:number){return index;}
+ enumEntries(node:Schema):{value:any;label:string}[]{return (node.enum||[]).map((value:any,index:number)=>({value,label:node['x-enumLabels']?.[index]??String(value)}));}
+ enumValueText(value:any,_node:Schema):string{return value===undefined?'':String(value);}
+ private enumValueOf(text:string,node:Schema):any{
+  const type=Array.isArray(node.type)?node.type[0]:node.type;
+  if(type==='integer'||type==='number'){
+   if(text.trim()==='')throw new Error('Informe um número.');
+   const number=Number(text);
+   if(!Number.isFinite(number)||(type==='integer'&&!Number.isInteger(number)))throw new Error(type==='integer'?'Informe um número inteiro válido.':'Informe um número válido.');
+   return number;
+  }
+  return text;
+ }
+ private changeEnumEntries(entries:{value:any;label:string}[]){
+  if(entries.some((entry,index)=>entries.findIndex(other=>Object.is(other.value,entry.value))!==index)){this.error='Valores duplicados não são permitidos.';return;}
+  this.error='';
+  this.commit(root=>{const node=this.current(root)!;if(!entries.length){delete node.enum;delete node['x-enumLabels'];return;}
+   node.enum=entries.map(entry=>entry.value);
+   node['x-enumLabels']=entries.map(entry=>entry.label||String(entry.value));
+  });
+ }
+ addEnumEntry(){const node=this.selected!;const type=Array.isArray(node.type)?node.type[0]:node.type;const entries=this.enumEntries(node);let value:any=type==='integer'||type==='number'?0:'';if(type==='integer'||type==='number'){while(entries.some(entry=>Object.is(entry.value,value)))value++;}else{let suffix=entries.length+1;value='VALOR_'+suffix;while(entries.some(entry=>entry.value===value))value='VALOR_'+ ++suffix;}
+  this.changeEnumEntries([...entries,{value,label:String(value)}]);}
+ updateEnumEntry(index:number,kind:'value'|'label',text:string){const node=this.selected!;const entries=this.enumEntries(node);if(!entries[index])return;
+  try{const previous=entries[index];entries[index]={...previous,[kind]:kind==='value'?this.enumValueOf(text,node):text};if(kind==='value'&&previous.label===String(previous.value))entries[index].label=String(entries[index].value);this.changeEnumEntries(entries);}
+  catch(error){this.error=error instanceof Error?error.message:String(error);}
+ }
+ removeEnumEntry(index:number){const entries=this.enumEntries(this.selected!);entries.splice(index,1);this.changeEnumEntries(entries);}
  enumText(node:Schema):string{return Array.isArray(node.enum)?node.enum.map((v:any)=>JSON.stringify(v)).join('\n'):'';}
  setEnum(text:string){
   this.error='';
