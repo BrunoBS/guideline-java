@@ -138,7 +138,7 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
   <div class="studio-preview-overlay" *ngIf="area==='builder' && schemaPreviewOpen" (click)="schemaPreviewOpen=false" (keydown.escape)="schemaPreviewOpen=false" role="presentation">
     <section class="studio-preview-modal" role="dialog" aria-modal="true" aria-label="Visualizar JSON Schema" (click)="$event.stopPropagation()">
       <div class="studio-preview-header"><div><h3>Visualizar schema</h3><p>Contrato JSON Schema gerado a partir da configuração atual.</p></div>
-        <div class="schema-modal-actions"><button type="button" (click)="downloadBuilderSchema()">↓ Exportar JSON Schema</button><button type="button" class="secondary" (click)="schemaPreviewOpen=false" aria-label="Fechar visualização do schema">✕ Fechar</button></div>
+        <div class="schema-modal-actions"><button type="button" class="secondary" (click)="copyBuilderSchema()">{{schemaCopied?'✓ Copiado!':'⧉ Copiar schema'}}</button><button type="button" (click)="downloadBuilderSchema()">↓ Exportar JSON Schema</button><button type="button" class="secondary" (click)="schemaPreviewOpen=false" aria-label="Fechar visualização do schema">✕ Fechar</button></div>
       </div>
       <div class="studio-preview-body"><pre class="response-json studio-json">{{schema|json}}</pre></div>
     </section>
@@ -148,7 +148,7 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
     <button type="button" [class.active]="builderTab==='dev'" (click)="builderTab='dev'">Para Dev</button>
   </nav>
   <section class="panel tab-panel" *ngIf="area==='builder'">
-    <div class="section-heading"><div><h3>Schema Studio</h3><p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p></div><div class="schema-modal-actions"><button type="button" class="secondary" (click)="schemaPreviewOpen=true" aria-haspopup="dialog">◉ Visualizar schema</button><button type="button" (click)="previewOpen=true" aria-haspopup="dialog">◉ Visualizar formulário</button></div></div>
+    <div class="section-heading"><div><h3>Schema Studio</h3><p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p></div><div class="schema-modal-actions"><button type="button" class="secondary" (click)="schemaCopied=false;schemaPreviewOpen=true" aria-haspopup="dialog">◉ Visualizar schema</button><button type="button" (click)="previewOpen=true" aria-haspopup="dialog">◉ Visualizar formulário</button></div></div>
     <p class="error callout" *ngIf="builderError">{{builderError}}</p>
     <div class="developer-actions">
       <button type="button" class="secondary" (click)="newBuilderSchema()">Novo schema</button>
@@ -242,6 +242,11 @@ export class AppComponent {
    if(!this.builderChanged(structuredClone(parsed)))return;
    this.builderImport=false;this.builderImportSource='';this.builderError='';
   }catch(error){this.builderError=this.schemaErrorMessage(error);}
+ }
+ schemaCopied=false;
+ async copyBuilderSchema(){
+  try{await navigator.clipboard.writeText(JSON.stringify(this.schema,null,2));this.schemaCopied=true;}
+  catch{this.schemaCopied=false;this.builderError='Não foi possível copiar automaticamente. Verifique as permissões do navegador.';}
  }
  downloadBuilderSchema(){
   const blob=new Blob([JSON.stringify(this.schema,null,2)],{type:'application/schema+json'});
