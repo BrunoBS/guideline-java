@@ -826,6 +826,13 @@ export class SchemaBuilderComponent implements OnChanges {
  removeOneOfRule(_index:number){this.commit(root=>{delete root.oneOf;});}
  oneOfOptions(node:Schema):Schema[]{return (node.oneOf||[]) as Schema[];}
  oneOfUsesSelector(node:Schema):boolean{return !!this.oneOfField(node);}
+ oneOfForbiddenIsEditable(node:Schema):boolean{
+  const not=node.not as any;
+  if(!not)return true;
+  const validRequired=(part:any)=>part&&typeof part==='object'&&Object.keys(part).length===1&&Array.isArray(part.required)&&part.required.length===1&&typeof part.required[0]==='string';
+  if(validRequired(not))return true;
+  return not&&typeof not==='object'&&Object.keys(not).length===1&&Array.isArray(not.anyOf)&&not.anyOf.every(validRequired);
+ }
  oneOfForbidden(node:Schema):string[]{
   const not=node.not as any;
   if(!not||typeof not!=='object')return [];
@@ -836,7 +843,7 @@ export class SchemaBuilderComponent implements OnChanges {
   if(!key||!this.conditionAvailableFields.includes(key))return;
   this.commit(root=>{
    const option=root.oneOf?.[index];if(!option)return;
-   if(option.not && this.oneOfForbidden(option).length===0){this.error='A regra not existente é avançada. Edite-a no modo Para Dev.';return;}
+   if(option.not && !this.oneOfForbiddenIsEditable(option)){this.error='A regra not existente é avançada. Edite-a no modo Para Dev.';return;}
    const keys=[...new Set<string>([...this.oneOfForbidden(option),key])];
    option.not=keys.length===1?{required:[keys[0]]}:{anyOf:keys.map(name=>({required:[name]}))};
   });
