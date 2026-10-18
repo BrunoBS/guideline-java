@@ -25,6 +25,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified.developer-mode .palette{grid-column:1;grid-row:1}
  .builder.simplified.developer-mode .inspector{grid-column:2;grid-row:1}
 
+ .builder-step-tabs{display:flex;gap:10px;width:100%;border-bottom:1px solid #dce4ef;padding-bottom:12px}
+ .builder-step-tabs button{border:1px solid #b8c9df;border-radius:9px;background:#f8fafc;padding:12px 20px;font-weight:700;cursor:pointer}
+ .builder-step-tabs button.active{background:#e8efff;border-color:#2455b5;color:#003399}
+ .rules-canvas{min-height:320px}
+ .rules-canvas label{display:grid;gap:6px;font-weight:600;margin:8px 0}
+ .rules-canvas input,.rules-canvas select{padding:9px;border:1px solid #b8c9df;border-radius:7px;max-width:100%}
  .logic-palette-title{display:block;flex-basis:100%;margin-top:12px;color:#003399}
  .condition-add{border:2px solid #2455b5!important;background:#eaf1ff!important;color:#003399!important}
  .condition-card{border:1px solid #cbd8ed;border-radius:12px;padding:16px;margin:14px 0;background:#fff}
@@ -330,7 +336,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 `],
  template:`
  <div class="builder simplified">
-  <aside class="palette" [class.desktop-palette]="mode==='construction'" *ngIf="mode==='construction' || mode==='dev'">
+  <nav class="builder-step-tabs" *ngIf="mode==='construction'" aria-label="Etapas do builder">
+   <button type="button" [class.active]="builderStep==='components'" (click)="builderStep='components'">1. Componentes</button>
+   <button type="button" [class.active]="builderStep==='rules'" (click)="builderStep='rules';activeContainerPath='';containerHistory=[]">2. Regras e condições</button>
+  </nav>
+  <aside class="palette" [class.desktop-palette]="mode==='construction'" *ngIf="mode==='dev' || (mode==='construction' && builderStep==='components')">
    <strong>{{mode==='dev'?'Estrutura técnica':'Adicionar componentes'}}</strong>
    <p class="builder-help">Escolha um tipo para adicionar ao formulário ou ao objeto selecionado.</p>
    <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)" [class.condition-add]="item.type==='condition'"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
@@ -344,7 +354,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </button>
    </div>
   </aside>
-  <section class="canvas" *ngIf="mode==='construction'">
+  <section class="canvas" *ngIf="mode==='construction' && builderStep==='components'">
    <div class="canvas-header">
     <div><strong>{{canvasHeaderTitle}}</strong><p>{{canvasHeaderDescription}}</p><button type="button" *ngIf="!activeContainerPath" class="form-settings-button" (click)="openFormEditor()">✎ Configurar formulário</button></div>
     <div class="builder-actions" style="margin:0">
@@ -389,6 +399,18 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </div>
 
 
+   <div class="canvas-empty" *ngIf="!canvasFields.length && !canvasConditions.length && !visualGroups.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
+  </section>
+
+
+  <section class="canvas rules-canvas" *ngIf="mode==='construction' && builderStep==='rules'">
+   <div class="canvas-header"><div><strong>Regras e condições</strong><p>Selecione campos existentes e configure as restrições. O Builder gera JSON Schema Draft 2020-12.</p></div></div>
+   <p class="builder-error" *ngIf="!conditionAvailableFields.length">Crie primeiro os campos na etapa Componentes.</p>
+   <div class="builder-actions">
+    <button type="button" class="canvas-add-top" (click)="addCondition()" [disabled]="!conditionAvailableFields.length">+ Condição SE / ENTÃO / SENÃO</button>
+    <button type="button" class="canvas-add-top" (click)="addOneOfRule()" [disabled]="!conditionAvailableFields.length">+ Alternativas exclusivas (oneOf)</button>
+   </div>
+   <p class="builder-help">Cada condição é combinada com as demais automaticamente por allOf (todas as regras).</p>
    <section class="condition-card" *ngFor="let rule of canvasConditions; trackBy:trackConditionIndex">
     <div class="condition-title"><strong>⑂ Condição {{rule.index+1}}</strong><button type="button" (click)="removeCondition(rule.index)">Excluir condição</button></div>
     <div class="condition-if">
@@ -402,27 +424,43 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <div class="condition-branches">
      <div class="condition-branch true"><strong>✓ ENTÃO (THEN) — Verdadeiro</strong><p class="builder-help">Componentes aplicados quando verdadeiro.</p>
       <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'then'); trackBy:trackConditionFieldKey">
-       <label>Chave<input [ngModel]="field.key" (change)="renameConditionField(rule.index,'then',field.key,$any($event.target).value)"></label>
-       <label>Tipo<select [ngModel]="field.schema.type||'string'" (ngModelChange)="setConditionFieldType(rule.index,'then',field.key,$event)"><option *ngFor="let kind of conditionFieldPalette" [value]="kind.type">{{kind.label}}</option></select></label>
-       <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'then',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'then',field.key,$event)"> Obrigatório</label>
-       <button type="button" (click)="removeConditionField(rule.index,'then',field.key)">Excluir</button>
-      </div>
-      <button type="button" class="condition-add-field" (click)="addConditionField(rule.index,'then')">+ Adicionar componente</button>
+        <label>Campo <strong>{{field.key}}</strong></label>
+        <label>Tipo permitido<select [ngModel]="field.schema.type||''" (ngModelChange)="setConditionFieldType(rule.index,'then',field.key,$event)"><option value="">Não alterar</option><option *ngFor="let kind of conditionFieldPalette" [value]="kind.type">{{kind.label}}</option></select></label>
+        <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'then',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'then',field.key,$event)"> Obrigatório</label>
+        <button type="button" (click)="removeConditionField(rule.index,'then',field.key)">Remover</button>
+       </div>
+       <label>Aplicar ao campo<select #thenField><option value="">Selecionar campo...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
+       <button type="button" class="condition-add-field" (click)="addExistingConditionField(rule.index,'then',thenField.value);thenField.value=''">+ Aplicar regra</button>
      </div>
      <div class="condition-branch false"><strong>✕ SENÃO (ELSE) — Falso</strong><p class="builder-help">Componentes aplicados quando falso.</p>
       <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'else'); trackBy:trackConditionFieldKey">
-       <label>Chave<input [ngModel]="field.key" (change)="renameConditionField(rule.index,'else',field.key,$any($event.target).value)"></label>
-       <label>Tipo<select [ngModel]="field.schema.type||'string'" (ngModelChange)="setConditionFieldType(rule.index,'else',field.key,$event)"><option *ngFor="let kind of palette" [value]="kind.type">{{kind.label}}</option></select></label>
-       <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'else',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'else',field.key,$event)"> Obrigatório</label>
-       <button type="button" (click)="removeConditionField(rule.index,'else',field.key)">Excluir</button>
-      </div>
-      <button type="button" class="condition-add-field" (click)="addConditionField(rule.index,'else')">+ Adicionar componente</button>
+        <label>Campo <strong>{{field.key}}</strong></label>
+        <label>Tipo permitido<select [ngModel]="field.schema.type||''" (ngModelChange)="setConditionFieldType(rule.index,'else',field.key,$event)"><option value="">Não alterar</option><option *ngFor="let kind of conditionFieldPalette" [value]="kind.type">{{kind.label}}</option></select></label>
+        <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'else',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'else',field.key,$event)"> Obrigatório</label>
+        <button type="button" (click)="removeConditionField(rule.index,'else',field.key)">Remover</button>
+       </div>
+       <label>Aplicar ao campo<select #elseField><option value="">Selecionar campo...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
+       <button type="button" class="condition-add-field" (click)="addExistingConditionField(rule.index,'else',elseField.value);elseField.value=''">+ Aplicar regra</button>
      </div>
     </div>
    </section>
-   <div class="canvas-empty" *ngIf="!canvasFields.length && !canvasConditions.length && !visualGroups.length">{{activeContainerPath ? "Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade." : "Seu formulário está vazio. Toque em Adicionar campo para começar."}}</div>
-  </section>
 
+   <section class="condition-card" *ngFor="let alternative of canvasOneOfRules">
+    <div class="condition-title"><strong>Alternativas exclusivas — oneOf</strong><button type="button" (click)="removeOneOfRule(alternative.index)">Excluir</button></div>
+    <p class="builder-help">Exatamente uma das alternativas precisa ser válida. Use valores diferentes do mesmo campo para torná-las exclusivas.</p>
+    <label>Campo de escolha<select [ngModel]="oneOfField(alternative.schema)" (ngModelChange)="setOneOfField(alternative.index,$event)"><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
+    <div class="condition-branches">
+     <div class="condition-branch" *ngFor="let option of oneOfOptions(alternative.schema); let i=index">
+      <strong>Alternativa {{i+1}}</strong>
+      <label>Valor que identifica a alternativa<input [ngModel]="oneOfOptionValue(option)" (ngModelChange)="setOneOfValue(alternative.index,i,$event)"></label>
+      <label>Campo obrigatório<select #requiredAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
+      <button type="button" (click)="addOneOfRequired(alternative.index,i,requiredAlternative.value)">+ Exigir campo</button>
+      <p class="builder-help">Obrigatórios: {{oneOfRequired(option).join(', ') || 'nenhum adicional'}}</p>
+     </div>
+    </div>
+   </section>
+   <p class="builder-help" *ngIf="!canvasConditions.length&&!canvasOneOfRules.length">Ainda não há regras. Crie uma condição ou uma alternativa.</p>
+  </section>
   <div class="editor-modal-backdrop" *ngIf="mode==='construction' && editorModalOpen" (click)="cancelEditor()"></div>
   <div class="editor-modal-shell" *ngIf="mode==='dev' || editorModalOpen" role="dialog" [attr.aria-modal]="mode==='construction' ? 'true' : null" aria-label="Configuração do campo">
   <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath && !editingForm" *ngIf="!selectedGroupId"><ng-container *ngIf="selected as node">
@@ -564,6 +602,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  </div>`
 })
 export class SchemaBuilderComponent implements OnChanges {
+ builderStep:'components'|'rules'='components';
  private persistedSchema:Schema={type:'object',properties:{}};
  private editorDraft:Schema|null=null;
  @Input() set schema(value:Schema){this.persistedSchema=value;}
@@ -604,7 +643,7 @@ export class SchemaBuilderComponent implements OnChanges {
  cancelDelete(){this.showDeleteConfirmation=false;}
  deleteConfirmed(){this.showDeleteConfirmation=false;this.removeSelected();}
  showStructure=false;
- palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'array',label:'Lista',icon:'☷'},{type:'condition',label:'Condição (SE / ENTÃO / SENÃO)',icon:'⑂'}];
+ palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'array',label:'Lista',icon:'☷'}];
  get selectedVisualGroup():any{return this.visualGroups.find((g:any)=>g.id===this.selectedGroupId);}
  selectForm(){this.editingForm=true;this.selectedGroupId='';this.selectedPath='';}
  updateForm(key:'title'|'description',value:string){this.commit(root=>{if(value)root[key]=value;else delete root[key];});}
@@ -719,6 +758,29 @@ export class SchemaBuilderComponent implements OnChanges {
  objectChildren(path:string){const node=this.getNodeAt(this.schema,path);return Object.entries(node?.properties||{}).map(([key,schema])=>({path:path+'/properties/'+this.escape(key),label:key,schema:schema as Schema}));}
  addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.preserveScrollAfter(()=>this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||!this.isObjectSchema(node))return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='object'?{type:'object',title:key,properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;}));}
 
+
+ get canvasOneOfRules():{index:number;schema:Schema}[]{return (this.schema.oneOf? [{index:0,schema:this.schema}]:[]);}
+ addOneOfRule(){
+  if(this.schema.oneOf){this.error='Já existe uma regra de alternativas. Edite as alternativas existentes.';return;}
+  const field=this.conditionAvailableFields[0];if(!field)return;
+  this.commit(root=>{root.oneOf=[{properties:{[field]:{const:'A'}},required:[field]},{properties:{[field]:{const:'B'}},required:[field]}];});
+ }
+ removeOneOfRule(_index:number){this.commit(root=>{delete root.oneOf;});}
+ oneOfOptions(node:Schema):Schema[]{return (node.oneOf||[]) as Schema[];}
+ oneOfField(node:Schema):string{return Object.keys(node.oneOf?.[0]?.properties||{})[0]||'';}
+ oneOfOptionValue(node:Schema):string{return String(node.properties?.[Object.keys(node.properties||{})[0]]?.const??'');}
+ oneOfRequired(node:Schema):string[]{return (node.required||[]).filter(key=>key!==Object.keys(node.properties||{})[0]);}
+ setOneOfField(_index:number,field:string){
+  if(!this.conditionAvailableFields.includes(field))return;
+  this.commit(root=>{for(const option of root.oneOf||[]){const value=this.oneOfOptionValue(option);const required=this.oneOfRequired(option);option.properties={[field]:{const:value}};option.required=[field,...required.filter(key=>key!==field)];}});
+ }
+ setOneOfValue(_index:number,index:number,value:string){
+  this.commit(root=>{const rule=root.oneOf?.[index];if(!rule)return;const key=Object.keys(rule.properties||{})[0];if(key)rule.properties[key]={const:value};});
+ }
+ addOneOfRequired(_index:number,index:number,field:string){
+  if(!field||!this.conditionAvailableFields.includes(field))return;
+  this.commit(root=>{const rule=root.oneOf?.[index];if(rule)rule.required=[...new Set([...(rule.required||[]),field])];});
+ }
  get conditionFieldPalette(){return this.palette.filter(item=>item.type!=='condition');}
  trackConditionIndex(_index:number,rule:{index:number;schema:Schema}){return rule.index;}
  trackConditionFieldKey(_index:number,field:{key:string;schema:Schema}){return field.key;}
@@ -767,9 +829,13 @@ export class SchemaBuilderComponent implements OnChanges {
  conditionBranchFields(rule:Schema,branch:'then'|'else'):{key:string;schema:Schema}[]{return Object.entries(rule[branch]?.properties||{}).map(([key,schema])=>({key,schema:schema as Schema}));}
  conditionFieldRequired(rule:Schema,branch:'then'|'else',key:string){return (rule[branch]?.required||[]).includes(key);}
  private editBranch(index:number,branch:'then'|'else',edit:(node:Schema)=>void){this.commit(root=>{const rule=this.editableCondition(root,index);if(!rule)return;rule[branch]??={};edit(rule[branch]);});}
+ addExistingConditionField(index:number,branch:'then'|'else',key:string){
+  if(!key||!this.conditionAvailableFields.includes(key))return;
+  this.editBranch(index,branch,node=>{node.properties??={};node.properties[key]??={};});
+ }
  addConditionField(index:number,branch:'then'|'else'){this.editBranch(index,branch,node=>{node.properties??={};let key='campo',i=2;while(key in node.properties||key in (this.conditionContainer?.properties||{}))key='campo'+i++;node.properties[key]={type:'string',title:key};});}
  renameConditionField(index:number,branch:'then'|'else',oldKey:string,name:string){const key=name.trim();if(!key||key===oldKey||!/^[$A-Za-z_][$A-Za-z0-9_-]*$/.test(key))return;this.editBranch(index,branch,node=>{if(!node.properties?.[oldKey]||key in node.properties)return;const next:Record<string,Schema>={};for(const [k,v] of Object.entries(node.properties))next[k===oldKey?key:k]=v as Schema;node.properties=next;if(node.required)node.required=node.required.map((v:string)=>v===oldKey?key:v);});}
- setConditionFieldType(index:number,branch:'then'|'else',key:string,type:string){if(!this.palette.some(item=>item.type===type&&type!=='condition'))return;this.editBranch(index,branch,node=>{if(!node.properties?.[key])return;node.properties[key]=type==='object'?{type:'object',title:key,properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};});}
+ setConditionFieldType(index:number,branch:'then'|'else',key:string,type:string){if(!this.palette.some(item=>item.type===type&&type!=='condition'))return;this.editBranch(index,branch,node=>{if(!node.properties?.[key])return; if(type)node.properties[key]={...node.properties[key],type};else delete node.properties[key].type;});}
  setConditionFieldRequired(index:number,branch:'then'|'else',key:string,enabled:boolean){this.editBranch(index,branch,node=>{const required=new Set<string>(node.required||[]);enabled?required.add(key):required.delete(key);if(required.size)node.required=[...required];else delete node.required;});}
  removeConditionField(index:number,branch:'then'|'else',key:string){this.editBranch(index,branch,node=>{if(node.properties)delete node.properties[key];if(node.required){node.required=node.required.filter((v:string)=>v!==key);if(!node.required.length)delete node.required;}});}
 
