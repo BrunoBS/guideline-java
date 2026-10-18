@@ -389,7 +389,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </div>
 
 
-   <section class="condition-card" *ngFor="let rule of canvasConditions">
+   <section class="condition-card" *ngFor="let rule of canvasConditions; trackBy:trackConditionIndex">
     <div class="condition-title"><strong>⑂ Condição {{rule.index+1}}</strong><button type="button" (click)="removeCondition(rule.index)">Excluir condição</button></div>
     <div class="condition-if">
      <strong>SE (IF)</strong><p class="builder-help">Quando a regra abaixo for atendida:</p><p class="builder-error" *ngIf="!conditionAvailableFields.length">Adicione um campo ao formulário para configurar esta condição.</p><p class="builder-error" *ngIf="conditionAvailableFields.length && !conditionField(rule.schema)">Selecione o campo que controla a condição.</p>
@@ -401,7 +401,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     </div>
     <div class="condition-branches">
      <div class="condition-branch true"><strong>✓ ENTÃO (THEN) — Verdadeiro</strong><p class="builder-help">Componentes aplicados quando verdadeiro.</p>
-      <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'then')">
+      <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'then'); trackBy:trackConditionFieldKey">
        <label>Chave<input [ngModel]="field.key" (change)="renameConditionField(rule.index,'then',field.key,$any($event.target).value)"></label>
        <label>Tipo<select [ngModel]="field.schema.type||'string'" (ngModelChange)="setConditionFieldType(rule.index,'then',field.key,$event)"><option *ngFor="let kind of conditionFieldPalette" [value]="kind.type">{{kind.label}}</option></select></label>
        <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'then',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'then',field.key,$event)"> Obrigatório</label>
@@ -410,7 +410,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
       <button type="button" class="condition-add-field" (click)="addConditionField(rule.index,'then')">+ Adicionar componente</button>
      </div>
      <div class="condition-branch false"><strong>✕ SENÃO (ELSE) — Falso</strong><p class="builder-help">Componentes aplicados quando falso.</p>
-      <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'else')">
+      <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'else'); trackBy:trackConditionFieldKey">
        <label>Chave<input [ngModel]="field.key" (change)="renameConditionField(rule.index,'else',field.key,$any($event.target).value)"></label>
        <label>Tipo<select [ngModel]="field.schema.type||'string'" (ngModelChange)="setConditionFieldType(rule.index,'else',field.key,$event)"><option *ngFor="let kind of palette" [value]="kind.type">{{kind.label}}</option></select></label>
        <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'else',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'else',field.key,$event)"> Obrigatório</label>
@@ -720,6 +720,8 @@ export class SchemaBuilderComponent implements OnChanges {
  addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.preserveScrollAfter(()=>this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||!this.isObjectSchema(node))return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='object'?{type:'object',title:key,properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;}));}
 
  get conditionFieldPalette(){return this.palette.filter(item=>item.type!=='condition');}
+ trackConditionIndex(_index:number,rule:{index:number;schema:Schema}){return rule.index;}
+ trackConditionFieldKey(_index:number,field:{key:string;schema:Schema}){return field.key;}
  get conditionContainer():Schema|undefined{return this.getNodeAt(this.schema,this.activeContainerPath);}
  get canvasConditions():{index:number;schema:Schema}[]{return (this.conditionContainer?.allOf||[]).map((schema:Schema,index:number)=>({index,schema})).filter((r:{index:number;schema:Schema})=>!!r.schema?.if&&r.schema.then!==undefined&&r.schema.else!==undefined);}
  get conditionAvailableFields():string[]{return Object.keys(this.conditionContainer?.properties||{});}
