@@ -42,3 +42,13 @@ Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e co
 - Job verde comprova apenas cenários executados, não correção geral nem ganho de agentes.
 - Cobrir concorrência, rollback pós-flush, autorização cruzada e falha de dependência.
 - Teste que verifica apenas bean existente não comprova transação nem segurança.
+
+## Gate de testes por tipo de alteração
+- `feature`: happy path, contrato HTTP, validação, falha de dependência, segurança e regressão de comportamento.
+- `bugfix`: reproduzir falha antes da correção e comprovar que o mesmo cenário passa depois; registrar evidência do teste vermelho quando possível.
+- `refactor`: preservar entradas, saídas, erros, transações, autorização e eventos; executar suíte de caracterização.
+- `migration`: validar Flyway em banco limpo e evolução de banco existente, constraints, rollback operacional e compatibilidade com versões de aplicação.
+- `library`: compilar consumidor sintético, testar auto-configuração e contratos públicos; verificar dependências transitivas e comportamento sem configuração opcional.
+- `security`: matriz de permissão e testes negativos de tenant cruzado, ausência de contexto e token inválido.
+- `performance`: workload reproduzível, baseline e comparação sob condições equivalentes; nunca aprovar por microbenchmark isolado.
+- Registrar comandos, versões, logs de falha e sucesso, infraestrutura utilizada, flakiness e cenários não executados; não usar cobertura percentual como único gate.
