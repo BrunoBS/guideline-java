@@ -128,3 +128,34 @@ WHERE identifier = ? AND workspace_id = ?;
 - Redis: https://redis.io/docs/latest/develop/use-cases/cache-aside/
 
 **Gate de adoção:** a execução de um exemplo em Java 21 não comprova compatibilidade Java 25; fonte oficial e revisão estática também não substituem compilação/integração. Requer teste real em ambiente isolado com stack-alvo.
+
+
+## Gate operacional de desenvolvimento (v0.3)
+Este gate complementa, sem substituir, os procedimentos de cada Skill. Antes de criar código:
+1. Classificar a tarefa: `feature`, `bugfix`, `refactor`, `migration`, `security`, `performance` ou `library`. Identificar módulos afetados, interfaces públicas, consumidores e owners.
+2. Produzir um contrato mínimo: entrada, saída, invariantes, erros HTTP/domínio, permissões, limites, efeitos externos, consistência, compatibilidade e idempotência quando relevante. Se não houver dados suficientes, registrar bloqueio ou premissa verificável.
+3. Selecionar Skill primária e Skills auxiliares. Para mudanças em autorização, `api-security` é gate obrigatório; para persistência, `database-performance` e `testing-quality`; para mensageria, `distributed-systems`.
+4. Registrar testes que comprovem comportamento esperado e rejeições: happy path, entrada inválida, acesso negado, tenant cruzado, concorrência e rollback conforme risco.
+5. Implementar somente o escopo autorizado; preservar contratos existentes. Não alterar arquivos de build, dependências, migrations, endpoints públicos ou segurança por conveniência sem registrar impacto.
+6. Verificar build, testes e análise de regressão. Se ferramentas ou ambiente faltarem, reportar `NÃO EXECUTADO` com comandos para reprodução; não marcar como aprovado.
+7. Encerrar com matriz `requisito → alteração → teste → resultado → risco residual`, incluindo evidência do commit e CI.
+
+### Gates específicos para bibliotecas compartilhadas
+- Avaliar compatibilidade de API pública, binária e comportamental; não inferir compatibilidade apenas porque testes internos passam.
+- Testar pelo menos um consumidor sintético real com versão alvo; validar BOM/parent, dependências transitivas, escopos, auto-configuração e condições de ativação.
+- Verificar ordem e interação de filtros HTTP, AOP, interceptadores, transações e contexto de segurança; provar comportamento com integração, não só unit test.
+- Exigir plano de evolução/versionamento, documentação de breaking changes e rollback. Publicação de pacote e promoção para Golden requerem autorização explícita.
+
+### Formato mínimo da resposta do agente
+```text
+Tarefa e escopo:
+Stack e versões verificadas:
+Contrato funcional / não funcional:
+Skill primária e auxiliares:
+Riscos de segurança e consistência:
+Arquivos alterados e justificativa:
+Testes executados (comando, resultado, ambiente):
+Testes não executados e motivo:
+Compatibilidade / migração / rollback:
+Pendências e aprovação humana necessária:
+```
