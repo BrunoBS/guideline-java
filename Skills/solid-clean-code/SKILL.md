@@ -1,0 +1,47 @@
+---
+name: solid-clean-code
+description: Guia de solid / clean code para implementação e revisão de APIs Java de alta escala com decisões verificáveis.
+---
+
+# SOLID / Clean Code
+
+Status: DRAFT v0.2; engenharia independente, sem substituir políticas Golden.
+
+## Quando ativar
+Tarefas de implementação, diagnóstico, revisão ou refatoração relacionadas a solid / clean code.
+
+## Procedimento
+1. Ler contratos, código, configuração, versões e testes relevantes; separar fatos de suposições.
+2. Definir comportamento esperado, requisitos não funcionais e possíveis regressões.
+3. Aplicar os critérios técnicos abaixo e comparar alternativas, inclusive não modificar.
+4. Planejar mudança mínima, validação, observabilidade e rollback.
+5. Produzir relatório de evidências, riscos e limitações.
+
+## Critérios técnicos
+1. SRP: identificar razões independentes de mudança, não impor uma classe por método.
+2. OCP/DIP: introduzir portas e estratégias quando houver variação real ou isolamento testável, não interfaces cerimoniais.
+3. LSP/ISP: contratos, pré/pós-condições e interfaces mínimas; evitar hierarquias que exigem instanceof.
+4. Revisar nomes, acoplamento, coesão, efeitos colaterais, exceções e propagação de contexto.
+5. Refatoração segura: caracterizar comportamento, fazer alteração pequena, executar testes e comparar contratos.
+
+## Entrega obrigatória
+- Contexto, hipóteses e evidências existentes.
+- Recomendação com justificativa e alternativas rejeitadas.
+- Impacto em compatibilidade, carga, segurança e operação.
+- Plano de teste, critérios de aceitação e reversão.
+
+## Fontes e cautelas
+Fonte: DHA code-quality; Awesome Java java-clean-code.
+
+Não copiar código ou regras de fonte externa sem revisar versão, licença e aderência ao projeto. Para conflitos, registrar na matriz de divergências antes de alterar normas.
+
+## Exemplo e critério de decisão
+Antes de orientar implementação, ler [EXEMPLOS-E-DECISOES.md](references/EXEMPLOS-E-DECISOES.md). O exemplo é ilustrativo, **não** foi compilado; produzir código completo e testes específicos ao projeto quando solicitado. Verificar documentação oficial na versão real. Não declarar execução, performance ou compatibilidade sem evidência.
+
+## Contrato operacional e exemplos
+Antes de recomendar ou implementar, aplicar o [contrato comum dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e consultar [exemplos e contraindicações](references/EXEMPLOS-E-DECISOES.md). Os exemplos são didáticos, não foram compilados no stack-alvo. Confirmar documentação oficial e versões reais; executar testes, registrar evidências e nunca alegar eficácia sem medições.
+
+## Gate de refatoração segura
+- Caracterizar contratos existentes antes de refatorar: outputs, erros, transações, autorização, observabilidade e ordem dos efeitos.
+- Rejeitar interface sem caso real, fronteira técnica ou teste que justifique variação.
+- Verificar regressões e diff mínimo; não alterar contrato público por preferência estética.
