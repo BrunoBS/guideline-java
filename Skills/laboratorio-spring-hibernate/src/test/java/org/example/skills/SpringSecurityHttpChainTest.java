@@ -28,7 +28,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -115,9 +115,9 @@ class SpringSecurityHttpChainTest {
     @RestController
     static class ResourceController {
         @GetMapping("/resources/{id}")
-        String resource(@AuthenticationPrincipal Jwt principal,
-                        @RequestHeader("X-Workspace-Id") long workspace,
+        String resource(@RequestHeader("X-Workspace-Id") long workspace,
                         @org.springframework.web.bind.annotation.PathVariable long id) {
+            Jwt principal = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             if (!("alice".equals(principal.getSubject()) && workspace == 10L))
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN);
             if (id != 101L) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
