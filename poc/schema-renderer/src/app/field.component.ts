@@ -65,10 +65,10 @@ import {
               <h3>{{group.title||'Grupo'}}</h3>
               <p *ngIf="group.description">{{group.description}}</p>
               <div *ngFor="let key of group.fields" class="field">
-                <app-field *ngIf="v.properties?.[key]" [name]="key" [schema]="v.properties[key]" [root]="root" [value]="objectValue[key]" [required]="(v.required||[]).includes(key)" [issues]="issues" [path]="childPath(key)" (valueChange)="updateKey(key,$event)"></app-field>
+                <app-field *ngIf="v.properties?.[key] && isConditionallyVisible(key)" [name]="key" [schema]="v.properties[key]" [root]="root" [value]="objectValue[key]" [required]="(v.required||[]).includes(key)" [issues]="issues" [path]="childPath(key)" (valueChange)="updateKey(key,$event)"></app-field>
               </div>
             </section>
-            <div *ngFor="let item of ungroupedEntries(v);trackBy:trackKey" class="field">
+            <div *ngFor="let item of ungroupedEntries(v);trackBy:trackKey" class="field" [hidden]="!isConditionallyVisible(item[0])">
               <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue[item[0]]" [required]="(v.required||[]).includes(item[0])" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
             </div>
 
@@ -232,6 +232,24 @@ export class FieldComponent {
  private readonly jsonTypes=['string','password','integer','number','boolean','object','array'];
 
  get resolved(){return effective(this.schema,this.value,this.root);}
+ isConditionallyVisible(key:string):boolean{
+  // Apenas as condições simples de obrigatoriedade criadas pelo Studio
+  // definem visibilidade. Outras regras JSON Schema continuam sendo validações.
+  const rules=(this.schema?.allOf||[]).filter((rule:any)=>rule&&rule.if&&
+   ((rule.then?.required||[]).includes(key)||(rule.else?.required||[]).includes(key)));
+  if(!rules.length)return true;
+  return rules.some((rule:any)=>{
+   const conditions=Object.entries(rule.if?.properties||{});
+   if(conditions.length!==1)return true;
+   const [field,assertion]=conditions[0] as [string,any];
+   const hasValue=Object.prototype.hasOwnProperty.call(this.objectValue,field);
+   if(!hasValue)return false;
+   const equal=Object.is(this.objectValue[field],assertion?.const??assertion?.not?.const);
+   const match=assertion?.not? !equal:equal;
+   const branch=match?'then':'else';
+   return (rule[branch]?.required||[]).includes(key);
+  });
+ }
  get objectValue():Record<string,any>{return this.value&&typeof this.value==='object'&&!Array.isArray(this.value)?this.value:{};}
  get arrayValue():any[]{return Array.isArray(this.value)?this.value:[];}
  get objectPropertyCount(){return Object.keys(this.objectValue).length;}
