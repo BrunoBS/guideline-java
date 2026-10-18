@@ -205,7 +205,7 @@ import {
                 </label>
               </div>
 
-              <select *ngIf="(v.enum||v.const!==undefined) && !isNullState()" [ngModel]="value" [disabled]="v.readOnly" (ngModelChange)="emit($event)"><option *ngFor="let option of (v.enum||[v.const])" [ngValue]="option">{{option}}</option></select>
+              <select *ngIf="(v.enum||v.const!==undefined) && !isNullState()" [ngModel]="value" [disabled]="v.readOnly" (ngModelChange)="emit($event)"><option *ngFor="let option of (v.enum||[v.const]); let i=index" [ngValue]="option">{{enumOptionLabel(v,option,i)}}</option></select>
               <label class="boolean-toggle" *ngIf="!v.enum && v.const===undefined && primaryType(v)==='boolean' && !isNullState()">
                 <span>{{value===true?'Ligado':'Desligado'}}</span>
                 <input type="checkbox" [disabled]="v.readOnly" [checked]="value===true" (change)="emit($any($event.target).checked)" />
@@ -253,6 +253,7 @@ export class FieldComponent {
  changeType(type:string,s:Schema){this.chosenType=type;this.emit(initial(narrowedSchema(s,type,this.root),this.root));}
  typeLabel(type:string){return ({string:'Texto',password:'Senha',integer:'Inteiro',number:'Número',boolean:'Booleano',object:'Objeto',array:'Lista',null:'Nulo'} as Record<string,string>)[type]||type;}
 
+ enumOptionLabel(schema:Schema,value:any,index:number):string{return String(schema['x-enumLabels']?.[index]??value);}
  compositionOptions():Schema[]{const s:any=this.schema||{};return [...(s.oneOf||[]),...(s.anyOf||[])].map((option:any)=>deref(option,this.root));}
  hasCompositionOptions(){return this.compositionOptions().length>1;}
  activeAlternativeIndex(){const options=this.compositionOptions();const index=options.findIndex(option=>matches(option,this.value,this.root));return index>=0?index:0;}
