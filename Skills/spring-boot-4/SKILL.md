@@ -50,3 +50,6 @@ Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e co
 - Para filtros, AOP e segurança, testar ordem de execução e propagação de contexto com Spring Security; documentar origem autenticada de workspace e correlação.
 - Para starters/auto-configuration, validar BOM efetivo, `@ConditionalOn...`, configuração tipada, ausência de bean duplicado e consumidor isolado; não presumir compatibilidade Boot 3→4.
 - Evidência mínima: build Maven, teste HTTP válido/inválido, teste transacional com banco e caso negativo de autorização.
+
+## Receita aplicada de desenvolvimento
+Para implementar uma feature HTTP com isolamento por workspace, consultar [pesquisa aplicada e caso de implementação](../validacao/PESQUISA-APLICADA-MAO-NA-MASSA.md). O esqueleto é ilustrativo; exigir tipos reais, compilação e testes de integração antes de afirmar conclusão.
