@@ -42,3 +42,11 @@ Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e co
 - Confirmar dependências efetivas; não transportar starter de Boot 3 sem verificação.
 - Testar transações pelo proxy Spring, rollback no MySQL e propagação de contexto async.
 - Evitar paginação de coleção com JOIN FETCH; validar duas fases e filtro por workspace.
+
+## Gate de implementação HTTP e transação
+- Antes de escrever controller, definir request/response, status HTTP, Bean Validation, códigos de erro, contrato de paginação e compatibilidade OpenAPI; não retornar entidades JPA diretamente.
+- Testar `@Valid` em request HTTP real/simulado, serialização, erros 400/401/403/404 e ausência de vazamento de dados.
+- Verificar limites transacionais na camada de aplicação, rollback por exceção e efeito de self-invocation/proxy; nunca presumir que `@Transactional` intercepta chamada interna.
+- Para filtros, AOP e segurança, testar ordem de execução e propagação de contexto com Spring Security; documentar origem autenticada de workspace e correlação.
+- Para starters/auto-configuration, validar BOM efetivo, `@ConditionalOn...`, configuração tipada, ausência de bean duplicado e consumidor isolado; não presumir compatibilidade Boot 3→4.
+- Evidência mínima: build Maven, teste HTTP válido/inválido, teste transacional com banco e caso negativo de autorização.
