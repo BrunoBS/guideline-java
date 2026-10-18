@@ -5,6 +5,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import redis.clients.jedis.JedisPooled;
+import redis.clients.jedis.params.SetParams;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -39,7 +40,7 @@ class RedisCacheStampedeTest {
                         while (System.nanoTime() < deadline) {
                             String cached = jedis.get(cacheKey);
                             if (cached != null) return cached;
-                            String acquired = jedis.set(lockKey, "owner", new redis.clients.jedis.params.SetParams().nx().px(5000));
+                            String acquired = jedis.set(lockKey, "owner", new SetParams().nx().px(5000));
                             if ("OK".equals(acquired)) {
                                 try {
                                     // Double-check after lock acquisition: another leader may have populated the cache.
