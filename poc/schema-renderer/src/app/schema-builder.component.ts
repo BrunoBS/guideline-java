@@ -478,15 +478,21 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 
    <section class="condition-card" *ngFor="let alternative of canvasOneOfRules; trackBy:trackOneOfRule">
     <div class="condition-title"><strong>Alternativas exclusivas — oneOf</strong><button type="button" (click)="removeOneOfRule(alternative.index)">Excluir</button></div>
-    <p class="builder-help">Exatamente uma das alternativas precisa ser válida. Use valores diferentes do mesmo campo para torná-las exclusivas.</p>
-    <label>Campo de escolha<select [ngModel]="oneOfField(alternative.schema)" (ngModelChange)="setOneOfField(alternative.index,$event)"><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
+    <p class="builder-help">Exatamente uma alternativa deve ser válida. As regras originais são preservadas.</p>
+    <p class="builder-help" *ngIf="!oneOfUsesSelector(alternative.schema)">Alternativas baseadas na presença ou ausência de campos, sem campo discriminador.</p>
+    <label *ngIf="oneOfUsesSelector(alternative.schema)">Campo de escolha<select [ngModel]="oneOfField(alternative.schema)" (ngModelChange)="setOneOfField(alternative.index,$event)"><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
     <div class="condition-branches">
      <div class="condition-branch" *ngFor="let option of oneOfOptions(alternative.schema); let i=index; trackBy:trackIndex">
-      <strong>Alternativa {{i+1}}</strong>
-      <label>Valor que identifica a alternativa<input [ngModel]="oneOfOptionValue(option)" (ngModelChange)="setOneOfValue(alternative.index,i,$event)"></label>
+      <strong>{{option.title || 'Alternativa '+(i+1)}}</strong>
+      <label *ngIf="oneOfUsesSelector(alternative.schema)">Valor que identifica a alternativa<input [ngModel]="oneOfOptionValue(option)" (ngModelChange)="setOneOfValue(alternative.index,i,$event)"></label>
       <label>Campo obrigatório<select #requiredAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
       <button type="button" (click)="addOneOfRequired(alternative.index,i,requiredAlternative.value)">+ Exigir campo</button>
       <p class="builder-help">Obrigatórios: {{oneOfRequired(option).join(', ') || 'nenhum adicional'}}</p>
+      <p class="builder-help" *ngIf="oneOfForbidden(option).length">Proibidos: {{oneOfForbidden(option).join(', ')}}</p>
+      <label *ngIf="!oneOfUsesSelector(alternative.schema)">Proibir campo
+       <select #forbiddenAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select>
+      </label>
+      <button type="button" *ngIf="!oneOfUsesSelector(alternative.schema)" (click)="addOneOfForbidden(alternative.index,i,forbiddenAlternative.value);forbiddenAlternative.value=''">+ Proibir campo</button>
      </div>
     </div>
    </section>
@@ -819,6 +825,22 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  removeOneOfRule(_index:number){this.commit(root=>{delete root.oneOf;});}
  oneOfOptions(node:Schema):Schema[]{return (node.oneOf||[]) as Schema[];}
+ oneOfUsesSelector(node:Schema):boolean{return !!this.oneOfField(node);}
+ oneOfForbidden(node:Schema):string[]{
+  const not=node.not as any;
+  if(!not||typeof not!=='object')return [];
+  const rules=Array.isArray(not.anyOf)?not.anyOf:[not];
+  return [...new Set<string>(rules.flatMap((rule:any)=>Array.isArray(rule.required)&&rule.required.length===1?rule.required:[]))];
+ }
+ addOneOfForbidden(_index:number,index:number,key:string){
+  if(!key||!this.conditionAvailableFields.includes(key))return;
+  this.commit(root=>{
+   const option=root.oneOf?.[index];if(!option)return;
+   if(option.not && this.oneOfForbidden(option).length===0){this.error='A regra not existente é avançada. Edite-a no modo Para Dev.';return;}
+   const keys=[...new Set<string>([...this.oneOfForbidden(option),key])];
+   option.not=keys.length===1?{required:[keys[0]]}:{anyOf:keys.map(name=>({required:[name]}))};
+  });
+ }
  oneOfField(node:Schema):string{return Object.keys(node.oneOf?.[0]?.properties||{})[0]||'';}
  oneOfOptionValue(node:Schema):string{return String(node.properties?.[Object.keys(node.properties||{})[0]]?.const??'');}
  oneOfRequired(node:Schema):string[]{return (node.required||[]).filter((key:string)=>key!==Object.keys(node.properties||{})[0]);}
