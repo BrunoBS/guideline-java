@@ -9,6 +9,8 @@ import redis.clients.jedis.params.SetParams;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -31,6 +33,7 @@ class RedisCacheStampedeTest {
             int callers = 12;
             var rebuilds = new AtomicInteger();
             var start = new CountDownLatch(1);
+            String releaseScript = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
             try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
                 var tasks = new ArrayList<java.util.concurrent.Future<String>>();
                 for (int i = 0; i < callers; i++) {
@@ -40,7 +43,8 @@ class RedisCacheStampedeTest {
                         while (System.nanoTime() < deadline) {
                             String cached = jedis.get(cacheKey);
                             if (cached != null) return cached;
-                            String acquired = jedis.set(lockKey, "owner", new SetParams().nx().px(5000));
+                            String owner = UUID.randomUUID().toString();
+                            String acquired = jedis.set(lockKey, owner, new SetParams().nx().px(5000));
                             if ("OK".equals(acquired)) {
                                 try {
                                     // Double-check after lock acquisition: another leader may have populated the cache.
@@ -51,8 +55,7 @@ class RedisCacheStampedeTest {
                                     jedis.setex(cacheKey, 30, "workspace-config");
                                     return "workspace-config";
                                 } finally {
-                                    // Safe only for this bounded test: lock lease outlives rebuild.
-                                    if ("owner".equals(jedis.get(lockKey))) jedis.del(lockKey);
+                                    jedis.eval(releaseScript, List.of(lockKey), List.of(owner));
                                 }
                             }
                             Thread.sleep(20);
