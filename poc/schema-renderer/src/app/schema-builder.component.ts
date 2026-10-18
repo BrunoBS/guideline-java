@@ -811,6 +811,7 @@ export class SchemaBuilderComponent implements OnChanges {
   return this.oneOfCacheRules;
  }
  trackOneOfRule(_index:number,rule:{index:number;schema:Schema}){return rule.index;}
+ trackIndex(index:number){return index;}
  addOneOfRule(){
   if(this.schema.oneOf){this.error='Já existe uma regra de alternativas. Edite as alternativas existentes.';return;}
   const field=this.conditionAvailableFields[0];if(!field)return;
