@@ -723,8 +723,20 @@ export class SchemaBuilderComponent implements OnChanges {
  trackConditionIndex(_index:number,rule:{index:number;schema:Schema}){return rule.index;}
  trackConditionFieldKey(_index:number,field:{key:string;schema:Schema}){return field.key;}
  get conditionContainer():Schema|undefined{return this.getNodeAt(this.schema,this.activeContainerPath);}
- get canvasConditions():{index:number;schema:Schema}[]{return (this.conditionContainer?.allOf||[]).map((schema:Schema,index:number)=>({index,schema})).filter((r:{index:number;schema:Schema})=>!!r.schema?.if&&r.schema.then!==undefined&&r.schema.else!==undefined);}
- get conditionAvailableFields():string[]{return Object.keys(this.conditionContainer?.properties||{});}
+ private conditionCacheContainer:Schema|undefined;
+ private conditionCachePath='';
+ private conditionCacheRules:{index:number;schema:Schema}[]=[];
+ private conditionCacheFields:string[]=[];
+ private refreshConditionCache(){
+  const node=this.conditionContainer;
+  if(node===this.conditionCacheContainer&&this.activeContainerPath===this.conditionCachePath)return;
+  this.conditionCacheContainer=node;
+  this.conditionCachePath=this.activeContainerPath;
+  this.conditionCacheRules=(node?.allOf||[]).map((schema:Schema,index:number)=>({index,schema})).filter((r:{index:number;schema:Schema})=>!!r.schema?.if&&r.schema.then!==undefined&&r.schema.else!==undefined);
+  this.conditionCacheFields=Object.keys(node?.properties||{});
+ }
+ get canvasConditions():{index:number;schema:Schema}[]{this.refreshConditionCache();return this.conditionCacheRules;}
+ get conditionAvailableFields():string[]{this.refreshConditionCache();return this.conditionCacheFields;}
  private editableCondition(root:Schema,index:number):Schema|undefined{return this.getNodeAt(root,this.activeContainerPath)?.allOf?.[index];}
  private conditionCompareValue(field:string,text:string):any{
   const definition=this.conditionContainer?.properties?.[field]||{};
