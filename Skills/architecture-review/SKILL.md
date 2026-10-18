@@ -42,3 +42,12 @@ Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e co
 - Registrar ADR com alternativas, ownership, custos e reversão.
 - Não propor microserviço sem avaliar fronteira de dados e falhas distribuídas.
 - Classificar findings em comprovado, provável ou hipótese.
+
+## Gate de arquitetura executável
+- Descrever fluxo ponta a ponta: entrada HTTP/mensagem → autenticação → autorização → caso de uso → transação → persistência → evento/outbox → cache → observabilidade.
+- Registrar owner dos dados, contratos públicos, dependências síncronas/assíncronas, propagação de contexto, política de erros e limites de consistência.
+- Para bibliotecas, mapear consumidores, API/ABI, compatibilidade de versões, dependências transitivas, auto-configuração e impacto de breaking changes.
+- Para cada proposta arquitetural, comparar pelo menos alternativa mínima e alternativa distribuída, indicando custos de operação, testes, falhas e reversão.
+- Exigir ADR com cenário, decisão, opções rejeitadas, riscos, evidência e critérios de revisão; não promover um desenho a norma sem validação.
+- Gate de segurança: nenhum boundary pode confiar em contexto de tenant fornecido pelo cliente sem autenticação/autorização no backend.
+- Gate de entrega: diagrama ou sequência verificável, matriz de contratos e plano de teste de integração/falha.
