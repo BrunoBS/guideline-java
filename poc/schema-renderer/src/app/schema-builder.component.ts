@@ -26,7 +26,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified.developer-mode .inspector{grid-column:2;grid-row:1}
 
  .logic-palette-title{display:block;flex-basis:100%;margin-top:12px;color:#003399}
- .condition-add{border-color:#a9bee5;background:#ecf2ff}
+ .condition-add{border:2px solid #2455b5!important;background:#eaf1ff!important;color:#003399!important}
  .condition-card{border:1px solid #cbd8ed;border-radius:12px;padding:16px;margin:14px 0;background:#fff}
  .condition-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;color:#001f5b}
  .condition-if,.condition-branch{border-radius:10px;padding:14px;margin-top:10px;background:#f7f9fd;border:1px solid #dbe3ef}
@@ -333,9 +333,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <aside class="palette" [class.desktop-palette]="mode==='construction'" *ngIf="mode==='construction' || mode==='dev'">
    <strong>{{mode==='dev'?'Estrutura técnica':'Adicionar componentes'}}</strong>
    <p class="builder-help">Escolha um tipo para adicionar ao formulário ou ao objeto selecionado.</p>
-   <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
-   <strong class="logic-palette-title">Lógica</strong>
-   <button type="button" class="palette-item condition-add" (click)="addCondition()"><span>⑂</span> Condição <span style="margin-left:auto">+</span></button>
+   <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)" [class.condition-add]="item.type==='condition'"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
+   <p class="builder-help logic-palette-title">A condição cria os ramos SE / ENTÃO / SENÃO.</p>
    <button type="button" class="structure-toggle" *ngIf="mode==='dev'" (click)="showStructure=!showStructure">{{showStructure?'▾ Ocultar':'▸ Mostrar'}} estrutura completa</button>
    <div class="structure-panel tree" *ngIf="mode==='dev' && showStructure">
    <strong>Estrutura do schema</strong>
@@ -358,7 +357,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     </div>
    </div>
    <div class="mobile-palette" *ngIf="false">
-    <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
+    <button type="button" class="palette-item" *ngFor="let item of palette" (click)="addTypedProperty(item.type)" [class.condition-add]="item.type==='condition'"><span>{{item.icon}}</span> {{item.label}} <span style="margin-left:auto">+</span></button>
    </div>
    <div class="canvas-fields">
 <div class="canvas-field-card" [class.schema-group]="isObjectSchema(field.schema)" *ngFor="let field of ungroupedCanvasFields" [style.order]="canvasPosition('field:'+propertyKey(field.path))" [class.active]="selectedPath===field.path">
@@ -404,7 +403,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <div class="condition-branch true"><strong>✓ ENTÃO (THEN) — Verdadeiro</strong><p class="builder-help">Componentes aplicados quando verdadeiro.</p>
       <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'then')">
        <label>Chave<input [ngModel]="field.key" (change)="renameConditionField(rule.index,'then',field.key,$any($event.target).value)"></label>
-       <label>Tipo<select [ngModel]="field.schema.type||'string'" (ngModelChange)="setConditionFieldType(rule.index,'then',field.key,$event)"><option *ngFor="let kind of palette" [value]="kind.type">{{kind.label}}</option></select></label>
+       <label>Tipo<select [ngModel]="field.schema.type||'string'" (ngModelChange)="setConditionFieldType(rule.index,'then',field.key,$event)"><option *ngFor="let kind of conditionFieldPalette" [value]="kind.type">{{kind.label}}</option></select></label>
        <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'then',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'then',field.key,$event)"> Obrigatório</label>
        <button type="button" (click)="removeConditionField(rule.index,'then',field.key)">Excluir</button>
       </div>
@@ -605,7 +604,7 @@ export class SchemaBuilderComponent implements OnChanges {
  cancelDelete(){this.showDeleteConfirmation=false;}
  deleteConfirmed(){this.showDeleteConfirmation=false;this.removeSelected();}
  showStructure=false;
- palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'array',label:'Lista',icon:'☷'}];
+ palette=[{type:'string',label:'Texto',icon:'T'},{type:'integer',label:'Inteiro',icon:'#'},{type:'number',label:'Decimal',icon:'½'},{type:'boolean',label:'Sim / Não',icon:'☑'},{type:'object',label:'Objeto',icon:'{}'},{type:'array',label:'Lista',icon:'☷'},{type:'condition',label:'Condição (SE / ENTÃO / SENÃO)',icon:'⑂'}];
  get selectedVisualGroup():any{return this.visualGroups.find((g:any)=>g.id===this.selectedGroupId);}
  selectForm(){this.editingForm=true;this.selectedGroupId='';this.selectedPath='';}
  updateForm(key:'title'|'description',value:string){this.commit(root=>{if(value)root[key]=value;else delete root[key];});}
@@ -720,6 +719,7 @@ export class SchemaBuilderComponent implements OnChanges {
  objectChildren(path:string){const node=this.getNodeAt(this.schema,path);return Object.entries(node?.properties||{}).map(([key,schema])=>({path:path+'/properties/'+this.escape(key),label:key,schema:schema as Schema}));}
  addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.preserveScrollAfter(()=>this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||!this.isObjectSchema(node))return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='object'?{type:'object',title:key,properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;}));}
 
+ get conditionFieldPalette(){return this.palette.filter(item=>item.type!=='condition');}
  get conditionContainer():Schema|undefined{return this.getNodeAt(this.schema,this.activeContainerPath);}
  get canvasConditions():{index:number;schema:Schema}[]{return (this.conditionContainer?.allOf||[]).map((schema:Schema,index:number)=>({index,schema})).filter((r:{index:number;schema:Schema})=>!!r.schema?.if&&r.schema.then!==undefined&&r.schema.else!==undefined);}
  get conditionAvailableFields():string[]{return Object.keys(this.conditionContainer?.properties||{});}
@@ -755,11 +755,12 @@ export class SchemaBuilderComponent implements OnChanges {
  private editBranch(index:number,branch:'then'|'else',edit:(node:Schema)=>void){this.commit(root=>{const rule=this.editableCondition(root,index);if(!rule)return;rule[branch]??={};edit(rule[branch]);});}
  addConditionField(index:number,branch:'then'|'else'){this.editBranch(index,branch,node=>{node.properties??={};let key='campo',i=2;while(key in node.properties||key in (this.conditionContainer?.properties||{}))key='campo'+i++;node.properties[key]={type:'string',title:key};});}
  renameConditionField(index:number,branch:'then'|'else',oldKey:string,name:string){const key=name.trim();if(!key||key===oldKey||!/^[$A-Za-z_][$A-Za-z0-9_-]*$/.test(key))return;this.editBranch(index,branch,node=>{if(!node.properties?.[oldKey]||key in node.properties)return;const next:Record<string,Schema>={};for(const [k,v] of Object.entries(node.properties))next[k===oldKey?key:k]=v as Schema;node.properties=next;if(node.required)node.required=node.required.map((v:string)=>v===oldKey?key:v);});}
- setConditionFieldType(index:number,branch:'then'|'else',key:string,type:string){if(!this.palette.some(item=>item.type===type))return;this.editBranch(index,branch,node=>{if(!node.properties?.[key])return;node.properties[key]=type==='object'?{type:'object',title:key,properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};});}
+ setConditionFieldType(index:number,branch:'then'|'else',key:string,type:string){if(!this.palette.some(item=>item.type===type&&type!=='condition'))return;this.editBranch(index,branch,node=>{if(!node.properties?.[key])return;node.properties[key]=type==='object'?{type:'object',title:key,properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};});}
  setConditionFieldRequired(index:number,branch:'then'|'else',key:string,enabled:boolean){this.editBranch(index,branch,node=>{const required=new Set<string>(node.required||[]);enabled?required.add(key):required.delete(key);if(required.size)node.required=[...required];else delete node.required;});}
  removeConditionField(index:number,branch:'then'|'else',key:string){this.editBranch(index,branch,node=>{if(node.properties)delete node.properties[key];if(node.required){node.required=node.required.filter((v:string)=>v!==key);if(!node.required.length)delete node.required;}});}
 
  addTypedProperty(type:string){
+  if(type==='condition'){this.addCondition();return;}
   const targetPath=this.activeContainerPath;
   const node=this.getNodeAt(this.schema,targetPath);
   if(!node||!this.isObjectSchema(node)){this.error='Selecione um objeto para adicionar campos.';return;}
