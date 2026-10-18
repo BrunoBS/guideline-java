@@ -36,6 +36,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -61,6 +63,12 @@ class SpringSecurityHttpChainTest {
             assertEquals(403, invoke(proxy, dispatcher, alice, "20", "202"));
             assertEquals(404, invoke(proxy, dispatcher, alice, "10", "202"));
             assertEquals(404, invoke(proxy, dispatcher, alice, "10", "999"));
+            String bob = token("bob", "https://issuer.example.test", "guideline-api", 300);
+            assertEquals(200, invoke(proxy, dispatcher, bob, "20", "202"));
+            assertEquals(403, invoke(proxy, dispatcher, bob, "10", "101"));
+            assertEquals(404, invoke(proxy, dispatcher, bob, "20", "101"));
+            assertEquals(403, invoke(proxy, dispatcher, alice, "30", "303"));
+            assertEquals(404, invoke(proxy, dispatcher, alice, "10", "303"));
         }
     }
 
@@ -114,13 +122,17 @@ class SpringSecurityHttpChainTest {
 
     @RestController
     static class ResourceController {
+        private static final Map<String, Set<Long>> GRANTS = Map.of("alice", Set.of(10L), "bob", Set.of(20L));
+        private static final Map<Long, Long> RESOURCES = Map.of(101L, 10L, 202L, 20L, 303L, 30L);
+
         @GetMapping("/resources/{id}")
         String resource(@RequestHeader("X-Workspace-Id") long workspace,
                         @org.springframework.web.bind.annotation.PathVariable long id) {
             Jwt principal = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            if (!("alice".equals(principal.getSubject()) && workspace == 10L))
+            if (!GRANTS.getOrDefault(principal.getSubject(), Set.of()).contains(workspace))
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-            if (id != 101L) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+            if (!Long.valueOf(workspace).equals(RESOURCES.get(id)))
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND);
             return "allowed";
         }
     }
