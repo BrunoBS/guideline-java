@@ -392,9 +392,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <section class="condition-card" *ngFor="let rule of canvasConditions">
     <div class="condition-title"><strong>⑂ Condição {{rule.index+1}}</strong><button type="button" (click)="removeCondition(rule.index)">Excluir condição</button></div>
     <div class="condition-if">
-     <strong>SE (IF)</strong><p class="builder-help">Quando a regra abaixo for atendida:</p>
+     <strong>SE (IF)</strong><p class="builder-help">Quando a regra abaixo for atendida:</p><p class="builder-error" *ngIf="!conditionAvailableFields.length">Adicione um campo ao formulário para configurar esta condição.</p><p class="builder-error" *ngIf="conditionAvailableFields.length && !conditionField(rule.schema)">Selecione o campo que controla a condição.</p>
      <div class="condition-grid">
-      <label>Campo<select [ngModel]="conditionField(rule.schema)" (ngModelChange)="setConditionField(rule.index,$event)"><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
+      <label>Campo<select [ngModel]="conditionField(rule.schema)" (ngModelChange)="setConditionField(rule.index,$event)"><option value="" disabled>Selecione um campo</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
       <label>Operador<select [ngModel]="conditionOperator(rule.schema)" (ngModelChange)="setConditionOperator(rule.index,$event)"><option value="equals">É igual a</option><option value="different">É diferente de</option></select></label>
       <label>Valor esperado<input [ngModel]="conditionExpected(rule.schema)" (ngModelChange)="setConditionExpected(rule.index,$event)" placeholder="Ex.: EXPRESSION"></label>
      </div>
@@ -732,6 +732,7 @@ export class SchemaBuilderComponent implements OnChanges {
   return text;
  }
  private conditionCheck(field:string,operator:string,text:string):Schema{
+  if(!field)return {properties:{}};
   const value=this.conditionCompareValue(field,text);
   return {properties:{[field]:operator==='different'?{not:{const:value}}:{const:value}},required:[field]};
  }
@@ -741,9 +742,8 @@ export class SchemaBuilderComponent implements OnChanges {
  addCondition(){
   const container=this.conditionContainer,fields=this.conditionAvailableFields;
   if(!container||!this.isObjectSchema(container)){this.error='Abra um objeto para adicionar uma condição.';return;}
-  if(!fields.length){this.error='Adicione primeiro o campo utilizado na condição.';return;}
   this.error='';
-  this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath)!;node.allOf??=[];node.allOf.push({if:this.conditionCheck(fields[0],'equals',''),then:{properties:{}},else:{properties:{}}});});
+  this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath)!;node.allOf??=[];node.allOf.push({if:fields.length?this.conditionCheck(fields[0],'equals',''):{properties:{}},then:{properties:{}},else:{properties:{}}});});
  }
  removeCondition(index:number){this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath)!;node.allOf?.splice(index,1);if(!node.allOf?.length)delete node.allOf;});}
  private changeCondition(index:number,field:string,operator:string,expected:string){this.commit(root=>{const rule=this.editableCondition(root,index);if(rule)rule.if=this.conditionCheck(field,operator,expected);});}
