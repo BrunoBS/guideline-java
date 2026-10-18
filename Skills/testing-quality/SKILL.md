@@ -52,3 +52,6 @@ Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e co
 - `security`: matriz de permissão e testes negativos de tenant cruzado, ausência de contexto e token inválido.
 - `performance`: workload reproduzível, baseline e comparação sob condições equivalentes; nunca aprovar por microbenchmark isolado.
 - Registrar comandos, versões, logs de falha e sucesso, infraestrutura utilizada, flakiness e cenários não executados; não usar cobertura percentual como único gate.
+
+## Receita aplicada de desenvolvimento
+Para implementar uma feature HTTP com isolamento por workspace, consultar [pesquisa aplicada e caso de implementação](../validacao/PESQUISA-APLICADA-MAO-NA-MASSA.md). O esqueleto é ilustrativo; exigir tipos reais, compilação e testes de integração antes de afirmar conclusão.
