@@ -489,10 +489,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
       <button type="button" (click)="addOneOfRequired(alternative.index,i,requiredAlternative.value)">+ Exigir campo</button>
       <p class="builder-help">Obrigatórios: {{oneOfRequired(option).join(', ') || 'nenhum adicional'}}</p>
       <p class="builder-help" *ngIf="oneOfForbidden(option).length">Proibidos: {{oneOfForbidden(option).join(', ')}}</p>
-      <label *ngIf="!oneOfUsesSelector(alternative.schema)">Proibir campo
-       <select #forbiddenAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select>
-      </label>
-      <button type="button" *ngIf="!oneOfUsesSelector(alternative.schema)" (click)="addOneOfForbidden(alternative.index,i,forbiddenAlternative.value);forbiddenAlternative.value=''">+ Proibir campo</button>
+      <ng-container *ngIf="!oneOfUsesSelector(alternative.schema)">
+       <label>Proibir campo
+        <select #forbiddenAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select>
+       </label>
+       <button type="button" (click)="addOneOfForbidden(alternative.index,i,forbiddenAlternative.value);forbiddenAlternative.value=''">+ Proibir campo</button>
+      </ng-container>
      </div>
     </div>
    </section>
