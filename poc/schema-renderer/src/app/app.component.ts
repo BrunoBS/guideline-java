@@ -24,6 +24,7 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
   .studio-tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #d7dfec;margin:18px 0 22px;padding-bottom:10px}
   .studio-tabs button{border:1px solid transparent;border-radius:9px;padding:11px 16px;background:transparent;color:#4b5b75;cursor:pointer;font-weight:600}
   .studio-tabs button.active{background:#eaf1ff;border-color:#b4c8ee;color:#003399}
+  .schema-modal-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
   .studio-json{white-space:pre-wrap;overflow-wrap:anywhere;max-height:65vh;overflow:auto}
   .home-intro{text-align:center;margin:30px auto 26px}
   .home-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:940px;margin:0 auto 36px}
@@ -134,18 +135,24 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
       <div class="validation-summary" *ngIf="errors.length"><h4>Validação</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div></div>
     </section>
   </div>
+  <div class="studio-preview-overlay" *ngIf="area==='builder' && schemaPreviewOpen" (click)="schemaPreviewOpen=false" (keydown.escape)="schemaPreviewOpen=false" role="presentation">
+    <section class="studio-preview-modal" role="dialog" aria-modal="true" aria-label="Visualizar JSON Schema" (click)="$event.stopPropagation()">
+      <div class="studio-preview-header"><div><h3>Visualizar schema</h3><p>Contrato JSON Schema gerado a partir da configuração atual.</p></div>
+        <div class="schema-modal-actions"><button type="button" (click)="downloadBuilderSchema()">↓ Exportar JSON Schema</button><button type="button" class="secondary" (click)="schemaPreviewOpen=false" aria-label="Fechar visualização do schema">✕ Fechar</button></div>
+      </div>
+      <div class="studio-preview-body"><pre class="response-json studio-json">{{schema|json}}</pre></div>
+    </section>
+  </div>
   <nav class="studio-tabs" *ngIf="area==='builder'" aria-label="Abas do Schema Studio">
     <button type="button" [class.active]="builderTab==='construction'" (click)="builderTab='construction'">Construção</button>
     <button type="button" [class.active]="builderTab==='dev'" (click)="builderTab='dev'">Para Dev</button>
-    <button type="button" [class.active]="builderTab==='json'" (click)="builderTab='json'">JSON Schema</button>
   </nav>
   <section class="panel tab-panel" *ngIf="area==='builder'">
-    <div class="section-heading"><div><h3>Schema Studio</h3><p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p></div><button type="button" (click)="previewOpen=true" aria-haspopup="dialog">◉ Visualizar formulário</button></div>
+    <div class="section-heading"><div><h3>Schema Studio</h3><p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p></div><div class="schema-modal-actions"><button type="button" class="secondary" (click)="schemaPreviewOpen=true" aria-haspopup="dialog">◉ Visualizar schema</button><button type="button" (click)="previewOpen=true" aria-haspopup="dialog">◉ Visualizar formulário</button></div></div>
     <p class="error callout" *ngIf="builderError">{{builderError}}</p>
     <div class="developer-actions">
       <button type="button" class="secondary" (click)="newBuilderSchema()">Novo schema</button>
       <button type="button" class="secondary" (click)="builderTab='json';builderImport=!builderImport">Importar JSON Schema</button>
-      <button type="button" class="secondary" (click)="downloadBuilderSchema()">Exportar JSON Schema</button>
     </div>
     <div *ngIf="builderImport && builderTab==='json'">
       <label for="builder-import">Cole um JSON Schema Draft 2020-12</label>
@@ -179,11 +186,6 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
         <div class="validation-summary" *ngIf="errors.length"><h4>Validação</h4><ul><li class="error" *ngFor="let e of errors">{{e}}</li></ul></div>
       </aside>
     </div>
-    <div *ngIf="builderTab==='json'">
-      <h4>JSON Schema gerado</h4>
-      <p>O contrato abaixo é sincronizado com a Construção e o modo Para Dev.</p>
-      <pre class="response-json studio-json">{{schema|json}}</pre>
-    </div>
   </section>
 
   <section class="panel tab-panel" *ngIf="area==='renderer' && activeTab===4">
@@ -198,6 +200,7 @@ export class AppComponent {
  activeTab=1;
  builderTab:'construction'|'dev'|'json'='construction';
  previewOpen=false;
+ schemaPreviewOpen=false;
  builderSource='';
  builderSchemaError='';
  enterBuilder(){this.area='builder';this.builderTab='construction';this.newBuilderSchema();this.builderSource=JSON.stringify(this.schema,null,2);}
