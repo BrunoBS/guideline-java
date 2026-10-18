@@ -430,8 +430,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
         <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'then',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'then',field.key,$event)"> Obrigatório</label>
         <button type="button" (click)="removeConditionField(rule.index,'then',field.key)">Remover</button>
        </div>
-       <label>Aplicar ao campo<select #thenField><option value="">Selecionar campo...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
-       <button type="button" class="condition-add-field" (click)="addExistingConditionField(rule.index,'then',thenField.value);thenField.value=''">+ Aplicar regra</button>
+       <label>Tornar campo obrigatório quando verdadeiro
+        <select [ngModel]="''" (ngModelChange)="addExistingConditionField(rule.index,'then',$event)">
+         <option value="">Selecione um campo...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option>
+        </select>
+       </label>
+       <p class="builder-help">Ao selecionar, a regra é aplicada automaticamente.</p>
      </div>
      <div class="condition-branch false"><strong>✕ SENÃO (ELSE) — Falso</strong><p class="builder-help">Componentes aplicados quando falso.</p>
       <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'else'); trackBy:trackConditionFieldKey">
@@ -440,8 +444,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
         <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'else',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'else',field.key,$event)"> Obrigatório</label>
         <button type="button" (click)="removeConditionField(rule.index,'else',field.key)">Remover</button>
        </div>
-       <label>Aplicar ao campo<select #elseField><option value="">Selecionar campo...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
-       <button type="button" class="condition-add-field" (click)="addExistingConditionField(rule.index,'else',elseField.value);elseField.value=''">+ Aplicar regra</button>
+       <label>Tornar campo obrigatório quando falso
+        <select [ngModel]="''" (ngModelChange)="addExistingConditionField(rule.index,'else',$event)">
+         <option value="">Selecione um campo...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option>
+        </select>
+       </label>
+       <p class="builder-help">Ao selecionar, a regra é aplicada automaticamente.</p>
      </div>
     </div>
    </section>
@@ -835,7 +843,11 @@ export class SchemaBuilderComponent implements OnChanges {
  setConditionField(index:number,field:string){const rule=this.canvasConditions.find(r=>r.index===index)?.schema;if(rule&&this.conditionAvailableFields.includes(field))this.changeCondition(index,field,this.conditionOperator(rule),this.conditionExpected(rule));}
  setConditionOperator(index:number,operator:string){const rule=this.canvasConditions.find(r=>r.index===index)?.schema;if(rule)this.changeCondition(index,this.conditionField(rule),operator,this.conditionExpected(rule));}
  setConditionExpected(index:number,value:string){const rule=this.canvasConditions.find(r=>r.index===index)?.schema;if(rule)this.changeCondition(index,this.conditionField(rule),this.conditionOperator(rule),value);}
- conditionBranchFields(rule:Schema,branch:'then'|'else'):{key:string;schema:Schema}[]{return Object.entries(rule[branch]?.properties||{}).map(([key,schema])=>({key,schema:schema as Schema}));}
+ conditionBranchFields(rule:Schema,branch:'then'|'else'):{key:string;schema:Schema}[]{
+  const node=rule[branch]||{};
+  const keys=[...new Set([...Object.keys(node.properties||{}),...(node.required||[])])];
+  return keys.map(key=>({key,schema:node.properties?.[key]||{}}));
+ }
  conditionFieldRequired(rule:Schema,branch:'then'|'else',key:string){return (rule[branch]?.required||[]).includes(key);}
  private editBranch(index:number,branch:'then'|'else',edit:(node:Schema)=>void){this.commit(root=>{const rule=this.editableCondition(root,index);if(!rule)return;rule[branch]??={};edit(rule[branch]);});}
  addExistingConditionField(index:number,branch:'then'|'else',key:string){
