@@ -843,7 +843,7 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  oneOfField(node:Schema):string{return Object.keys(node.oneOf?.[0]?.properties||{})[0]||'';}
  oneOfOptionValue(node:Schema):string{return String(node.properties?.[Object.keys(node.properties||{})[0]]?.const??'');}
- oneOfRequired(node:Schema):string[]{return (node.required||[]).filter((key:string)=>key!==Object.keys(node.properties||{})[0]);}
+ oneOfRequired(node:Schema):string[]{const discriminator=Object.keys(node.properties||{}).find(key=>node.properties?.[key]?.const!==undefined);return (node.required||[]).filter((key:string)=>key!==discriminator);}
  setOneOfField(_index:number,field:string){
   if(!this.conditionAvailableFields.includes(field))return;
   this.commit(root=>{for(const option of root.oneOf||[]){const value=this.oneOfOptionValue(option);const required=this.oneOfRequired(option);option.properties={[field]:{const:value}};option.required=[field,...required.filter(key=>key!==field)];}});
