@@ -52,13 +52,18 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .condition-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
  .condition-grid label,.condition-branch-field label{display:grid;gap:5px;font-size:13px;color:#334155;font-weight:600}
  .condition-grid input,.condition-grid select,.condition-branch-field input,.condition-branch-field select{width:100%;box-sizing:border-box;border:1px solid #bcc9dc;padding:10px;border-radius:7px;background:#fff}
- .condition-branch-field{display:grid;grid-template-columns:minmax(110px,1fr) auto auto;gap:10px;align-items:end;margin:10px 0;padding-bottom:10px;border-bottom:1px solid #dfe6f0}
+ .condition-branch-field{display:flex;align-items:center;gap:16px;margin:10px 0;padding:10px 0 14px;border-bottom:1px solid #dfe6f0}
+ .condition-field-name{display:flex;align-items:baseline;gap:10px;flex:1;min-width:0;color:#334155}
+ .condition-field-name span{font-size:13px;font-weight:600;color:#64748b}
+ .condition-field-name strong{font-size:16px;font-weight:750;overflow-wrap:anywhere}
+ .condition-branch-field .condition-delete-button{border:1px solid #d4ddeb!important;background:#fff!important;color:#a52332!important;border-radius:8px!important;min-width:104px;height:36px;padding:0 12px!important;font-size:13px;font-weight:600}
+ .condition-branch-field .condition-delete-button:hover{background:#fff0ef!important;border-color:#e7b5b5!important}
  .condition-branch-field .condition-required{display:flex;align-items:center;gap:5px;white-space:nowrap}
  .condition-branch-field .condition-required input{width:auto}
  .condition-card button{border:1px solid #b8c9df;border-radius:7px;background:#fff;color:#2455b5;padding:9px;cursor:pointer}
  .condition-card .condition-add-field{margin-top:10px;background:#ecf2ff}
  .condition-branches{display:grid;grid-template-columns:1fr 1fr;gap:12px}
- @media(max-width:950px){.condition-branches,.condition-grid{grid-template-columns:1fr}.condition-branch-field{grid-template-columns:1fr 1fr}}
+ @media(max-width:950px){.condition-branches,.condition-grid{grid-template-columns:1fr}} @media(max-width:550px){.condition-branch-field{flex-wrap:wrap}.condition-field-name{flex-basis:100%}.condition-branch-field .condition-delete-button{margin-left:auto}}
 
  .builder.simplified .palette{order:2;position:static;width:100%;box-sizing:border-box}
  .builder.simplified:not(.developer-mode) .palette{grid-column:2;grid-row:1}
@@ -438,12 +443,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <div class="condition-branches">
      <div class="condition-branch true"><strong>✓ ENTÃO (THEN) — Verdadeiro</strong><p class="builder-help">Componentes aplicados quando verdadeiro.</p>
       <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'then'); trackBy:trackConditionFieldKey">
-        <label>Campo <strong>{{field.key}}</strong></label>
+        <div class="condition-field-name"><span>Campo</span><strong>{{field.key}}</strong></div>
         <label class="required-switch-label condition-required">Obrigatório
           <input class="required-switch-input" type="checkbox" role="switch" [checked]="conditionFieldRequired(rule.schema,'then',field.key)" (change)="setConditionFieldRequired(rule.index,'then',field.key,$any($event.target).checked)"/>
           <span class="required-switch-track" aria-hidden="true"></span>
          </label>
-        <button type="button" (click)="removeConditionField(rule.index,'then',field.key)">Remover</button>
+        <button type="button" class="condition-delete-button" (click)="removeConditionField(rule.index,'then',field.key)" [attr.aria-label]="'Excluir regra do campo '+field.key">Excluir</button>
        </div>
        <label>Tornar campo obrigatório quando verdadeiro
         <select [ngModel]="''" (ngModelChange)="addExistingConditionField(rule.index,'then',$event)">
@@ -454,12 +459,12 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      </div>
      <div class="condition-branch false"><strong>✕ SENÃO (ELSE) — Falso</strong><p class="builder-help">Componentes aplicados quando falso.</p>
       <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'else'); trackBy:trackConditionFieldKey">
-        <label>Campo <strong>{{field.key}}</strong></label>
+        <div class="condition-field-name"><span>Campo</span><strong>{{field.key}}</strong></div>
         <label class="required-switch-label condition-required">Obrigatório
           <input class="required-switch-input" type="checkbox" role="switch" [checked]="conditionFieldRequired(rule.schema,'else',field.key)" (change)="setConditionFieldRequired(rule.index,'else',field.key,$any($event.target).checked)"/>
           <span class="required-switch-track" aria-hidden="true"></span>
          </label>
-        <button type="button" (click)="removeConditionField(rule.index,'else',field.key)">Remover</button>
+        <button type="button" class="condition-delete-button" (click)="removeConditionField(rule.index,'else',field.key)" [attr.aria-label]="'Excluir regra do campo '+field.key">Excluir</button>
        </div>
        <label>Tornar campo obrigatório quando falso
         <select [ngModel]="''" (ngModelChange)="addExistingConditionField(rule.index,'else',$event)">
