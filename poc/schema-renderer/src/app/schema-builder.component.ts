@@ -840,7 +840,11 @@ export class SchemaBuilderComponent implements OnChanges {
  private editBranch(index:number,branch:'then'|'else',edit:(node:Schema)=>void){this.commit(root=>{const rule=this.editableCondition(root,index);if(!rule)return;rule[branch]??={};edit(rule[branch]);});}
  addExistingConditionField(index:number,branch:'then'|'else',key:string){
   if(!key||!this.conditionAvailableFields.includes(key))return;
-  this.editBranch(index,branch,node=>{node.properties??={};node.properties[key]??={};});
+  this.editBranch(index,branch,node=>{
+   node.properties??={};
+   node.properties[key]??={};
+   node.required=[...new Set([...(node.required||[]),key])];
+  });
  }
  addConditionField(index:number,branch:'then'|'else'){this.editBranch(index,branch,node=>{node.properties??={};let key='campo',i=2;while(key in node.properties||key in (this.conditionContainer?.properties||{}))key='campo'+i++;node.properties[key]={type:'string',title:key};});}
  renameConditionField(index:number,branch:'then'|'else',oldKey:string,name:string){const key=name.trim();if(!key||key===oldKey||!/^[$A-Za-z_][$A-Za-z0-9_-]*$/.test(key))return;this.editBranch(index,branch,node=>{if(!node.properties?.[oldKey]||key in node.properties)return;const next:Record<string,Schema>={};for(const [k,v] of Object.entries(node.properties))next[k===oldKey?key:k]=v as Schema;node.properties=next;if(node.required)node.required=node.required.map((v:string)=>v===oldKey?key:v);});}
