@@ -51,3 +51,6 @@ Aplicar [contrato dos agentes](../CONTRATO-EXECUCAO-AGENTES.md) e [exemplos e co
 - Cache de permissões exige escopo por identidade/contexto, política explícita de invalidação/revogação e fail-closed quando apropriado.
 - Separar 401 (não autenticado), 403 (autenticado sem permissão) e 404 (ocultação de existência) conforme contrato; nunca usar 204 para encobrir erro de segurança sem decisão de produto documentada.
 - Evidência mínima: teste de cadeia de filtros Spring, consultas SQL com escopo, matriz de autorização e testes BOLA/IDOR negativos.
+
+## Receita aplicada de desenvolvimento
+Para implementar uma feature HTTP com isolamento por workspace, consultar [pesquisa aplicada e caso de implementação](../validacao/PESQUISA-APLICADA-MAO-NA-MASSA.md). O esqueleto é ilustrativo; exigir tipos reais, compilação e testes de integração antes de afirmar conclusão.
