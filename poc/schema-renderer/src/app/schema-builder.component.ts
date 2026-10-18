@@ -439,7 +439,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <div class="condition-branch true"><strong>✓ ENTÃO (THEN) — Verdadeiro</strong><p class="builder-help">Componentes aplicados quando verdadeiro.</p>
       <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'then'); trackBy:trackConditionFieldKey">
         <label>Campo <strong>{{field.key}}</strong></label>
-        <label>Tipo permitido<select [ngModel]="field.schema.type||''" (ngModelChange)="setConditionFieldType(rule.index,'then',field.key,$event)"><option value="">Não alterar</option><option *ngFor="let kind of conditionFieldPalette" [value]="kind.type">{{kind.label}}</option></select></label>
+        <span class="builder-help">Tipo definido nos componentes</span>
         <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'then',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'then',field.key,$event)"> Obrigatório</label>
         <button type="button" (click)="removeConditionField(rule.index,'then',field.key)">Remover</button>
        </div>
@@ -453,7 +453,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <div class="condition-branch false"><strong>✕ SENÃO (ELSE) — Falso</strong><p class="builder-help">Componentes aplicados quando falso.</p>
       <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'else'); trackBy:trackConditionFieldKey">
         <label>Campo <strong>{{field.key}}</strong></label>
-        <label>Tipo permitido<select [ngModel]="field.schema.type||''" (ngModelChange)="setConditionFieldType(rule.index,'else',field.key,$event)"><option value="">Não alterar</option><option *ngFor="let kind of conditionFieldPalette" [value]="kind.type">{{kind.label}}</option></select></label>
+        <span class="builder-help">Tipo definido nos componentes</span>
         <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'else',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'else',field.key,$event)"> Obrigatório</label>
         <button type="button" (click)="removeConditionField(rule.index,'else',field.key)">Remover</button>
        </div>
@@ -826,7 +826,7 @@ export class SchemaBuilderComponent implements OnChanges {
   if(node===this.conditionCacheContainer&&this.activeContainerPath===this.conditionCachePath)return;
   this.conditionCacheContainer=node;
   this.conditionCachePath=this.activeContainerPath;
-  this.conditionCacheRules=(node?.allOf||[]).map((schema:Schema,index:number)=>({index,schema})).filter((r:{index:number;schema:Schema})=>!!r.schema?.if&&r.schema.then!==undefined&&r.schema.else!==undefined);
+  this.conditionCacheRules=(node?.allOf||[]).map((schema:Schema,index:number)=>({index,schema})).filter((r:{index:number;schema:Schema})=>!!r.schema?.if&&r.schema.then!==undefined);
   this.conditionCacheFields=Object.keys(node?.properties||{});
  }
  get canvasConditions():{index:number;schema:Schema}[]{this.refreshConditionCache();return this.conditionCacheRules;}
@@ -851,7 +851,7 @@ export class SchemaBuilderComponent implements OnChanges {
   const container=this.conditionContainer,fields=this.conditionAvailableFields;
   if(!container||!this.isObjectSchema(container)){this.error='Abra um objeto para adicionar uma condição.';return;}
   this.error='';
-  this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath)!;node.allOf??=[];node.allOf.push({if:fields.length?this.conditionCheck(fields[0],'equals',''):{properties:{}},then:{properties:{}},else:{properties:{}}});});
+  this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath)!;node.allOf??=[];node.allOf.push({if:fields.length?this.conditionCheck(fields[0],'equals',''):{properties:{}},then:{}});});
  }
  removeCondition(index:number){this.commit(root=>{const node=this.getNodeAt(root,this.activeContainerPath)!;node.allOf?.splice(index,1);if(!node.allOf?.length)delete node.allOf;});}
  private changeCondition(index:number,field:string,operator:string,expected:string){this.commit(root=>{const rule=this.editableCondition(root,index);if(rule)rule.if=this.conditionCheck(field,operator,expected);});}
