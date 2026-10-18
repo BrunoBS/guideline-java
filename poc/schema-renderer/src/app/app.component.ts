@@ -251,6 +251,12 @@ export class AppComponent {
   try{
    ajv.compile(next);
    this.schema=next;this.source=JSON.stringify(next,null,2);this.builderSource=JSON.stringify(next,null,2);this.builderSchemaError='';this.selectedExample='';
+   // Durante a construção, não reconciliar/validar o payload: os ramos da
+   // condição podem estar incompletos e o formulário ainda não está em uso.
+   if(this.builderTab==='construction'){
+    this.parseError='';this.builderError='';this.schemaValidated=true;this.valueError='';this.developerValidated=false;
+    return true;
+   }
    this.value=reconcileValue(next,this.value,next);
    this.parseError='';this.builderError='';this.schemaValidated=true;this.valueError='';this.developerValidated=false;this.sync(true);return true;
   }catch(error){this.builderError=this.schemaErrorMessage(error);return false;}
