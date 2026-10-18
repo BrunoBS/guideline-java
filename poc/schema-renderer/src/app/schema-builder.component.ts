@@ -52,7 +52,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .condition-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
  .condition-grid label,.condition-branch-field label{display:grid;gap:5px;font-size:13px;color:#334155;font-weight:600}
  .condition-grid input,.condition-grid select,.condition-branch-field input,.condition-branch-field select{width:100%;box-sizing:border-box;border:1px solid #bcc9dc;padding:10px;border-radius:7px;background:#fff}
- .condition-branch-field{display:grid;grid-template-columns:minmax(110px,1fr) minmax(110px,1fr) auto auto;gap:10px;align-items:end;margin:10px 0;padding-bottom:10px;border-bottom:1px solid #dfe6f0}
+ .condition-branch-field{display:grid;grid-template-columns:minmax(110px,1fr) auto auto;gap:10px;align-items:end;margin:10px 0;padding-bottom:10px;border-bottom:1px solid #dfe6f0}
  .condition-branch-field .condition-required{display:flex;align-items:center;gap:5px;white-space:nowrap}
  .condition-branch-field .condition-required input{width:auto}
  .condition-card button{border:1px solid #b8c9df;border-radius:7px;background:#fff;color:#2455b5;padding:9px;cursor:pointer}
@@ -439,8 +439,10 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <div class="condition-branch true"><strong>✓ ENTÃO (THEN) — Verdadeiro</strong><p class="builder-help">Componentes aplicados quando verdadeiro.</p>
       <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'then'); trackBy:trackConditionFieldKey">
         <label>Campo <strong>{{field.key}}</strong></label>
-        <span class="builder-help">Tipo definido nos componentes</span>
-        <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'then',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'then',field.key,$event)"> Obrigatório</label>
+        <label class="required-switch-label condition-required">Obrigatório
+          <input class="required-switch-input" type="checkbox" role="switch" [checked]="conditionFieldRequired(rule.schema,'then',field.key)" (change)="setConditionFieldRequired(rule.index,'then',field.key,$any($event.target).checked)"/>
+          <span class="required-switch-track" aria-hidden="true"></span>
+         </label>
         <button type="button" (click)="removeConditionField(rule.index,'then',field.key)">Remover</button>
        </div>
        <label>Tornar campo obrigatório quando verdadeiro
@@ -453,8 +455,10 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <div class="condition-branch false"><strong>✕ SENÃO (ELSE) — Falso</strong><p class="builder-help">Componentes aplicados quando falso.</p>
       <div class="condition-branch-field" *ngFor="let field of conditionBranchFields(rule.schema,'else'); trackBy:trackConditionFieldKey">
         <label>Campo <strong>{{field.key}}</strong></label>
-        <span class="builder-help">Tipo definido nos componentes</span>
-        <label class="condition-required"><input type="checkbox" [ngModel]="conditionFieldRequired(rule.schema,'else',field.key)" (ngModelChange)="setConditionFieldRequired(rule.index,'else',field.key,$event)"> Obrigatório</label>
+        <label class="required-switch-label condition-required">Obrigatório
+          <input class="required-switch-input" type="checkbox" role="switch" [checked]="conditionFieldRequired(rule.schema,'else',field.key)" (change)="setConditionFieldRequired(rule.index,'else',field.key,$any($event.target).checked)"/>
+          <span class="required-switch-track" aria-hidden="true"></span>
+         </label>
         <button type="button" (click)="removeConditionField(rule.index,'else',field.key)">Remover</button>
        </div>
        <label>Tornar campo obrigatório quando falso
