@@ -25,14 +25,25 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified.developer-mode .palette{grid-column:1;grid-row:1}
  .builder.simplified.developer-mode .inspector{grid-column:2;grid-row:1}
 
- .builder-step-tabs{display:flex;gap:10px;width:100%;border-bottom:1px solid #dce4ef;padding-bottom:12px}
- .builder-step-tabs button{border:1px solid #b8c9df;border-radius:9px;background:#f8fafc;padding:12px 20px;font-weight:700;cursor:pointer}
- .builder-step-tabs button.active{background:#e8efff;border-color:#2455b5;color:#003399}
+ .builder-stepper{display:flex;align-items:center;gap:14px;padding:16px 20px;border:1px solid #dce4ef;border-radius:12px;background:#f8fafc;width:100%;box-sizing:border-box}
+ .builder-step{display:flex;align-items:center;gap:12px;color:#64748b;min-width:0;flex:1}
+ .builder-step.active{color:#003399}
+ .builder-step.completed{color:#206342}
+ .builder-step .step-number{flex-shrink:0;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#e2e8f0;color:#334155;font-weight:700}
+ .builder-step.active .step-number{background:#2455b5;color:#fff}
+ .builder-step.completed .step-number{background:#d9efe0;color:#206342}
+ .builder-step strong{display:block;font-size:15px}.builder-step small{display:block;font-size:12px;margin-top:3px}
+ .step-connector{width:55px;height:2px;background:#cbd5e1;flex-shrink:0}
+ .workflow-navigation{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding:16px 4px;border-top:1px solid #e2e8f0}
+ .workflow-navigation button{border:1px solid #2455b5;border-radius:9px;padding:12px 18px;cursor:pointer;font-weight:700;font-size:14px}
+ .workflow-next{background:#2455b5;color:#fff}.workflow-back{background:#fff;color:#2455b5}
+ .builder.simplified .rules-canvas .builder-actions .canvas-add-top{background:#2455b5;color:white}
+ @media(max-width:640px){.builder-stepper{padding:12px;gap:8px}.step-connector{width:15px}.builder-step{gap:6px}.builder-step strong{font-size:12px}.builder-step small{font-size:10px}.builder-step .step-number{width:28px;height:28px}.workflow-navigation button{width:100%}}
  .rules-canvas{min-height:320px}
  .rules-canvas label{display:grid;gap:6px;font-weight:600;margin:8px 0}
  .rules-canvas input,.rules-canvas select{padding:9px;border:1px solid #b8c9df;border-radius:7px;max-width:100%}
  .enum-editor{display:grid;gap:10px;margin:12px 0}.enum-table{width:100%;border-collapse:collapse}.enum-table th{text-align:left;color:#475569;font-size:13px}.enum-table td,.enum-table th{padding:7px;border-bottom:1px solid #e2e8f0}.enum-table input{width:100%;min-width:0}.enum-table button,.enum-add{border:1px solid #cbd8ea;border-radius:7px;background:white;padding:8px 12px;cursor:pointer;color:#2455b5}.enum-add{justify-self:start}
- .logic-palette-title{display:block;flex-basis:100%;margin-top:12px;color:#003399}
+ .logic-palette-title{display:none}
  .condition-add{border:2px solid #2455b5!important;background:#eaf1ff!important;color:#003399!important}
  .condition-card{border:1px solid #cbd8ed;border-radius:12px;padding:16px;margin:14px 0;background:#fff}
  .condition-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;color:#001f5b}
@@ -337,10 +348,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 `],
  template:`
  <div class="builder simplified">
-  <nav class="builder-step-tabs" *ngIf="mode==='construction'" aria-label="Etapas do builder">
-   <button type="button" [class.active]="builderStep==='components'" (click)="builderStep='components'">1. Componentes</button>
-   <button type="button" [class.active]="builderStep==='rules'" (click)="builderStep='rules';activeContainerPath='';containerHistory=[]">2. Regras e condições</button>
-  </nav>
+  <div class="builder-stepper" *ngIf="mode==='construction'" aria-label="Etapas do builder">
+    <div class="builder-step" [class.active]="builderStep==='components'" [class.completed]="builderStep==='rules'"><span class="step-number">1</span><span><strong>Componentes</strong><small>Estrutura e campos</small></span></div>
+    <span class="step-connector" aria-hidden="true"></span>
+    <div class="builder-step" [class.active]="builderStep==='rules'"><span class="step-number">2</span><span><strong>Regras e condições</strong><small>Comportamento e validação</small></span></div>
+   </div>
   <aside class="palette" [class.desktop-palette]="mode==='construction'" *ngIf="mode==='dev' || (mode==='construction' && builderStep==='components')">
    <strong>{{mode==='dev'?'Estrutura técnica':'Adicionar componentes'}}</strong>
    <p class="builder-help">Escolha um tipo para adicionar ao formulário ou ao objeto selecionado.</p>
@@ -404,6 +416,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   </section>
 
 
+  <div class="workflow-navigation" *ngIf="mode==='construction' && builderStep==='components'"><span class="builder-help">Etapa 1 de 2 · Configure os campos antes das regras.</span><button type="button" class="workflow-next" (click)="goToBuilderStep('rules')">Próximo: Regras e condições →</button></div>
   <section class="canvas rules-canvas" *ngIf="mode==='construction' && builderStep==='rules'">
    <div class="canvas-header"><div><strong>Regras e condições</strong><p>Selecione campos existentes e configure as restrições. O Builder gera JSON Schema Draft 2020-12.</p></div></div>
    <p class="builder-error" *ngIf="!conditionAvailableFields.length">Crie primeiro os campos na etapa Componentes.</p>
@@ -470,6 +483,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </section>
    <p class="builder-help" *ngIf="!canvasConditions.length&&!canvasOneOfRules.length">Ainda não há regras. Crie uma condição ou uma alternativa.</p>
   </section>
+  <div class="workflow-navigation" *ngIf="mode==='construction' && builderStep==='rules'"><button type="button" class="workflow-back" (click)="goToBuilderStep('components')">← Anterior: Componentes</button><span class="builder-help">Etapa 2 de 2 · Regras configuradas no schema.</span></div>
   <div class="editor-modal-backdrop" *ngIf="mode==='construction' && editorModalOpen" (click)="cancelEditor()"></div>
   <div class="editor-modal-shell" *ngIf="mode==='dev' || editorModalOpen" role="dialog" [attr.aria-modal]="mode==='construction' ? 'true' : null" aria-label="Configuração do campo">
   <div class="inspector" [class.field-modal]="false" [class.inspector-disabled]="mode==='construction' && !selectedPath && !editingForm" *ngIf="!selectedGroupId"><ng-container *ngIf="selected as node">
@@ -620,6 +634,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 })
 export class SchemaBuilderComponent implements OnChanges {
  builderStep:'components'|'rules'='components';
+ goToBuilderStep(step:'components'|'rules'){this.builderStep=step;this.activeContainerPath='';this.containerHistory=[];this.error='';}
  private persistedSchema:Schema={type:'object',properties:{}};
  private editorDraft:Schema|null=null;
  @Input() set schema(value:Schema){this.persistedSchema=value;}
