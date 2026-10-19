@@ -44,15 +44,15 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .rules-canvas input,.rules-canvas select{padding:9px;border:1px solid #b8c9df;border-radius:7px;max-width:100%}
  .enum-editor{display:grid;gap:10px;margin:12px 0}.enum-table{width:100%;border-collapse:collapse}.enum-table th{text-align:left;color:#475569;font-size:13px}.enum-table td,.enum-table th{padding:7px;border-bottom:1px solid #e2e8f0}.enum-table input{width:100%;min-width:0}.enum-table button,.enum-add{border:1px solid #cbd8ea;border-radius:7px;background:white;padding:8px 12px;cursor:pointer;color:#2455b5}.enum-add{justify-self:start}
  .oneof-mode-choice{display:flex;flex-direction:column;text-align:left;gap:10px;padding:19px!important;background:#f6f8ff!important;border:1px solid #b9c9e7!important;color:#173d82!important;border-radius:12px!important;cursor:pointer}.oneof-mode-choice strong{font-size:17px}.oneof-mode-choice span{font-size:13px;color:#536580}.oneof-mode-choice:hover{border-color:#285ab8!important;background:#ebf1ff!important}
- .oneof-alternatives-strip{display:flex;gap:14px;overflow-x:auto;padding:3px 2px 12px;align-items:stretch;scroll-snap-type:x proximity}
- .oneof-alternative{flex:0 0 clamp(480px,70%,800px);min-width:0;scroll-snap-align:start}
+ .oneof-alternatives-strip{display:flex;flex-direction:column;gap:16px;padding:3px 2px 12px;align-items:stretch;overflow:visible}
+ .oneof-alternative{width:100%;min-width:0;box-sizing:border-box}
  .oneof-alternative-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}
  .oneof-alternative-heading .oneof-remove-option{font-size:13px;color:#ad2435!important}
  .oneof-alternatives-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px}
  .oneof-rule-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
  .oneof-rule-column{min-width:0}.oneof-rule-column .oneof-rule-list{min-height:100px}
  .oneof-rule-column select{width:100%}
- @media(max-width:700px){.oneof-alternative{flex-basis:95%}.oneof-rule-columns{grid-template-columns:1fr}}
+ @media(max-width:700px){.oneof-rule-columns{grid-template-columns:1fr}}
  .oneof-rule-list{display:grid;gap:9px;margin:14px 0;padding:12px;border:1px solid;border-radius:10px}
  .oneof-required{background:#eff8f1;border-color:#b6dfc1}
  .oneof-forbidden{background:#fff3f2;border-color:#ebc2bf}
@@ -536,7 +536,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
       </div>
      </div>
     </div>
-    <div class="oneof-alternatives-actions"><button type="button" (click)="addOneOfAlternative()">+ Adicionar alternativa</button><span class="builder-help">Mínimo de duas alternativas; role horizontalmente para visualizar outras.</span></div>
+    <div class="oneof-alternatives-actions"><button type="button" (click)="addOneOfAlternative()">+ Adicionar alternativa</button><span class="builder-help">Mínimo de duas alternativas. Cada alternativa possui suas próprias regras.</span></div>
    </section>
    <p class="builder-help" *ngIf="!canvasConditions.length&&!canvasOneOfRules.length">Ainda não há regras. Crie uma condição ou uma alternativa.</p>
   </section>
