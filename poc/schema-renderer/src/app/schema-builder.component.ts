@@ -644,9 +644,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     </ng-container>
    </div>
    <label *ngIf="node.type==='array'" class="required-switch-label validation-switch"><span>Itens únicos</span><input type="checkbox" class="required-switch-input" [ngModel]="arrayWidget(node)!=='list'||!!node.uniqueItems" [disabled]="arrayWidget(node)!=='list'" (ngModelChange)="setBoolean('uniqueItems',$event)" role="switch" [attr.aria-checked]="arrayWidget(node)!=='list'||!!node.uniqueItems"/><span class="required-switch-track" aria-hidden="true"></span></label><p *ngIf="node.type==='array'&&arrayWidget(node)!=='list'" class="validation-help">Na múltipla seleção, cada valor pode ser escolhido apenas uma vez.</p>
-   <div class="rule-grid" *ngIf="this.isObjectSchema(node)">
-    <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
-    <label>Máximo de propriedades<input type="number" min="0" step="1" [ngModel]="node.maxProperties" (ngModelChange)="setNumber('maxProperties',$event,0,true)"/></label>
+   <div class="rule-grid" *ngIf="this.isObjectSchema(node) && node.additionalProperties!==false">
+    <label>Mínimo de propriedades<input type="number" [min]="requiredPropertyCount(node)" step="1" [ngModel]="node.minProperties ?? requiredPropertyCount(node)" (ngModelChange)="setNumber('minProperties',$event,requiredPropertyCount(node),true)"/></label>
+    <label>Máximo de propriedades<input type="number" [min]="node.minProperties ?? requiredPropertyCount(node)" step="1" [ngModel]="node.maxProperties" (ngModelChange)="setNumber('maxProperties',$event,requiredPropertyCount(node),true)"/></label>
    </div>
    <p class="validation-help" *ngIf="node.type==='array' && arrayItemType(node)==='object'">Para adicionar propriedades aos objetos, selecione a lista e clique em Abrir lista de objetos.</p>
    <label *ngIf="this.isObjectSchema(node)" class="required-switch-label validation-switch"><span>Permitir propriedades adicionais</span><input type="checkbox" class="required-switch-input" [ngModel]="node.additionalProperties!==false" (ngModelChange)="setBoolean('additionalProperties',$event)" role="switch" [attr.aria-checked]="node.additionalProperties!==false"/><span class="required-switch-track" aria-hidden="true"></span></label>
@@ -1288,6 +1288,13 @@ export class SchemaBuilderComponent implements OnChanges {
   if(value===''||value===null||value===undefined){this.commit(root=>{delete this.current(root)![key];});return;}
   const n=Number(value);
   if(!Number.isFinite(n)||(min!==undefined&&n<min)||(integer&&!Number.isInteger(n))||(strictPositive&&n<=0)){this.error='Número inválido para '+key;return;}
+  if((key==='minProperties'||key==='maxProperties')&&this.selected){
+   const node=this.selected,required=this.requiredPropertyCount(node);
+   if(node.additionalProperties===false){this.error='Habilite propriedades adicionais para configurar limites de propriedades.';return;}
+   if(n<required){this.error='O limite não pode ser menor que a quantidade de atributos obrigatórios ('+required+').';return;}
+   if(key==='maxProperties'&&n<(node.minProperties??required)){this.error='O máximo não pode ser menor que o mínimo.';return;}
+   if(key==='minProperties'&&node.maxProperties!==undefined&&n>node.maxProperties){this.error='O mínimo não pode superar o máximo.';return;}
+  }
   if(key==='minLength'&&n>0&&this.selected?.['x-ui']?.allowEmpty===true){this.error='Desative Permitir texto vazio antes de definir um tamanho mínimo maior que zero.';return;}
   this.commit(root=>{this.current(root)![key]=n;});
  }
@@ -1296,7 +1303,22 @@ export class SchemaBuilderComponent implements OnChanges {
   if(value){try{new RegExp(value);}catch{this.error='Expressão regular inválida.';return;}}
   this.setOptional('pattern',value);
  }
- setBoolean(key:string,value:boolean){this.error='';this.commit(root=>{this.current(root)![key]=value;});}
+ requiredPropertyCount(node:Schema):number{return new Set(node.required||[]).size;}
+ setBoolean(key:string,value:boolean){
+  this.error='';
+  this.commit(root=>{
+   const node=this.current(root)!;
+   node[key]=value;
+   if(key==='additionalProperties'){
+    if(!value){delete node.minProperties;delete node.maxProperties;}
+    else if(this.isObjectSchema(node)){
+     const required=this.requiredPropertyCount(node);
+     node.minProperties=Math.max(required,node.minProperties??required);
+     if(node.maxProperties!==undefined&&node.maxProperties<node.minProperties)node.maxProperties=node.minProperties;
+    }
+   }
+  });
+ }
  trackEnumIndex(index:number){return index;}
  enumEntries(node:Schema):{value:any;label:string}[]{return (node.enum||[]).map((value:any,index:number)=>({value,label:node['x-enumLabels']?.[index]??String(value)}));}
  enumValueText(value:any,_node:Schema):string{return value===undefined?'':String(value);}
@@ -1423,6 +1445,11 @@ export class SchemaBuilderComponent implements OnChanges {
    const required=new Set<string>(parent.required||[]);
    if(checked)required.add(name);else required.delete(name);
    if(required.size)parent.required=[...required];else delete parent.required;
+   if(parent.additionalProperties!==false){
+    const count=required.size;
+    if(parent.minProperties!==undefined&&parent.minProperties<count)parent.minProperties=count;
+    if(parent.maxProperties!==undefined&&parent.maxProperties<count)parent.maxProperties=count;
+   }
   });
  }
  propertyNameDraft:string|null=null;
