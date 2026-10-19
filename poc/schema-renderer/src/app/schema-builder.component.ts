@@ -239,7 +239,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .builder.simplified:not(.developer-mode) .schema-group .canvas-field-card{margin:0}
  .builder.simplified:not(.developer-mode) .schema-group .inline-object-actions{margin-top:8px}
  .inline-object-child{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #e3e9f2}
- .inline-object-child button:first-child{display:flex;justify-content:space-between;gap:12px;flex:1;border:0;background:transparent;text-align:left;cursor:pointer;color:#243b59}
+ .inline-object-child .inline-object-child-main{display:flex;align-items:center;justify-content:space-between;gap:16px;flex:1;min-width:0;border:0;background:transparent;text-align:left;cursor:pointer;color:#243b59}
+ .inline-object-child-copy{display:grid;gap:5px;min-width:0}.inline-object-child-copy strong{font-size:16px}.inline-object-child-copy small{font-size:13px;color:#63758f;font-weight:400}
+ .inline-object-child-type{font-size:13px;font-weight:600;color:#344860;white-space:nowrap;margin-left:auto;padding:0 12px}
+ .inline-object-picker{max-width:none!important;width:100%;margin-top:16px}
+ .inline-object-picker .oneof-add-control{display:grid;grid-template-columns:minmax(0,1fr) 46px;gap:10px;align-items:stretch;width:100%}
+ .inline-object-picker .oneof-add-control select{width:100%!important;max-width:none!important;min-height:46px;box-sizing:border-box}
+ .inline-object-picker .oneof-add-control .oneof-add-icon{width:46px;min-width:46px;min-height:46px;padding:0!important;display:grid;place-items:center;box-sizing:border-box}
  .inline-object-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
  .inline-object-actions button{padding:7px 9px;border:1px solid #cbd8ea;border-radius:7px;background:white;color:#2455b5;cursor:pointer}
  .form-settings-button{margin-top:8px;padding:7px 10px;border:1px solid #cbd8ea;border-radius:8px;background:#fff;color:#2455b5;cursor:pointer;font-size:12px}
@@ -432,7 +438,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <div class="inline-object-heading"><span>{{objectChildren(objectAttributesPath(field.path)).length}} atributo(s)</span></div>
   <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
   <div class="inline-object-child" *ngFor="let child of objectChildren(objectAttributesPath(field.path))">
-   <button type="button" (click)="openFieldEditor(child.path)" title="Editar dados e validações"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}} · Clique para configurar propriedades e validações →</small></button>
+   <button type="button" class="inline-object-child-main" (click)="openFieldEditor(child.path)" title="Configurar propriedade e validações"><span class="inline-object-child-copy"><strong>{{child.schema.title||child.label}} <span *ngIf="isObjectAttributeRequired(objectAttributesPath(field.path),child.label)">*</span></strong><small>{{child.schema.description||child.label}}</small></span><span class="inline-object-child-type">{{typeLabel(child.schema)}}</span></button>
    <button type="button" *ngIf="isObjectSchema(child.schema) || isArrayOfObjects(child.schema)" (click)="openContainer(objectAttributesPath(child.path))" aria-label="Abrir atributos do objeto">Abrir atributos →</button>
    <div class="field-card-tools"><button type="button" (click)="moveObjectAttribute(child.path,-1)" [disabled]="!canMoveObjectAttribute(child.path,-1)" aria-label="Subir atributo">↑</button><button type="button" (click)="moveObjectAttribute(child.path,1)" [disabled]="!canMoveObjectAttribute(child.path,1)" aria-label="Descer atributo">↓</button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
   </div>
@@ -942,6 +948,7 @@ export class SchemaBuilderComponent implements OnChanges {
  isArrayOfObjects(node:Schema):boolean{return node.type==='array'&&!!node.items&&typeof node.items==='object'&&!Array.isArray(node.items)&&this.isObjectSchema(node.items as Schema);}
  objectAttributesPath(path:string):string{const node=this.getNodeAt(this.schema,path);return node&&this.isArrayOfObjects(node)?path+'/items':path;}
  objectChildren(path:string){const node=this.getNodeAt(this.schema,path);return Object.entries(node?.properties||{}).map(([key,schema])=>({path:path+'/properties/'+this.escape(key),label:key,schema:schema as Schema}));}
+ isObjectAttributeRequired(path:string,key:string):boolean{return !!this.getNodeAt(this.schema,path)?.required?.includes(key);}
  addInlineAttribute(path:string,type:string){if(!this.inlineTypes.some(item=>item.type===type))return;this.preserveScrollAfter(()=>this.commit(root=>{const node=this.getNodeAt(root,path);if(!node||!this.isObjectSchema(node))return;node.properties??={};let key='campo',i=2;while(Object.prototype.hasOwnProperty.call(node.properties,key))key='campo'+i++;node.properties[key]=type==='object'?{type:'object',title:key,properties:{}}:type==='array'?{type:'array',title:key,items:{type:'string'}}:{type,title:key};this.selectedPath=path+'/properties/'+this.escape(key);this.selectedGroupId='';this.editingForm=false;}));}
 
 
