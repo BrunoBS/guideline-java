@@ -43,6 +43,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .rules-canvas label{display:grid;gap:6px;font-weight:600;margin:8px 0}
  .rules-canvas input,.rules-canvas select{padding:9px;border:1px solid #b8c9df;border-radius:7px;max-width:100%}
  .enum-editor{display:grid;gap:10px;margin:12px 0}.enum-table{width:100%;border-collapse:collapse}.enum-table th{text-align:left;color:#475569;font-size:13px}.enum-table td,.enum-table th{padding:7px;border-bottom:1px solid #e2e8f0}.enum-table input{width:100%;min-width:0}.enum-table button,.enum-add{border:1px solid #cbd8ea;border-radius:7px;background:white;padding:8px 12px;cursor:pointer;color:#2455b5}.enum-add{justify-self:start}
+ .oneof-mode-choice{display:flex;flex-direction:column;text-align:left;gap:10px;padding:19px!important;background:#f6f8ff!important;border:1px solid #b9c9e7!important;color:#173d82!important;border-radius:12px!important;cursor:pointer}.oneof-mode-choice strong{font-size:17px}.oneof-mode-choice span{font-size:13px;color:#536580}.oneof-mode-choice:hover{border-color:#285ab8!important;background:#ebf1ff!important}
  .oneof-rule-list{display:grid;gap:9px;margin:14px 0;padding:12px;border:1px solid;border-radius:10px}
  .oneof-required{background:#eff8f1;border-color:#b6dfc1}
  .oneof-forbidden{background:#fff3f2;border-color:#ebc2bf}
@@ -440,7 +441,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <p class="builder-error" *ngIf="!conditionAvailableFields.length">Crie primeiro os campos na etapa Componentes.</p>
    <div class="builder-actions">
     <button type="button" class="canvas-add-top" (click)="addCondition()" [disabled]="!conditionAvailableFields.length">+ Condição SE / ENTÃO / SENÃO</button>
-    <button type="button" class="canvas-add-top" (click)="addOneOfRule()" [disabled]="!conditionAvailableFields.length">+ Alternativas exclusivas (oneOf)</button>
+    <button type="button" class="canvas-add-top" (click)="openOneOfModePicker()" [disabled]="!conditionAvailableFields.length">+ Alternativas exclusivas (oneOf)</button>
    </div>
    <p class="builder-help">Cada condição é combinada com as demais automaticamente por allOf (todas as regras).</p>
    <section class="condition-card" *ngFor="let rule of canvasConditions; trackBy:trackConditionIndex">
@@ -489,6 +490,13 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     </div>
    </section>
 
+   <section class="condition-card oneof-mode-picker" *ngIf="oneOfModePickerOpen">
+    <div class="condition-title"><strong>Como deseja definir as alternativas?</strong><button type="button" (click)="oneOfModePickerOpen=false">Cancelar</button></div>
+    <div class="condition-branches">
+     <button type="button" class="oneof-mode-choice" (click)="addOneOfRule('fields')"><strong>Por conjunto de campos</strong><span>Ex.: Cartão ou Pix — defina campos obrigatórios e proibidos</span></button>
+     <button type="button" class="oneof-mode-choice" (click)="addOneOfRule('value')"><strong>Por valor de um campo</strong><span>Ex.: EMAIL ou SMS — selecione um campo e seus valores</span></button>
+    </div>
+   </section>
    <section class="condition-card" *ngFor="let alternative of canvasOneOfRules; trackBy:trackOneOfRule">
     <div class="condition-title"><strong>Alternativas exclusivas — oneOf</strong><button type="button" (click)="removeOneOfRule(alternative.index)">Excluir</button></div>
     <p class="builder-help">Exatamente uma alternativa deve ser válida. As regras originais são preservadas.</p>
@@ -496,7 +504,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
     <label *ngIf="oneOfUsesSelector(alternative.schema)">Campo de escolha<select [ngModel]="oneOfField(alternative.schema)" (ngModelChange)="setOneOfField(alternative.index,$event)"><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
     <div class="condition-branches">
      <div class="condition-branch" *ngFor="let option of oneOfOptions(alternative.schema); let i=index; trackBy:trackIndex">
-      <strong>{{option.title || 'Alternativa '+(i+1)}}</strong>
+      <label>Nome da alternativa<input [ngModel]="option.title || 'Alternativa '+(i+1)" (change)="renameOneOfAlternative(i,$any($event.target).value)"></label>
       <label *ngIf="oneOfUsesSelector(alternative.schema)">Valor que identifica a alternativa<input [ngModel]="oneOfOptionValue(option)" (ngModelChange)="setOneOfValue(alternative.index,i,$event)"></label>
       <label>Campo obrigatório<select #requiredAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
       <button type="button" (click)="addOneOfRequired(alternative.index,i,requiredAlternative.value)">+ Exigir campo</button>
@@ -674,6 +682,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
 })
 export class SchemaBuilderComponent implements OnChanges {
  builderStep:'components'|'rules'='components';
+ oneOfModePickerOpen=false;
  goToBuilderStep(step:'components'|'rules'){this.builderStep=step;this.activeContainerPath='';this.containerHistory=[];this.error='';}
  private persistedSchema:Schema={type:'object',properties:{}};
  private editorDraft:Schema|null=null;
@@ -843,10 +852,25 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  trackOneOfRule(_index:number,rule:{index:number;schema:Schema}){return rule.index;}
  trackIndex(index:number){return index;}
- addOneOfRule(){
-  if(this.schema.oneOf){this.error='Já existe uma regra de alternativas. Edite as alternativas existentes.';return;}
-  const field=this.conditionAvailableFields[0];if(!field)return;
-  this.commit(root=>{root.oneOf=[{properties:{[field]:{const:'A'}},required:[field]},{properties:{[field]:{const:'B'}},required:[field]}];});
+ openOneOfModePicker(){
+  if(this.schema.oneOf?.length){this.error='Já existe uma regra oneOf. Edite ou exclua a regra atual antes de criar outra.';return;}
+  this.error='';this.oneOfModePickerOpen=true;
+ }
+ addOneOfRule(mode:'fields'|'value'){
+  if(this.schema.oneOf?.length)return;
+  const fields=this.conditionAvailableFields;if(!fields.length)return;
+  this.oneOfModePickerOpen=false;
+  if(mode==='fields'){
+   this.commit(root=>{root.oneOf=[
+    {title:'Alternativa 1',required:[fields[0]]},
+    {title:'Alternativa 2',required:fields.length>1?[fields[1]]:[]}
+   ];});
+   return;
+  }
+  const field=fields.find(key=>Array.isArray(this.schema.properties?.[key]?.enum)&&this.schema.properties[key].enum.length>=2)||fields[0];
+  const candidates=this.schema.properties?.[field]?.enum||['A','B'];
+  const values=candidates.slice(0,2);
+  this.commit(root=>{root.oneOf=values.map((value:any,index:number)=>({title:'Alternativa '+(index+1),properties:{[field]:{const:value}},required:[field]}));});
  }
  removeOneOfRule(_index:number){this.commit(root=>{delete root.oneOf;});}
  oneOfOptions(node:Schema):Schema[]{return (node.oneOf||[]) as Schema[];}
@@ -875,6 +899,7 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  oneOfField(node:Schema):string{return Object.keys(node.oneOf?.[0]?.properties||{}).find(key=>node.oneOf?.every((option:Schema)=>option.properties?.[key]?.const!==undefined))||'';}
  oneOfOptionValue(node:Schema):string{return String(node.properties?.[Object.keys(node.properties||{})[0]]?.const??'');}
+ renameOneOfAlternative(index:number,title:string){this.commit(root=>{if(root.oneOf?.[index])root.oneOf[index].title=title;});}
  oneOfRequired(node:Schema):string[]{const discriminator=Object.keys(node.properties||{}).find(key=>node.properties?.[key]?.const!==undefined);return (node.required||[]).filter((key:string)=>key!==discriminator);}
  setOneOfField(_index:number,field:string){
   if(!this.conditionAvailableFields.includes(field))return;
