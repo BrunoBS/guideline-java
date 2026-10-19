@@ -50,7 +50,8 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .oneof-alternative-heading .oneof-remove-option{font-size:13px;color:#ad2435!important}
  .oneof-alternatives-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px}
  .oneof-rule-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
- .oneof-rule-column{min-width:0}.oneof-rule-column .oneof-add-control{display:flex;align-items:stretch;gap:8px;width:100%}
+ .oneof-rule-column{min-width:0}.oneof-rule-column .inline-object-picker{display:grid;gap:8px;width:100%;max-width:540px}.inline-object-picker>label{font-weight:600;font-size:13px;color:#344860}.inline-object-picker .oneof-add-control{display:flex;gap:8px}.inline-object-picker .oneof-add-control select{flex:1;min-width:0;padding:10px;border:1px solid #bacbdf;border-radius:8px}.inline-object-picker .oneof-add-icon{flex:0 0 42px;width:42px;min-height:42px;border:1px solid #b8c9df;border-radius:8px;background:#eaf1ff;color:#2455b5;font-size:24px;font-weight:700}.inline-object-picker .oneof-add-icon:disabled{opacity:.4;cursor:not-allowed}
+ .oneof-add-control{display:flex;align-items:stretch;gap:8px;width:100%}
  .oneof-add-control select{flex:1;min-width:0;width:auto!important}
  .condition-card .oneof-add-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;min-height:42px;padding:0!important;border:1px solid #b8c9df;border-radius:8px;background:#eaf1ff;color:#2455b5;font-size:23px;font-weight:700;line-height:1;cursor:pointer}
  .condition-card .oneof-add-icon:hover{background:#d8e6ff}
@@ -431,11 +432,19 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
   <div class="inline-object-heading"><span>{{objectChildren(objectAttributesPath(field.path)).length}} atributo(s)</span></div>
   <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
   <div class="inline-object-child" *ngFor="let child of objectChildren(objectAttributesPath(field.path))">
-   <button type="button" (click)="openFieldEditor(child.path)"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}}</small></button>
+   <button type="button" (click)="openFieldEditor(child.path)" title="Editar dados e validações"><strong>{{child.schema.title||child.label}}</strong><small>{{typeLabel(child.schema)}} · Clique para configurar propriedades e validações →</small></button>
    <button type="button" *ngIf="isObjectSchema(child.schema) || isArrayOfObjects(child.schema)" (click)="openContainer(objectAttributesPath(child.path))" aria-label="Abrir atributos do objeto">Abrir atributos →</button>
    <div class="field-card-tools"><button type="button" (click)="moveObjectAttribute(child.path,-1)" [disabled]="!canMoveObjectAttribute(child.path,-1)" aria-label="Subir atributo">↑</button><button type="button" (click)="moveObjectAttribute(child.path,1)" [disabled]="!canMoveObjectAttribute(child.path,1)" aria-label="Descer atributo">↓</button><button type="button" (click)="confirmDeleteField(child.path)" aria-label="Excluir atributo" title="Excluir"><span class="action-icon" aria-hidden="true">×</span><span>Excluir</span></button></div>
   </div>
-  <div class="inline-object-actions"><button type="button" *ngFor="let kind of inlineTypes" (click)="addInlineAttribute(objectAttributesPath(field.path),kind.type)">+ {{kind.label}}</button></div>
+  <div class="inline-object-actions inline-object-picker">
+   <label [attr.for]="'object-kind-'+field.path">Tipo da propriedade</label>
+   <div class="oneof-add-control">
+    <select [id]="'object-kind-'+field.path" #objectKind [attr.aria-label]="'Tipo da nova propriedade em '+(field.schema.title||field.label)">
+     <option value="">Selecione...</option><option *ngFor="let kind of inlineTypes" [value]="kind.type">{{kind.label}}</option>
+    </select>
+    <button type="button" class="oneof-add-icon" (click)="addInlineAttribute(objectAttributesPath(field.path),objectKind.value);objectKind.value=''" [disabled]="!objectKind.value" [attr.aria-label]="'Adicionar propriedade a '+(field.schema.title||field.label)" title="Adicionar propriedade">+</button>
+   </div>
+  </div>
   </div>
  </div>
 
