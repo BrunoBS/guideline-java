@@ -68,7 +68,7 @@ import {
                 <app-field *ngIf="v.properties?.[key] && isConditionallyVisible(key)" [name]="key" [schema]="v.properties[key]" [root]="root" [value]="objectValue[key]" [required]="(v.required||[]).includes(key)" [issues]="issues" [path]="childPath(key)" (valueChange)="updateKey(key,$event)"></app-field>
               </div>
             </section>
-            <div *ngFor="let item of ungroupedEntries(v);trackBy:trackKey" class="field" [hidden]="!isConditionallyVisible(item[0])">
+            <div *ngFor="let item of visibleUngroupedEntries(v);trackBy:trackKey" class="field">
               <app-field [name]="item[0]" [schema]="item[1]" [root]="root" [value]="objectValue[item[0]]" [required]="(v.required||[]).includes(item[0])" [issues]="issues" [path]="childPath(item[0])" (valueChange)="updateKey(item[0],$event)"></app-field>
             </div>
 
@@ -226,6 +226,7 @@ import {
 export class FieldComponent {
  @Input() name='';@Input() suppressHeading=false;@Input() schema:Schema={};@Input() root:Schema={};@Input() value:any;@Input() required=false;@Input() issues:ValidationIssue[]=[];@Input() path='';@Output() valueChange=new EventEmitter<any>();
  chosenType?:string;
+ private selectedStructuralAlternative?:number;
  private dynamicChosenTypes:Record<string,string>={};
  private dynamicJsonDraftValues:Record<string,string>={};
  private dynamicJsonErrors:Record<string,string>={};
@@ -233,6 +234,21 @@ export class FieldComponent {
 
  get resolved(){return effective(this.schema,this.value,this.root);}
  isConditionallyVisible(key:string):boolean{
+  const structural=this.structuralAlternatives();
+  if(structural){
+   const selected=structural[this.activeAlternativeIndex()];
+   if(selected){
+    const keys=new Set<string>([...(selected.required||[]),...Object.keys(selected.properties||{})]);
+    const forbidden=this.forbiddenStructuralFields(selected);
+    if(forbidden.has(key))return false;
+    const variantKeys=new Set<string>();
+    for(const option of structural){
+     for(const field of option.required||[])variantKeys.add(field);
+     for(const field of this.forbiddenStructuralFields(option))variantKeys.add(field);
+    }
+    if(variantKeys.has(key))return keys.has(key);
+   }
+  }
   // Apenas as condições simples de obrigatoriedade criadas pelo Studio
   // definem visibilidade. Outras regras JSON Schema continuam sendo validações.
   const rules=(this.schema?.allOf||[]).filter((rule:any)=>rule&&rule.if&&
@@ -255,6 +271,7 @@ export class FieldComponent {
  get objectPropertyCount(){return Object.keys(this.objectValue).length;}
 
  visualGroups(s:Schema):{id:string;title:string;description?:string;fields:string[]}[]{const groups=s['x-ui']?.groups;return Array.isArray(groups)?groups.filter((g:any)=>g&&Array.isArray(g.fields)):[];}
+ visibleUngroupedEntries(s:Schema):[string,any][]{return this.ungroupedEntries(s).filter(([key])=>this.isConditionallyVisible(key));}
  ungroupedEntries(s:Schema):[string,any][]{const assigned=new Set(this.visualGroups(s).flatMap(g=>g.fields));return Object.entries(s.properties||{}).filter(([key])=>!assigned.has(key));}
  entries(object:Record<string,any>):[string,any][]{return Object.entries(object||{});}
  trackKey(_i:number,item:[string,any]){return item[0];}trackIndex(index:number){return index;}
@@ -272,11 +289,50 @@ export class FieldComponent {
  typeLabel(type:string){return ({string:'Texto',password:'Senha',integer:'Inteiro',number:'Número',boolean:'Booleano',object:'Objeto',array:'Lista',null:'Nulo'} as Record<string,string>)[type]||type;}
 
  enumOptionLabel(schema:Schema,value:any,index:number):string{return String(schema['x-enumLabels']?.[index]??value);}
+ private forbiddenStructuralFields(option:Schema):Set<string>{
+  const not=option.not as any;
+  if(!not||typeof not!=='object')return new Set<string>();
+  const clauses=Array.isArray(not.anyOf)?not.anyOf:[not];
+  return new Set<string>(clauses.filter((clause:any)=>clause&&Array.isArray(clause.required)&&clause.required.length===1).map((clause:any)=>clause.required[0]));
+ }
+ private structuralAlternatives():Schema[]|null{
+  const options=this.schema?.oneOf;
+  if(!Array.isArray(options)||options.length<2)return null;
+  if(options.some((option:Schema)=>Object.values(option.properties||{}).some((property:any)=>property?.const!==undefined)))return null;
+  if(!options.every((option:Schema)=>Array.isArray(option.required)&&option.required.length>0))return null;
+  return options;
+ }
  compositionOptions():Schema[]{const s:any=this.schema||{};return [...(s.oneOf||[]),...(s.anyOf||[])].map((option:any)=>deref(option,this.root));}
  hasCompositionOptions(){return this.compositionOptions().length>1;}
- activeAlternativeIndex(){const options=this.compositionOptions();const index=options.findIndex(option=>matches(option,this.value,this.root));return index>=0?index:0;}
+ activeAlternativeIndex(){
+  const options=this.compositionOptions();
+  if(this.structuralAlternatives()&&this.selectedStructuralAlternative!==undefined&&this.selectedStructuralAlternative<options.length)return this.selectedStructuralAlternative;
+  const index=options.findIndex(option=>matches(option,this.value,this.root));
+  return index>=0?index:0;
+ }
  alternativeLabel(option:Schema,index:number){return schemaLabel(option,index,this.root);}
- selectAlternative(index:number){const options=this.compositionOptions();const option=options[Number(index)];if(!option)return;const raw:any={...(this.schema||{})};delete raw.oneOf;delete raw.anyOf;const composed=merge(raw,option);this.chosenType=undefined;this.emit(initial(composed,this.root));}
+ selectAlternative(index:number){
+  const options=this.compositionOptions();const choice=Number(index);const option=options[choice];if(!option)return;
+  const structural=this.structuralAlternatives();
+  if(structural){
+   this.selectedStructuralAlternative=choice;
+   const selected=structural[choice];
+   const relevant=new Set<string>([...(selected.required||[]),...Object.keys(selected.properties||{})]);
+   const exclusive=new Set<string>();
+   for(const variant of structural){
+    for(const key of variant.required||[])exclusive.add(key);
+    for(const key of this.forbiddenStructuralFields(variant))exclusive.add(key);
+   }
+   const next:Record<string,any>={};
+   for(const [key,value] of Object.entries(this.objectValue)){
+    if((!exclusive.has(key)||relevant.has(key))&&!this.forbiddenStructuralFields(selected).has(key)&&value!==undefined)next[key]=value;
+   }
+   this.chosenType=undefined;this.emit(next);return;
+  }
+  this.selectedStructuralAlternative=undefined;
+  const raw:any={...(this.schema||{})};delete raw.oneOf;delete raw.anyOf;
+  const composed=merge(raw,option);this.chosenType=undefined;this.emit(initial(composed,this.root));
+ }
 
  setNull(checked:boolean,s:Schema){const source=this.nullToggleSource(s);if(checked)this.emit(isNullable(source)?null:undefined);else this.emit(this.nonNullInitial(source));}
  private nullToggleSource(s:Schema):Schema{
