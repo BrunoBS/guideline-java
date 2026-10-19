@@ -607,7 +607,26 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <option value="string">Texto</option><option value="integer">Inteiro</option><option value="number">Decimal</option><option value="boolean">Sim / Não</option><option value="object">Objeto / agrupador</option><option value="array">Lista</option>
     </select>
    </label>
-   <div class="field-options-card" *ngIf="node.type==='array'"><strong>Valores permitidos (items.enum)</strong><label>Um valor por linha<textarea [ngModel]="arrayOptionsText(node)" (change)="setArrayOptions($any($event.target).value)"></textarea></label></div>
+   <div class="field-options-card" *ngIf="node.type==='array'">
+    <label>Modo de preenchimento
+     <select [ngModel]="arrayWidget(node)" (ngModelChange)="setArrayWidget($event)">
+      <option value="list">Lista dinâmica — adicionar/remover itens</option>
+      <option value="checkboxes" *ngIf="arrayItemType(node)==='string'||arrayItemType(node)==='integer'||arrayItemType(node)==='number'">Múltipla seleção — opções predefinidas</option>
+      <option value="multiselect" *ngIf="arrayItemType(node)==='string'||arrayItemType(node)==='integer'||arrayItemType(node)==='number'">Múltipla seleção com pesquisa</option>
+     </select>
+    </label>
+    <ng-container *ngIf="arrayWidget(node)!=='list'">
+     <strong>Opções disponíveis</strong>
+     <table class="enum-table"><thead><tr><th>Valor</th><th>Label</th><th>Ações</th></tr></thead><tbody>
+      <tr *ngFor="let entry of arrayOptionEntries(node);let i=index;trackBy:trackEnumIndex">
+       <td><input [ngModel]="entry.value" (change)="updateArrayOption(i,'value',$any($event.target).value)" [attr.aria-label]="'Valor '+(i+1)"/></td>
+       <td><input [ngModel]="entry.label" (change)="updateArrayOption(i,'label',$any($event.target).value)" [attr.aria-label]="'Label '+(i+1)"/></td>
+       <td><button type="button" (click)="removeArrayOption(i)">Excluir</button></td>
+      </tr>
+     </tbody></table>
+     <button type="button" class="enum-add" (click)="addArrayOption()">+ Adicionar opção</button>
+    </ng-container>
+   </div>
    <label *ngIf="node.type==='array'" class="required-switch-label validation-switch"><span>Itens únicos</span><input type="checkbox" class="required-switch-input" [ngModel]="!!node.uniqueItems" (ngModelChange)="setBoolean('uniqueItems',$event)" role="switch" [attr.aria-checked]="!!node.uniqueItems"/><span class="required-switch-track" aria-hidden="true"></span></label>
    <div class="rule-grid" *ngIf="this.isObjectSchema(node)">
     <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
@@ -823,8 +842,48 @@ export class SchemaBuilderComponent implements OnChanges {
   this.openContainer(this.selectedPath+'/items');
  }
  goToParentContainer(){this.selectedGroupId='';this.activeContainerPath=this.containerHistory.pop()||'';}
- arrayWidget(node:Schema):string{return 'list';}
- setArrayWidget(widget:string){}
+ arrayWidget(node:Schema):string{return node['x-ui']?.widget||'list';}
+ setArrayWidget(widget:string){
+  if(!['list','checkboxes','multiselect'].includes(widget))return;
+  this.commit(root=>{const node=this.current(root)!;node['x-ui']??={};node['x-ui'].widget=widget;
+   if(widget!=='list'){
+    node.uniqueItems=true;
+    const type=this.arrayItemType(node);
+    if(!['string','integer','number'].includes(type))node.items={type:'string'};
+   }
+  });
+ }
+ arrayOptionEntries(node:Schema):{value:any;label:string}[]{
+  const item=node.items as Schema|undefined;
+  const options=node['x-ui']?.options||[];
+  return (item?.enum||[]).map((value:any)=>({value,label:String(options.find((entry:any)=>Object.is(entry.value,value))?.label??value)}));
+ }
+ private saveArrayOptions(entries:{value:any;label:string}[]){
+  if(entries.some((entry,i)=>entries.findIndex(other=>Object.is(entry.value,other.value))!==i)){this.error='Valores duplicados não são permitidos.';return;}
+  this.error='';
+  this.commit(root=>{const node=this.current(root)!;if(!node.items||typeof node.items!=='object')node.items={type:'string'};
+   const item=node.items as Schema;
+   if(entries.length)item.enum=entries.map(entry=>entry.value);else delete item.enum;
+   node['x-ui']??={};
+   node['x-ui'].options=entries.map(entry=>({value:entry.value,label:entry.label}));
+  });
+ }
+ addArrayOption(){const node=this.selected!,entries=this.arrayOptionEntries(node),type=this.arrayItemType(node);
+  let value:any=type==='integer'||type==='number'?0:'VALOR_'+(entries.length+1);
+  if(typeof value==='number'){while(entries.some(entry=>Object.is(entry.value,value)))value++;}
+  else{while(entries.some(entry=>entry.value===value))value+='_'};
+  this.saveArrayOptions([...entries,{value,label:String(value)}]);
+ }
+ updateArrayOption(index:number,key:'value'|'label',text:string){const node=this.selected!,entries=this.arrayOptionEntries(node);
+  if(!entries[index])return;
+  try{const previous=entries[index],value=key==='value'?this.enumValueOf(text,node.items as Schema):text;
+   entries[index]={...previous,[key]:value};
+   if(key==='value'&&previous.label===String(previous.value))entries[index].label=String(value);
+   this.saveArrayOptions(entries);
+  }catch(e){this.error=e instanceof Error?e.message:String(e);}
+ }
+ removeArrayOption(index:number){const entries=this.arrayOptionEntries(this.selected!);entries.splice(index,1);this.saveArrayOptions(entries);}
+
  arrayOptionsText(node:Schema):string{const item=node.items;return item&&typeof item==='object'&&!Array.isArray(item)&&Array.isArray(item.enum)?item.enum.map((v:unknown)=>String(v)).join('\n'):'';}
  setArrayOptions(text:string){this.commit(root=>{const node=this.current(root)!,item=node.items;if(!item||typeof item!=='object'||Array.isArray(item))return;const type=this.arrayItemType(node);const values=text.split(/\r?\n/).map(v=>v.trim()).filter(Boolean).map(v=>type==='integer'||type==='number'?Number(v):v).filter(v=>typeof v!=='number'||Number.isFinite(v));if(values.length)item.enum=[...new Set(values)];else delete item.enum;});}
  arrayItemType(node:Schema):string{
