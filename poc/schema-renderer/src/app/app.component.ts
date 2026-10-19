@@ -148,7 +148,7 @@ import {parameterKeyRequestSchema} from './parameter-key-request.schema';
     <button type="button" [class.active]="builderTab==='dev'" (click)="builderTab='dev'">Para Dev</button>
   </nav>
   <section class="panel tab-panel" *ngIf="area==='builder'">
-    <div class="section-heading"><div><h3>Schema Studio</h3><p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p></div><div class="schema-modal-actions"><button type="button" class="secondary" (click)="schemaCopied=false;schemaPreviewOpen=true" aria-haspopup="dialog">◉ Visualizar schema</button><button type="button" (click)="previewOpen=true" aria-haspopup="dialog">◉ Visualizar formulário</button></div></div>
+    <div class="section-heading"><div><h3>Schema Studio</h3><p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p></div><div class="schema-modal-actions"><button type="button" class="secondary" (click)="schemaCopied=false;schemaPreviewOpen=true" aria-haspopup="dialog">◉ Visualizar schema</button><button type="button" (click)="openBuilderPreview()" aria-haspopup="dialog">◉ Visualizar formulário</button></div></div>
     <p class="error callout" *ngIf="builderError">{{builderError}}</p>
     <div class="developer-actions">
       <button type="button" class="secondary" (click)="newBuilderSchema()">Novo schema</button>
@@ -373,9 +373,31 @@ export class AppComponent {
  }
  private schemaErrorMessage(error:any){return `JSON Schema inválido: ${error?.message||String(error)}`;}
  private jsonErrorMessage(error:any){return `JSON inválido: ${error?.message||String(error)}`;}
+ openBuilderPreview(){
+  this.value=reconcileValue(this.schema,this.value,this.schema);
+  this.previewOpen=true;
+  this.sync(true);
+ }
+ private requiredEmptyFieldIssues(schema:Schema,value:any,path='',depth=0):ValidationIssue[]{
+  if(depth>20||!schema||typeof schema!=='object')return [];
+  const issues:ValidationIssue[]=[];
+  if(schema.type==='object'&&value&&typeof value==='object'&&!Array.isArray(value)){
+   for(const [key,child] of Object.entries(schema.properties||{})){
+    const prop=child as Schema,fieldValue=value[key];
+    const childPath=path+'/'+key.replace(/~/g,'~0').replace(/\//g,'~1');
+    if((schema.required||[]).includes(key)&&prop?.type==='string'&&typeof fieldValue==='string'&&!fieldValue.trim()){
+     issues.push({path:childPath,message:'Campo obrigatório: informe um valor.'});
+    }
+    if(fieldValue!==undefined&&fieldValue!==null)issues.push(...this.requiredEmptyFieldIssues(prop,fieldValue,childPath,depth+1));
+   }
+  }else if(schema.type==='array'&&Array.isArray(value)&&schema.items&&typeof schema.items==='object'){
+   value.forEach((item,index)=>issues.push(...this.requiredEmptyFieldIssues(schema.items as Schema,item,path+'/'+index,depth+1)));
+  }
+  return issues;
+ }
  private sync(updateDeveloperSource:boolean){
   if(updateDeveloperSource)this.developerSource=JSON.stringify(this.value,null,2);
-  this.issues=validationIssues(this.schema,this.value);
+  this.issues=[...validationIssues(this.schema,this.value),...this.requiredEmptyFieldIssues(this.schema,this.value)];
   this.errors=this.issues.map(issue=>`${issue.path}: ${issue.message}`);
  }
 }
