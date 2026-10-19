@@ -853,7 +853,7 @@ export class SchemaBuilderComponent implements OnChanges {
    }
   });
  }
- arrayOptionEntries(node:Schema):{value:any;label:string}[]{
+ arrayOptionEntries(node:Schema):{value:any;label:string;autoLabel?:boolean}[]{
   const item=node.items as Schema|undefined;
   const options=node['x-ui']?.options||[];
   return (item?.enum||[]).map((value:any)=>{const option=options.find((entry:any)=>Object.is(entry.value,value));return {value,label:String(option?.label??value),autoLabel:option?.autoLabel};});
