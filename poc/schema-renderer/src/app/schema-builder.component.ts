@@ -856,29 +856,35 @@ export class SchemaBuilderComponent implements OnChanges {
  arrayOptionEntries(node:Schema):{value:any;label:string}[]{
   const item=node.items as Schema|undefined;
   const options=node['x-ui']?.options||[];
-  return (item?.enum||[]).map((value:any)=>({value,label:String(options.find((entry:any)=>Object.is(entry.value,value))?.label??value)}));
+  return (item?.enum||[]).map((value:any)=>{const option=options.find((entry:any)=>Object.is(entry.value,value));return {value,label:String(option?.label??value),autoLabel:option?.autoLabel};});
  }
- private saveArrayOptions(entries:{value:any;label:string}[]){
+ private saveArrayOptions(entries:{value:any;label:string;autoLabel?:boolean}[]){
   if(entries.some((entry,i)=>entries.findIndex(other=>Object.is(entry.value,other.value))!==i)){this.error='Valores duplicados não são permitidos.';return;}
   this.error='';
   this.commit(root=>{const node=this.current(root)!;if(!node.items||typeof node.items!=='object')node.items={type:'string'};
    const item=node.items as Schema;
    if(entries.length)item.enum=entries.map(entry=>entry.value);else delete item.enum;
    node['x-ui']??={};
-   node['x-ui'].options=entries.map(entry=>({value:entry.value,label:entry.label}));
+   node['x-ui'].options=entries.map(entry=>({value:entry.value,label:entry.label,autoLabel:entry.autoLabel??entry.label===String(entry.value)}));
   });
  }
  addArrayOption(){const node=this.selected!,entries=this.arrayOptionEntries(node),type=this.arrayItemType(node);
   let value:any=type==='integer'||type==='number'?0:'VALOR_'+(entries.length+1);
   if(typeof value==='number'){while(entries.some(entry=>Object.is(entry.value,value)))value++;}
   else{while(entries.some(entry=>entry.value===value))value+='_'};
-  this.saveArrayOptions([...entries,{value,label:String(value)}]);
+  this.saveArrayOptions([...entries,{value,label:String(value),autoLabel:true}]);
  }
  updateArrayOption(index:number,key:'value'|'label',text:string){const node=this.selected!,entries=this.arrayOptionEntries(node);
   if(!entries[index])return;
   try{const previous=entries[index],value=key==='value'?this.enumValueOf(text,node.items as Schema):text;
    entries[index]={...previous,[key]:value};
-   if(key==='value'&&previous.label===String(previous.value))entries[index].label=String(value);
+   // Preserve labels explicitly edited by the user, even when they match the original value.
+   const savedOptions=node['x-ui']?.options||[];
+   const saved=savedOptions.find((entry:any)=>Object.is(entry.value,previous.value));
+   const autoLabel=saved?.autoLabel!==false&&(saved?.autoLabel===true||previous.label===String(previous.value));
+   if(key==='value'&&autoLabel)entries[index].label=String(value);
+   if(key==='label')entries[index].autoLabel=false;
+   else entries[index].autoLabel=autoLabel;
    this.saveArrayOptions(entries);
   }catch(e){this.error=e instanceof Error?e.message:String(e);}
  }
