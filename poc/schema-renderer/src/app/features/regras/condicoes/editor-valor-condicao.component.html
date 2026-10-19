@@ -1,0 +1,67 @@
+<label *ngIf="tipos.length > 1 && !opcoes.length"
+  >Tipo do valor esperado
+  <select
+    aria-label="Tipo do valor esperado"
+    [ngModel]="tipo"
+    (ngModelChange)="tipoAlterado.emit($event)"
+  >
+    <option *ngFor="let opcao of tipos" [value]="opcao">{{ rotulo(opcao) }}</option>
+  </select>
+</label>
+<label *ngIf="opcoes.length; else valorLivre"
+  >Valor esperado
+  <select
+    aria-label="Valor esperado"
+    [compareWith]="comparar"
+    [ngModel]="valor"
+    (ngModelChange)="valorAlterado.emit($event)"
+  >
+    <option *ngFor="let opcao of opcoes" [ngValue]="opcao">{{ formatar(opcao) }}</option>
+  </select>
+</label>
+<ng-template #valorLivre>
+  <label *ngIf="tipo === 'boolean'; else valorNaoBooleano"
+    >Valor esperado
+    <span class="required-switch-label condition-boolean-value">
+      <input
+        class="required-switch-input"
+        type="checkbox"
+        role="switch"
+        aria-label="Valor esperado"
+        [checked]="texto === 'true'"
+        (change)="valorAlterado.emit($any($event.target).checked)"
+      />
+      <span class="required-switch-track" aria-hidden="true"></span>
+      <span>{{ texto === 'true' ? 'Sim (ligado)' : 'Não (desligado)' }}</span>
+    </span>
+  </label>
+</ng-template>
+<ng-template #valorNaoBooleano>
+  <label *ngIf="tipo === 'null'; else valorNaoNulo"
+    >Valor esperado<span class="null-value">Nulo (null)</span></label
+  >
+</ng-template>
+<ng-template #valorNaoNulo>
+  <label *ngIf="tipo === 'object' || tipo === 'array'; else valorEscalar"
+    >Valor esperado em JSON
+    <textarea
+      aria-label="Valor esperado em JSON"
+      rows="4"
+      [value]="texto"
+      (input)="rascunhoAlterado.emit($any($event.target).value)"
+      (change)="textoAlterado.emit($any($event.target).value)"
+    ></textarea>
+  </label>
+</ng-template>
+<ng-template #valorEscalar>
+  <label
+    >Valor esperado
+    <input
+      aria-label="Valor esperado"
+      [type]="tipo === 'integer' || tipo === 'number' ? 'number' : 'text'"
+      [step]="tipo === 'integer' ? '1' : 'any'"
+      [ngModel]="texto"
+      (ngModelChange)="textoAlterado.emit($event === null ? '' : '' + $event)"
+    />
+  </label>
+</ng-template>

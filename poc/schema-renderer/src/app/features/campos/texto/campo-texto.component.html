@@ -1,0 +1,10 @@
+<input
+  [type]="obterTipoDoControle(schema)"
+  [ngModel]="obterValorFormatado(schema)"
+  [disabled]="schema.readOnly"
+  [attr.minlength]="schema.minLength ?? null"
+  [attr.maxlength]="schema.maxLength ?? null"
+  [attr.pattern]="schema.pattern ?? null"
+  [placeholder]="obterExemploDoCampo(schema)"
+  (ngModelChange)="aoEditarValorFormatado(schema, $event)"
+/>

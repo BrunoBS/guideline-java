@@ -1,0 +1,35 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+label + label {
+  margin-top: 8px;
+}
+input:not([role='switch']),
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font: inherit;
+}
+textarea {
+  font-family: monospace;
+  resize: vertical;
+}
+.condition-boolean-value {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 38px;
+  gap: 8px;
+}
+.null-value {
+  display: block;
+  padding: 8px 0;
+}

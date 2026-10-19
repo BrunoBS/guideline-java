@@ -1,0 +1,299 @@
+<div class="builder-actions">
+  <button
+    type="button"
+    class="canvas-add-top"
+    (click)="alternativas.abrirSeletorDeModo()"
+    [disabled]="!camposDisponiveis.length"
+  >
+    + Alternativas exclusivas (oneOf)
+  </button>
+</div>
+<p class="builder-error" role="alert" *ngIf="alternativas.mensagemErro">
+  {{ alternativas.mensagemErro }}
+</p>
+<section class="condition-card oneof-mode-picker" *ngIf="alternativas.oneOfModePickerOpen">
+  <div class="condition-title">
+    <strong>Como deseja definir as alternativas?</strong
+    ><button type="button" (click)="alternativas.oneOfModePickerOpen = false">Cancelar</button>
+  </div>
+  <div class="condition-branches">
+    <button type="button" class="oneof-mode-choice" (click)="alternativas.adicionarRegra('fields')">
+      <strong>Por conjunto de campos</strong
+      ><span>Ex.: Cartão ou Pix — defina campos obrigatórios e proibidos</span>
+    </button>
+    <button type="button" class="oneof-mode-choice" (click)="alternativas.adicionarRegra('value')">
+      <strong>Por valor de um campo</strong
+      ><span>Ex.: EMAIL ou SMS — selecione um campo e seus valores</span>
+    </button>
+  </div>
+</section>
+<section
+  class="condition-card"
+  *ngFor="let alternative of alternativas.regrasVisiveis; trackBy: alternativas.identificarRegra"
+>
+  <div class="condition-title">
+    <strong>Alternativas exclusivas — oneOf</strong
+    ><button type="button" (click)="alternativas.removerRegra(alternative.index)">Excluir</button>
+  </div>
+  <p class="builder-help">
+    Exatamente uma alternativa deve ser válida. As regras originais são preservadas.
+  </p>
+  <p class="builder-help" *ngIf="alternativas.camposObrigatoriosNaOrigem.length">
+    Obrigatórios na origem: {{ alternativas.camposObrigatoriosNaOrigem.join(', ') }}. Permanecem
+    obrigatórios em todas as alternativas.
+  </p>
+  <p class="builder-help" *ngIf="!alternativas.usaCampoDeEscolha(alternative.schema)">
+    Alternativas baseadas na presença ou ausência de campos, sem campo discriminador.
+  </p>
+  <label *ngIf="alternativas.usaCampoDeEscolha(alternative.schema)"
+    >Campo de escolha<select
+      #campoEscolha="ngModel"
+      [ngModel]="alternativas.obterCampoDeEscolha(alternative.schema)"
+      (ngModelChange)="
+        alternativas.definirCampoDeEscolha(alternative.index, $event) ||
+          campoEscolha.control.setValue(alternativas.obterCampoDeEscolha(alternative.schema), {
+            emitEvent: false,
+            emitViewToModelChange: false,
+          })
+      "
+    >
+      <option *ngFor="let field of camposDisponiveis" [value]="field">
+        {{ field }}
+      </option>
+    </select></label
+  >
+  <div class="oneof-alternatives-strip">
+    <div
+      class="condition-branch oneof-alternative"
+      *ngFor="
+        let option of alternativas.listarOpcoes(alternative.schema);
+        let i = index;
+        trackBy: alternativas.identificarIndice
+      "
+    >
+      <div class="oneof-alternative-heading">
+        <strong>Alternativa {{ i + 1 }}</strong
+        ><button
+          type="button"
+          class="oneof-remove-option"
+          (click)="alternativas.removerAlternativa(i)"
+          [disabled]="alternativas.listarOpcoes(alternative.schema).length <= 2"
+        >
+          Excluir alternativa
+        </button>
+      </div>
+      <label
+        >Nome da alternativa<input
+          [ngModel]="option.title || 'Alternativa ' + (i + 1)"
+          (change)="alternativas.renomearAlternativa(i, $any($event.target).value)"
+      /></label>
+      <label *ngIf="alternativas.usaCampoDeEscolha(alternative.schema)"
+        >Valor que identifica a alternativa
+        <select
+          #valorAlternativa="ngModel"
+          *ngIf="
+            alternativas.valoresPermitidosDoCampoDeEscolha(alternative.schema).length;
+            else valorSemEnum
+          "
+          [ngModel]="alternativas.obterValorTipadoDaAlternativa(option)"
+          (ngModelChange)="
+            alternativas.definirValorTipadoDaAlternativa(alternative.index, i, $event) ||
+              valorAlternativa.control.setValue(
+                alternativas.obterValorTipadoDaAlternativa(option),
+                { emitEvent: false, emitViewToModelChange: false }
+              )
+          "
+        >
+          <option
+            *ngFor="let valor of alternativas.valoresPermitidosDoCampoDeEscolha(alternative.schema)"
+            [ngValue]="valor"
+          >
+            {{ alternativas.formatarValorAlternativa(valor) }}
+          </option>
+        </select>
+        <ng-template #valorSemEnum>
+          <span
+            *ngIf="
+              alternativas.tipoDoCampoDeEscolha(alternative.schema) === 'boolean';
+              else valorLivre
+            "
+            class="required-switch-label"
+          >
+            <input
+              type="checkbox"
+              class="required-switch-input"
+              role="switch"
+              [checked]="alternativas.obterValorTipadoDaAlternativa(option) === true"
+              (change)="
+                alternativas.definirValorTipadoDaAlternativa(
+                  alternative.index,
+                  i,
+                  $any($event.target).checked
+                ) ||
+                  ($any($event.target).checked =
+                    alternativas.obterValorTipadoDaAlternativa(option) === true)
+              "
+            />
+            <span class="required-switch-track" aria-hidden="true"></span>
+            <span>{{
+              alternativas.obterValorTipadoDaAlternativa(option) === true
+                ? 'Sim (ligado)'
+                : 'Não (desligado)'
+            }}</span>
+          </span>
+          <ng-template #valorLivre>
+            <input
+              [type]="
+                ['integer', 'number'].includes(
+                  alternativas.tipoDoCampoDeEscolha(alternative.schema)
+                )
+                  ? 'number'
+                  : 'text'
+              "
+              [step]="
+                alternativas.tipoDoCampoDeEscolha(alternative.schema) === 'integer' ? '1' : 'any'
+              "
+              [ngModel]="alternativas.obterValorDaAlternativa(option)"
+              (change)="
+                alternativas.definirValorDaAlternativa(
+                  alternative.index,
+                  i,
+                  $any($event.target).value
+                ) || ($any($event.target).value = alternativas.obterValorDaAlternativa(option))
+              "
+            />
+          </ng-template>
+        </ng-template>
+      </label>
+      <div class="oneof-rule-columns">
+        <div class="oneof-rule-column">
+          <label>Exigir campo</label>
+          <div class="oneof-add-control">
+            <select
+              #requiredAlternative
+              [attr.aria-label]="'Exigir campo na alternativa ' + (i + 1)"
+            >
+              <option value="">Selecione...</option>
+              <option
+                *ngFor="let field of camposDisponiveis"
+                [value]="field"
+                [disabled]="
+                  alternativas.campoObrigatorioNaOrigem(field) ||
+                  alternativas.listarCamposProibidos(option).includes(field)
+                "
+              >
+                {{ field }}
+              </option></select
+            ><button
+              type="button"
+              class="oneof-add-icon"
+              (click)="
+                alternativas.adicionarCampoObrigatorio(
+                  alternative.index,
+                  i,
+                  requiredAlternative.value
+                );
+                requiredAlternative.value = ''
+              "
+              title="Adicionar campo"
+              [attr.aria-label]="'Exigir campo selecionado'"
+            >
+              +
+            </button>
+          </div>
+          <div class="oneof-rule-list oneof-required">
+            <div class="oneof-rule-heading">
+              <span class="oneof-rule-symbol">✓</span><strong>Obrigatórios</strong
+              ><span class="oneof-rule-count">{{
+                alternativas.listarCamposObrigatorios(option).length
+              }}</span>
+            </div>
+            <div
+              class="oneof-rule-row"
+              *ngFor="let field of alternativas.listarCamposObrigatorios(option)"
+            >
+              <span>{{ field }}</span
+              ><button
+                type="button"
+                (click)="alternativas.removerCampoObrigatorio(i, field)"
+                [disabled]="alternativas.campoObrigatorioNaOrigem(field)"
+                [title]="
+                  alternativas.campoObrigatorioNaOrigem(field)
+                    ? 'Campo obrigatório na origem. Altere a configuração do campo.'
+                    : ''
+                "
+              >
+                Excluir
+              </button>
+            </div>
+            <p class="builder-help" *ngIf="!alternativas.listarCamposObrigatorios(option).length">
+              Nenhum
+            </p>
+          </div>
+        </div>
+        <div class="oneof-rule-column" *ngIf="!alternativas.usaCampoDeEscolha(alternative.schema)">
+          <label>Proibir campo</label>
+          <div class="oneof-add-control">
+            <select
+              #forbiddenAlternative
+              [attr.aria-label]="'Proibir campo na alternativa ' + (i + 1)"
+            >
+              <option value="">Selecione...</option>
+              <option
+                *ngFor="let field of camposDisponiveis"
+                [value]="field"
+                [disabled]="
+                  alternativas.campoObrigatorioNaOrigem(field) || option.required?.includes(field)
+                "
+              >
+                {{ field }}
+              </option></select
+            ><button
+              type="button"
+              class="oneof-add-icon"
+              (click)="
+                alternativas.adicionarCampoProibido(
+                  alternative.index,
+                  i,
+                  forbiddenAlternative.value
+                );
+                forbiddenAlternative.value = ''
+              "
+              title="Adicionar campo"
+              [attr.aria-label]="'Proibir campo selecionado'"
+            >
+              +
+            </button>
+          </div>
+          <div class="oneof-rule-list oneof-forbidden">
+            <div class="oneof-rule-heading">
+              <span class="oneof-rule-symbol">×</span><strong>Proibidos</strong
+              ><span class="oneof-rule-count">{{
+                alternativas.listarCamposProibidos(option).length
+              }}</span>
+            </div>
+            <div
+              class="oneof-rule-row"
+              *ngFor="let field of alternativas.listarCamposProibidos(option)"
+            >
+              <span>{{ field }}</span
+              ><button type="button" (click)="alternativas.removerCampoProibido(i, field)">
+                Excluir
+              </button>
+            </div>
+            <p class="builder-help" *ngIf="!alternativas.listarCamposProibidos(option).length">
+              Nenhum
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="oneof-alternatives-actions">
+    <button type="button" (click)="alternativas.adicionarAlternativa()">
+      + Adicionar alternativa</button
+    ><span class="builder-help"
+      >Mínimo de duas alternativas. Cada alternativa possui suas próprias regras.</span
+    >
+  </div>
+</section>

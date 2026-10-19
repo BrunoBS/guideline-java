@@ -1,0 +1,7 @@
+{
+  "repositorio": "https://github.com/json-schema-org/JSON-Schema-Test-Suite",
+  "commit": "55719286c33ae0d1823bfb65fea10338a19bc37c",
+  "diretorio": "tests/draft2020-12",
+  "politica": "Todos os 1302 casos core e quatro casos opcionais de format-assertion são executados, sem exclusões, com formatos como anotações e recursos oficiais registrados offline. Demais optional preservados, mas não executados.",
+  "recursos": "remotes/draft2020-12 do mesmo commit, armazenados em remotes/"
+}

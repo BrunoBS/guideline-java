@@ -1,0 +1,10 @@
+<label class="boolean-toggle">
+  <span>{{ value === true ? 'Ligado' : 'Desligado' }}</span>
+  <input
+    type="checkbox"
+    [disabled]="schema.readOnly"
+    [checked]="value === true"
+    (change)="emitirValor($any($event.target).checked)"
+  />
+  <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+</label>

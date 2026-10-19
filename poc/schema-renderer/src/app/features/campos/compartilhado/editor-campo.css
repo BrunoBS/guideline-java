@@ -1,0 +1,143 @@
+:where(.builder) .enum-editor {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+:where(.builder) .enum-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+:where(.builder) .enum-table th {
+  text-align: left;
+  color: #475569;
+  font-size: 13px;
+}
+:where(.builder) .enum-table td,
+:where(.builder) .enum-table th {
+  padding: 7px;
+  border-bottom: 1px solid #e2e8f0;
+}
+:where(.builder) .enum-table input {
+  width: 100%;
+  min-width: 0;
+}
+:where(.builder) .enum-table button,
+:where(.builder) .enum-add {
+  border: 1px solid #cbd8ea;
+  border-radius: 7px;
+  background: white;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: #2455b5;
+}
+:where(.builder) .enum-add {
+  justify-self: start;
+}
+:where(.builder) .rule-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+:where(.builder) .rule-grid label {
+  min-width: 0;
+}
+:where(.builder) .field-options-card {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  border: 1px solid #dce4ef;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 15px;
+  margin: 12px 0;
+}
+:where(.builder) .field-options-title {
+  font-size: 13px;
+  color: #243b59;
+  margin-bottom: 2px;
+}
+:where(.builder) .field-options-card .required-switch-label {
+  display: flex !important;
+  justify-content: space-between;
+  width: 100%;
+}
+:where(.builder) .required-switch-label {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 9px;
+  margin: 0 !important;
+  white-space: nowrap;
+  cursor: pointer;
+  font-size: 13px;
+  color: #40516a;
+}
+:where(.builder) .required-switch-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+:where(.builder) .required-switch-track {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: background 0.15s;
+}
+:where(.builder) .required-switch-track:after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px #0002;
+  transition: transform 0.15s;
+}
+:where(.builder) .required-switch-input:checked + .required-switch-track {
+  background: #2455b5;
+}
+:where(.builder) .required-switch-input:checked + .required-switch-track:after {
+  transform: translateX(16px);
+}
+:where(.builder) .required-switch-input:focus-visible + .required-switch-track {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+:where(.builder) .validation-switch {
+  display: flex !important;
+  justify-content: space-between;
+  width: 100%;
+  margin: 14px 0 !important;
+}
+:where(.builder) .visual-group-members .required-switch-label {
+  display: flex !important;
+  justify-content: space-between;
+}
+:where(.builder) .validation-help {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #718096;
+  margin: 0 0 14px;
+}
+:where(.builder) .builder-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+:where(.builder) .builder-actions button {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+:where(.builder) .builder-help {
+  font-size: 12px;
+  color: #586477;
+}
+:where(.builder) .builder-error {
+  color: #b42318;
+}

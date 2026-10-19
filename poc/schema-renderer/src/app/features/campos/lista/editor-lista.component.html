@@ -1,0 +1,114 @@
+<div class="rule-grid" *ngIf="node.type === 'array'">
+  <label
+    >Mínimo de itens<input
+      type="number"
+      min="0"
+      step="1"
+      [ngModel]="node.minItems"
+      (ngModelChange)="validacoes.definirLimiteNumerico('minItems', $event, 0, true)"
+  /></label>
+  <label
+    >Máximo de itens<input
+      type="number"
+      min="0"
+      step="1"
+      [ngModel]="node.maxItems"
+      (ngModelChange)="validacoes.definirLimiteNumerico('maxItems', $event, 0, true)"
+  /></label>
+</div>
+<label *ngIf="node.type === 'array'"
+  >Tipo dos itens
+  <select
+    [ngModel]="obterTipoDoItemDaLista(node)"
+    (ngModelChange)="definirTipoDoItemDaLista($event)"
+  >
+    <option value="string">Texto</option>
+    <option value="integer">Inteiro</option>
+    <option value="number">Decimal</option>
+    <option value="boolean">Sim / Não</option>
+    <option value="object">Objeto / agrupador</option>
+  </select>
+</label>
+<div class="field-options-card" *ngIf="node.type === 'array'">
+  <label
+    >Modo de preenchimento
+    <select [ngModel]="obterControleDaLista(node)" (ngModelChange)="definirControleDaLista($event)">
+      <option value="list">Lista dinâmica — adicionar/remover itens</option>
+      <option
+        value="checkboxes"
+        *ngIf="
+          obterTipoDoItemDaLista(node) === 'string' ||
+          obterTipoDoItemDaLista(node) === 'integer' ||
+          obterTipoDoItemDaLista(node) === 'number'
+        "
+      >
+        Múltipla seleção — opções predefinidas
+      </option>
+    </select>
+  </label>
+  <ng-container *ngIf="obterControleDaLista(node) !== 'list'">
+    <strong>Opções disponíveis</strong>
+    <table class="enum-table">
+      <thead>
+        <tr>
+          <th>Valor</th>
+          <th>Label</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="
+            let entry of listarOpcoesDaLista(node);
+            let i = index;
+            trackBy: validacoes.identificarOpcao
+          "
+        >
+          <td>
+            <input
+              [ngModel]="entry.value"
+              (change)="atualizarOpcaoDaLista(i, 'value', $any($event.target).value)"
+              [attr.aria-label]="'Valor ' + (i + 1)"
+            />
+          </td>
+          <td>
+            <input
+              [ngModel]="entry.label"
+              (change)="atualizarOpcaoDaLista(i, 'label', $any($event.target).value)"
+              [attr.aria-label]="'Label ' + (i + 1)"
+            />
+          </td>
+          <td>
+            <button type="button" (click)="removerOpcaoDaLista(i)">Excluir</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <button type="button" class="enum-add" (click)="adicionarOpcaoDaLista()">
+      + Adicionar opção
+    </button>
+  </ng-container>
+</div>
+<label *ngIf="node.type === 'array'" class="required-switch-label validation-switch"
+  ><span>Itens únicos</span
+  ><input
+    type="checkbox"
+    class="required-switch-input"
+    [ngModel]="obterControleDaLista(node) !== 'list' || !!node.uniqueItems"
+    [disabled]="obterControleDaLista(node) !== 'list'"
+    (ngModelChange)="validacoes.definirAtributoBooleano('uniqueItems', $event)"
+    role="switch"
+    [attr.aria-checked]="obterControleDaLista(node) !== 'list' || !!node.uniqueItems" /><span
+    class="required-switch-track"
+    aria-hidden="true"
+  ></span
+></label>
+<p *ngIf="node.type === 'array' && obterControleDaLista(node) !== 'list'" class="validation-help">
+  Na múltipla seleção, cada valor pode ser escolhido apenas uma vez.
+</p>
+<p
+  class="validation-help"
+  *ngIf="node.type === 'array' && obterTipoDoItemDaLista(node) === 'object'"
+>
+  Para adicionar propriedades aos objetos, selecione a lista e clique em Abrir lista de objetos.
+</p>

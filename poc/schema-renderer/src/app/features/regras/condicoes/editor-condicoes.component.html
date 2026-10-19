@@ -1,0 +1,378 @@
+<p class="builder-error" role="status" *ngFor="let conflito of condicoes.conflitos">
+  {{ conflito }}
+</p>
+<div class="builder-actions">
+  <button
+    type="button"
+    class="canvas-add-top"
+    (click)="condicoes.adicionarCondicao()"
+    [disabled]="!camposDisponiveis.length"
+  >
+    + Condição SE / ENTÃO / SENÃO
+  </button>
+</div>
+<p class="builder-help">
+  Cada condição é combinada com as demais automaticamente por allOf (todas as regras).
+</p>
+
+<p class="builder-error" role="alert" *ngIf="condicoes.mensagemErro">
+  {{ condicoes.mensagemErro }}
+</p>
+<section
+  class="condition-card"
+  *ngFor="let rule of condicoes.condicoesVisiveis; trackBy: condicoes.identificarCondicao"
+>
+  <div class="condition-title">
+    <strong>⑂ Condição {{ rule.index + 1 }}</strong
+    ><button type="button" (click)="condicoes.removerCondicao(rule.index)">Excluir condição</button>
+  </div>
+  <div class="condition-if">
+    <strong>SE (IF)</strong>
+    <p class="builder-help">Quando a regra abaixo for atendida:</p>
+    <p class="builder-error" *ngIf="!condicoes.camposDisponiveis.length">
+      Adicione um campo ao formulário para configurar esta condição.
+    </p>
+    <p
+      class="builder-error"
+      *ngIf="
+        condicoes.camposDisponiveis.length &&
+        !condicoes.obterCampoDaCondicao(rule.schema) &&
+        !condicoes.expressaoCompostaEhGuiada(rule.schema)
+      "
+    >
+      Selecione o campo que controla a condição.
+    </p>
+    <div class="builder-actions" *ngIf="!condicoes.condicaoEhAvancada(rule.schema)">
+      <button type="button" (click)="condicoes.agruparExpressao(rule.index, 'allOf')">
+        Agrupar: Todas (E)
+      </button>
+      <button type="button" (click)="condicoes.agruparExpressao(rule.index, 'anyOf')">
+        Agrupar: Qualquer uma (OU)
+      </button>
+      <button type="button" (click)="condicoes.agruparExpressao(rule.index, 'not')">
+        Negar expressão
+      </button>
+    </div>
+    <app-editor-expressao
+      *ngIf="condicoes.expressaoCompostaEhGuiada(rule.schema)"
+      [schema]="rule.schema.if"
+      [objeto]="condicoes.objetoAtual || {}"
+      [raiz]="schema"
+      (alteracao)="condicoes.definirExpressao(rule.index, $event)"
+    ></app-editor-expressao>
+    <p
+      class="builder-help"
+      *ngIf="
+        condicoes.condicaoEhAvancada(rule.schema) &&
+        !condicoes.expressaoCompostaEhGuiada(rule.schema)
+      "
+    >
+      Condição avançada preservada. Edite o SE pela aba Para Dev.
+    </p>
+    <fieldset
+      *ngIf="!condicoes.expressaoCompostaEhGuiada(rule.schema)"
+      class="condition-grid"
+      [disabled]="condicoes.condicaoEhAvancada(rule.schema)"
+    >
+      <label
+        >Campo<select
+          [ngModel]="condicoes.obterCampoDaCondicao(rule.schema)"
+          (ngModelChange)="condicoes.definirCampoDaCondicao(rule.index, $event)"
+        >
+          <option value="" disabled>Selecione um campo</option>
+          <option *ngFor="let field of condicoes.camposDisponiveis" [value]="field">
+            {{ field }}
+          </option>
+        </select></label
+      >
+      <label
+        >Operador<select
+          [ngModel]="condicoes.obterOperadorDaCondicao(rule.schema)"
+          (ngModelChange)="condicoes.definirOperadorDaCondicao(rule.index, $event)"
+        >
+          <option value="equals">É igual a</option>
+          <option value="different">É diferente de</option>
+          <option value="present">Está presente</option>
+          <option value="absent">Está ausente</option>
+          <option
+            *ngFor="let opcao of condicoes.opcoesDeComparacao(rule.schema)"
+            [value]="opcao.valor"
+          >
+            {{ opcao.rotulo }}
+          </option>
+        </select></label
+      >
+      <app-valor-condicao
+        *ngIf="!condicoes.comparacaoEhPresenca(rule.schema)"
+        [definicao]="condicoes.obterDefinicaoDaCondicao(rule.schema)"
+        [tipo]="condicoes.obterTipoEsperado(rule.schema)"
+        [texto]="condicoes.obterValorEsperado(rule.schema)"
+        [valor]="condicoes.obterValorTipado(rule.schema)"
+        (tipoAlterado)="condicoes.definirTipoEsperado(rule.index, $event)"
+        (textoAlterado)="condicoes.definirValorEsperado(rule.index, $event)"
+        (valorAlterado)="condicoes.definirValorTipadoEsperado(rule.index, $event)"
+      >
+      </app-valor-condicao>
+    </fieldset>
+  </div>
+  <div class="condition-branches">
+    <fieldset
+      class="condition-branch true"
+      [disabled]="condicoes.ramoEhBooleano(rule.schema, 'then')"
+    >
+      <p class="builder-help" *ngIf="condicoes.ramoEhBooleano(rule.schema, 'then')">
+        Schema booleano {{ rule.schema.then }} preservado. Edite este ramo pela aba Para Dev.
+      </p>
+      <strong>✓ ENTÃO (THEN) — Verdadeiro</strong>
+      <p class="builder-help">Restrições aplicadas quando verdadeiro.</p>
+      <div
+        class="condition-branch-field"
+        *ngFor="
+          let field of condicoes.listarCamposDoRamo(rule.schema, 'then');
+          trackBy: condicoes.identificarCampoDaCondicao
+        "
+      >
+        <div class="condition-field-header">
+          <div class="condition-field-name">
+            <span>Regras do campo</span><strong>{{ field.key }}</strong>
+          </div>
+          <label
+            class="required-switch-label condition-required"
+            [title]="
+              condicoes.campoEhObrigatorioGlobalmente(field.key)
+                ? condicoes.avisoObrigatorioNaOrigem
+                : ''
+            "
+            >Visível neste ramo
+            <input
+              class="required-switch-input"
+              type="checkbox"
+              role="switch"
+              [checked]="condicoes.campoDoRamoEstaVisivel(rule.schema, 'then', field.key)"
+              [disabled]="
+                condicoes.campoDoRamoEhBooleano(rule.schema, 'then', field.key) ||
+                condicoes.campoDoRamoEhObrigatorio(rule.schema, 'then', field.key) ||
+                condicoes.campoEhObrigatorioGlobalmente(field.key)
+              "
+              (change)="
+                condicoes.definirVisibilidadeDoCampoDoRamo(
+                  rule.index,
+                  'then',
+                  field.key,
+                  $any($event.target).checked
+                )
+              "
+            />
+            <span class="required-switch-track" aria-hidden="true"></span>
+          </label>
+          <label
+            class="required-switch-label condition-required"
+            [title]="
+              condicoes.campoEhObrigatorioGlobalmente(field.key)
+                ? condicoes.avisoObrigatorioNaOrigem
+                : ''
+            "
+            >Obrigatório neste ramo
+            <input
+              class="required-switch-input"
+              type="checkbox"
+              role="switch"
+              [checked]="
+                condicoes.campoEhObrigatorioGlobalmente(field.key) ||
+                condicoes.campoDoRamoEhObrigatorio(rule.schema, 'then', field.key)
+              "
+              [disabled]="
+                condicoes.campoDoRamoEhBooleano(rule.schema, 'then', field.key) ||
+                condicoes.campoEhObrigatorioGlobalmente(field.key)
+              "
+              (change)="
+                condicoes.definirObrigatoriedadeDoCampoDoRamo(
+                  rule.index,
+                  'then',
+                  field.key,
+                  $any($event.target).checked
+                )
+              "
+            />
+            <span class="required-switch-track" aria-hidden="true"></span>
+          </label>
+          <span
+            *ngIf="condicoes.campoEhObrigatorioGlobalmente(field.key)"
+            class="condition-origin-hint"
+            tabindex="0"
+            [title]="condicoes.avisoObrigatorioNaOrigem"
+            [attr.aria-label]="condicoes.avisoObrigatorioNaOrigem"
+            >Obrigatório na origem ⓘ</span
+          >
+          <button
+            type="button"
+            class="condition-delete-button"
+            (click)="condicoes.removerCampoDoRamo(rule.index, 'then', field.key)"
+            [attr.aria-label]="'Excluir regra do campo ' + field.key"
+          >
+            Excluir
+          </button>
+        </div>
+        <div class="condition-field-info">
+          <app-editor-restricao
+            [definicao]="condicoes.objetoAtual?.properties?.[field.key]"
+            [schema]="field.schema"
+            [raiz]="schema"
+            (alteracao)="condicoes.definirRestricaoDoRamo(rule.index, 'then', field.key, $event)"
+          ></app-editor-restricao>
+          <div
+            class="condition-field-constraints"
+            *ngIf="condicoes.possuiRestricoesDoCampo(field.schema)"
+          >
+            <p class="builder-help">{{ condicoes.descreverRestricoesDoCampo(field.schema) }}</p>
+            <details>
+              <summary>Ver restrições do campo</summary>
+              <pre>{{ field.schema | json }}</pre>
+            </details>
+          </div>
+        </div>
+      </div>
+      <label
+        >Adicionar campo ao ramo
+        <select
+          [ngModel]="''"
+          (ngModelChange)="condicoes.adicionarCampoExistenteAoRamo(rule.index, 'then', $event)"
+        >
+          <option value="">Selecione um campo...</option>
+          <option *ngFor="let field of condicoes.camposDisponiveis" [value]="field">
+            {{ field }}
+          </option>
+        </select>
+      </label>
+    </fieldset>
+    <fieldset
+      class="condition-branch false"
+      [disabled]="condicoes.ramoEhBooleano(rule.schema, 'else')"
+    >
+      <p class="builder-help" *ngIf="condicoes.ramoEhBooleano(rule.schema, 'else')">
+        Schema booleano {{ rule.schema.else }} preservado. Edite este ramo pela aba Para Dev.
+      </p>
+      <strong>✕ SENÃO (ELSE) — Falso</strong>
+      <p class="builder-help">Restrições aplicadas quando falso.</p>
+      <div
+        class="condition-branch-field"
+        *ngFor="
+          let field of condicoes.listarCamposDoRamo(rule.schema, 'else');
+          trackBy: condicoes.identificarCampoDaCondicao
+        "
+      >
+        <div class="condition-field-header">
+          <div class="condition-field-name">
+            <span>Regras do campo</span><strong>{{ field.key }}</strong>
+          </div>
+          <label
+            class="required-switch-label condition-required"
+            [title]="
+              condicoes.campoEhObrigatorioGlobalmente(field.key)
+                ? condicoes.avisoObrigatorioNaOrigem
+                : ''
+            "
+            >Visível neste ramo
+            <input
+              class="required-switch-input"
+              type="checkbox"
+              role="switch"
+              [checked]="condicoes.campoDoRamoEstaVisivel(rule.schema, 'else', field.key)"
+              [disabled]="
+                condicoes.campoDoRamoEhBooleano(rule.schema, 'else', field.key) ||
+                condicoes.campoDoRamoEhObrigatorio(rule.schema, 'else', field.key) ||
+                condicoes.campoEhObrigatorioGlobalmente(field.key)
+              "
+              (change)="
+                condicoes.definirVisibilidadeDoCampoDoRamo(
+                  rule.index,
+                  'else',
+                  field.key,
+                  $any($event.target).checked
+                )
+              "
+            />
+            <span class="required-switch-track" aria-hidden="true"></span>
+          </label>
+          <label
+            class="required-switch-label condition-required"
+            [title]="
+              condicoes.campoEhObrigatorioGlobalmente(field.key)
+                ? condicoes.avisoObrigatorioNaOrigem
+                : ''
+            "
+            >Obrigatório neste ramo
+            <input
+              class="required-switch-input"
+              type="checkbox"
+              role="switch"
+              [checked]="
+                condicoes.campoEhObrigatorioGlobalmente(field.key) ||
+                condicoes.campoDoRamoEhObrigatorio(rule.schema, 'else', field.key)
+              "
+              [disabled]="
+                condicoes.campoDoRamoEhBooleano(rule.schema, 'else', field.key) ||
+                condicoes.campoEhObrigatorioGlobalmente(field.key)
+              "
+              (change)="
+                condicoes.definirObrigatoriedadeDoCampoDoRamo(
+                  rule.index,
+                  'else',
+                  field.key,
+                  $any($event.target).checked
+                )
+              "
+            />
+            <span class="required-switch-track" aria-hidden="true"></span>
+          </label>
+          <span
+            *ngIf="condicoes.campoEhObrigatorioGlobalmente(field.key)"
+            class="condition-origin-hint"
+            tabindex="0"
+            [title]="condicoes.avisoObrigatorioNaOrigem"
+            [attr.aria-label]="condicoes.avisoObrigatorioNaOrigem"
+            >Obrigatório na origem ⓘ</span
+          >
+          <button
+            type="button"
+            class="condition-delete-button"
+            (click)="condicoes.removerCampoDoRamo(rule.index, 'else', field.key)"
+            [attr.aria-label]="'Excluir regra do campo ' + field.key"
+          >
+            Excluir
+          </button>
+        </div>
+        <div class="condition-field-info">
+          <app-editor-restricao
+            [definicao]="condicoes.objetoAtual?.properties?.[field.key]"
+            [schema]="field.schema"
+            [raiz]="schema"
+            (alteracao)="condicoes.definirRestricaoDoRamo(rule.index, 'else', field.key, $event)"
+          ></app-editor-restricao>
+          <div
+            class="condition-field-constraints"
+            *ngIf="condicoes.possuiRestricoesDoCampo(field.schema)"
+          >
+            <p class="builder-help">{{ condicoes.descreverRestricoesDoCampo(field.schema) }}</p>
+            <details>
+              <summary>Ver restrições do campo</summary>
+              <pre>{{ field.schema | json }}</pre>
+            </details>
+          </div>
+        </div>
+      </div>
+      <label
+        >Adicionar campo ao ramo
+        <select
+          [ngModel]="''"
+          (ngModelChange)="condicoes.adicionarCampoExistenteAoRamo(rule.index, 'else', $event)"
+        >
+          <option value="">Selecione um campo...</option>
+          <option *ngFor="let field of condicoes.camposDisponiveis" [value]="field">
+            {{ field }}
+          </option>
+        </select>
+      </label>
+    </fieldset>
+  </div>
+</section>

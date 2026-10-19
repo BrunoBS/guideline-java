@@ -1,0 +1,378 @@
+<header class="app-header">
+  <h2>POC - JSON Schema</h2>
+  <small>Draft 2020-12</small>
+</header>
+<main class="workspace">
+  <section *ngIf="area === 'home'" aria-label="Página inicial">
+    <div class="home-intro">
+      <h3>O que você deseja fazer?</h3>
+      <p>Escolha entre criar ou consumir um contrato JSON Schema.</p>
+    </div>
+    <div class="home-cards">
+      <button class="home-card" type="button" (click)="entrarNoConstrutor()">
+        <span class="card-icon">▤</span><strong>Schema Builder</strong>
+        <p>Crie e edite visualmente JSON Schemas com propriedades, objetos e listas.</p>
+        <span class="card-action">Criar schema →</span>
+      </button>
+      <button class="home-card" type="button" (click)="entrarNoRenderizador()">
+        <span class="card-icon">▦</span><strong>Schema Renderer</strong>
+        <p>Consuma um JSON Schema para gerar formulários, validar dados e consultar a resposta.</p>
+        <span class="card-action">Consumir schema →</span>
+      </button>
+    </div>
+  </section>
+  <div *ngIf="area !== 'home'">
+    <div class="workspace-back">
+      <button type="button" class="secondary" (click)="area = 'home'">← Voltar para Home</button>
+    </div>
+    <nav class="tabs" *ngIf="area === 'renderer'" aria-label="Etapas da POC">
+      <button type="button" [class.active]="activeTab === 1" (click)="activeTab = 1">
+        <span>1</span> JSON Schema
+      </button>
+      <button type="button" [class.active]="activeTab === 2" (click)="activeTab = 2">
+        <span>2</span> Formulário
+      </button>
+      <button type="button" [class.active]="activeTab === 3" (click)="activeTab = 3">
+        <span>3</span> Modo desenvolvedor
+      </button>
+      <button type="button" [class.active]="activeTab === 4" (click)="activeTab = 4">
+        <span>4</span> Resposta
+      </button>
+    </nav>
+
+    <section class="panel tab-panel" *ngIf="area === 'renderer' && activeTab === 1">
+      <div class="section-heading">
+        <div>
+          <h3>JSON Schema</h3>
+          <p>Defina o contrato que controla a renderização e a validação do formulário.</p>
+        </div>
+        <span class="status valid" *ngIf="schemaValidated && !parseError"
+          >✓ JSON Schema válido</span
+        >
+        <span class="status invalid" *ngIf="parseError">JSON Schema inválido</span>
+      </div>
+      <div class="preset-actions example-picker">
+        <label>
+          <span>Exemplo</span>
+          <select
+            [ngModel]="selectedExample"
+            (ngModelChange)="carregarExemplo($event)"
+            aria-label="Selecionar exemplo de JSON Schema"
+          >
+            <option value="">Selecione um exemplo</option>
+            <option
+              *ngFor="let example of schemaExamples"
+              [value]="example.id"
+              [attr.title]="example.description"
+            >
+              {{ example.label }}
+            </option>
+          </select>
+        </label>
+        <span
+          class="schema-example-help"
+          tabindex="0"
+          aria-label="Ajuda sobre o exemplo selecionado"
+          >?
+          <span class="schema-example-tooltip" role="tooltip">{{
+            descricaoDoExemploSelecionado
+          }}</span>
+        </span>
+      </div>
+      <label for="schema-source">Cole ou edite o JSON Schema</label>
+      <textarea
+        id="schema-source"
+        class="editor"
+        [ngModel]="source"
+        (ngModelChange)="aoEditarSchemaDoRenderizador($event)"
+        aria-label="Editor JSON Schema"
+      ></textarea>
+      <div class="opposite-actions developer-actions">
+        <span class="status valid" *ngIf="schemaValidated && !parseError"
+          >✓ Sintaxe JSON e estrutura do schema válidas</span
+        >
+        <span></span>
+        <div>
+          <button type="button" class="secondary" (click)="validarDocumentoSchema()">
+            Validar JSON
+          </button>
+          <button type="button" class="secondary" (click)="formatarDocumentoSchema()">
+            Formatar JSON
+          </button>
+          <button type="button" (click)="renderizarSchema()">Renderizar schema</button>
+        </div>
+      </div>
+      <p class="error callout" *ngIf="parseError">{{ parseError }}</p>
+    </section>
+
+    <p class="error callout" *ngIf="area === 'renderer' && valueError && activeTab !== 3">
+      O JSON do modo desenvolvedor está inválido: {{ valueError }}. Corrija-o ou descarte a edição
+      antes de considerar o formulário válido.
+    </p>
+
+    <section class="panel tab-panel" *ngIf="area === 'renderer' && activeTab === 2">
+      <div class="section-heading">
+        <div>
+          <h3>Formulário dinâmico</h3>
+          <p>Os controles abaixo são derivados exclusivamente do JSON Schema.</p>
+        </div>
+        <span class="status valid" *ngIf="!valueError && !errors.length">✓ Válido</span
+        ><span class="status invalid" *ngIf="!valueError && errors.length"
+          >{{ errors.length }} erro(s)</span
+        >
+      </div>
+      <app-field
+        *ngIf="schema"
+        [schema]="schema"
+        [root]="schema"
+        [value]="value"
+        [required]="true"
+        [issues]="issues"
+        path=""
+        (valueChange)="aoAlterarValor($event)"
+      ></app-field>
+      <div class="validation-summary" *ngIf="errors.length">
+        <h4>Mensagens de erro</h4>
+        <ul>
+          <li class="error" *ngFor="let e of errors">{{ e }}</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="panel tab-panel" *ngIf="area === 'renderer' && activeTab === 3">
+      <div class="section-heading">
+        <div>
+          <h3>Modo desenvolvedor</h3>
+          <p>
+            Cole ou edite o JSON. Conteúdo sintaticamente válido é sincronizado com o formulário.
+          </p>
+        </div>
+        <span class="status invalid" *ngIf="valueError">JSON inválido</span>
+        <span class="status invalid" *ngIf="!valueError && errors.length"
+          >{{ errors.length }} erro(s)</span
+        >
+        <span class="status valid" *ngIf="!valueError && !errors.length">✓ Válido</span>
+      </div>
+      <textarea
+        class="editor"
+        [ngModel]="developerSource"
+        (ngModelChange)="aoEditarJsonDoValor($event)"
+        aria-label="Editor JSON de valores"
+      ></textarea>
+      <div class="opposite-actions developer-actions">
+        <span class="status valid" *ngIf="developerValidated && !valueError">✓ JSON válido</span>
+        <span></span>
+        <div>
+          <button type="button" class="secondary" (click)="validarJsonDoValor()">
+            Validar JSON</button
+          ><button type="button" (click)="formatarJsonDoValor()">Formatar JSON</button>
+        </div>
+      </div>
+      <p class="error callout" *ngIf="valueError">{{ valueError }}</p>
+      <p class="success callout" *ngIf="!valueError && developerValidated">
+        ✓ JSON sintaticamente válido e sincronizado com o formulário.
+      </p>
+      <div class="validation-summary" *ngIf="!valueError && errors.length">
+        <h4>Validação contra o schema</h4>
+        <ul>
+          <li class="error" *ngFor="let e of errors">{{ e }}</li>
+        </ul>
+      </div>
+    </section>
+
+    <div
+      class="studio-preview-overlay"
+      *ngIf="area === 'builder' && previewOpen"
+      (click)="previewOpen = false"
+      (keydown.escape)="previewOpen = false"
+      role="presentation"
+    >
+      <section
+        class="studio-preview-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Preview do formulário"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="studio-preview-header">
+          <div>
+            <h3>Preview do formulário</h3>
+            <p>Teste os campos e as validações do schema atual.</p>
+          </div>
+          <button
+            type="button"
+            class="secondary"
+            (click)="previewOpen = false"
+            aria-label="Fechar preview"
+          >
+            ✕ Fechar
+          </button>
+        </div>
+        <div class="studio-preview-body">
+          <app-field
+            *ngIf="schema"
+            [schema]="schema"
+            [root]="schema"
+            [value]="value"
+            [required]="true"
+            [issues]="issues"
+            path=""
+            (valueChange)="aoAlterarValor($event)"
+          ></app-field>
+          <div class="validation-summary" *ngIf="errors.length">
+            <h4>Validação</h4>
+            <ul>
+              <li class="error" *ngFor="let e of errors">{{ e }}</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div
+      class="studio-preview-overlay"
+      *ngIf="area === 'builder' && schemaPreviewOpen"
+      (click)="schemaPreviewOpen = false"
+      (keydown.escape)="schemaPreviewOpen = false"
+      role="presentation"
+    >
+      <section
+        class="studio-preview-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Visualizar JSON Schema"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="studio-preview-header">
+          <div>
+            <h3>Visualizar schema</h3>
+            <p>Contrato JSON Schema gerado a partir da configuração atual.</p>
+          </div>
+          <div class="schema-modal-actions">
+            <button type="button" class="secondary" (click)="copiarSchema()">
+              {{ schemaCopied ? '✓ Copiado!' : '⧉ Copiar schema' }}</button
+            ><button type="button" (click)="exportarSchema()">↓ Exportar JSON Schema</button
+            ><button
+              type="button"
+              class="secondary"
+              (click)="schemaPreviewOpen = false"
+              aria-label="Fechar visualização do schema"
+            >
+              ✕ Fechar
+            </button>
+          </div>
+        </div>
+        <div class="studio-preview-body">
+          <pre class="response-json studio-json">{{ schema | json }}</pre>
+        </div>
+      </section>
+    </div>
+    <nav class="studio-tabs" *ngIf="area === 'builder'" aria-label="Abas do Schema Studio">
+      <button
+        type="button"
+        [class.active]="builderTab === 'construction'"
+        (click)="selecionarAbaDoConstrutor('construction')"
+      >
+        Construção
+      </button>
+      <button
+        type="button"
+        [class.active]="builderTab === 'dev'"
+        (click)="selecionarAbaDoConstrutor('dev')"
+      >
+        Para Dev
+      </button>
+    </nav>
+    <section class="panel tab-panel" *ngIf="area === 'builder'">
+      <div class="section-heading">
+        <div>
+          <h3>Schema Studio</h3>
+          <p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p>
+        </div>
+        <div class="schema-modal-actions">
+          <button
+            type="button"
+            class="secondary"
+            (click)="schemaCopied = false; schemaPreviewOpen = true"
+            aria-haspopup="dialog"
+          >
+            ◉ Visualizar schema</button
+          ><button type="button" (click)="abrirPreviaDoFormulario()" aria-haspopup="dialog">
+            ◉ Visualizar formulário
+          </button>
+        </div>
+      </div>
+      <p class="error callout" *ngIf="builderError">{{ builderError }}</p>
+      <div class="developer-actions">
+        <button type="button" class="secondary" (click)="criarNovoSchema()">Novo schema</button>
+      </div>
+      <div class="builder-vertical" *ngIf="builderTab === 'construction'">
+        <section class="builder-construction" aria-label="Opções de construção">
+          <div class="section-heading">
+            <div>
+              <h4>Construir formulário</h4>
+              <p>
+                Adicione campos, agrupadores e listas. Selecione um campo para configurar suas
+                regras.
+              </p>
+            </div>
+          </div>
+          @defer (when area === 'builder') {
+            <app-schema-builder
+              mode="construction"
+              [schema]="schema"
+              (schemaChange)="aoAlterarSchema($event)"
+            ></app-schema-builder>
+          }
+        </section>
+      </div>
+      <div class="schema-editor-column" *ngIf="builderTab === 'dev'">
+        <div class="section-heading">
+          <div>
+            <h4>Para Dev</h4>
+            <p>Cole ou edite um JSON Schema. Use Visualizar formulário para testá-lo.</p>
+          </div>
+          <span class="status valid" *ngIf="!builderSchemaError">Schema válido</span>
+          <span class="status invalid" *ngIf="builderSchemaError">Schema inválido</span>
+        </div>
+        <label for="builder-schema-source">JSON Schema</label>
+        <textarea
+          id="builder-schema-source"
+          class="editor"
+          [ngModel]="builderSource"
+          (ngModelChange)="aoEditarSchemaDoConstrutor($event)"
+          aria-label="Editor de JSON Schema para desenvolvedores"
+        ></textarea>
+        <div class="opposite-actions developer-actions">
+          <span class="status valid" *ngIf="schemaValidated && !builderSchemaError"
+            >✓ Sintaxe JSON e estrutura do schema válidas</span
+          >
+          <span></span>
+          <div>
+            <button type="button" class="secondary" (click)="validarSchemaDoConstrutor()">
+              Validar JSON
+            </button>
+            <button type="button" class="secondary" (click)="formatarSchemaDoConstrutor()">
+              Formatar JSON
+            </button>
+          </div>
+        </div>
+        <p class="error callout" *ngIf="builderSchemaError">{{ builderSchemaError }}</p>
+      </div>
+    </section>
+
+    <section class="panel tab-panel" *ngIf="area === 'renderer' && activeTab === 4">
+      <div class="section-heading">
+        <div>
+          <h3>Resposta</h3>
+          <p>JSON final produzido pelo formulário e pelo modo desenvolvedor.</p>
+        </div>
+        <span class="status valid" *ngIf="!valueError && !errors.length">✓ Válido</span
+        ><span class="status invalid" *ngIf="valueError || errors.length">Inválido</span>
+      </div>
+      <pre class="response-json" *ngIf="!valueError">{{ value | json }}</pre>
+      <p class="error" *ngIf="valueError">
+        Resposta indisponível enquanto o JSON do modo desenvolvedor estiver inválido.
+      </p>
+    </section>
+  </div>
+</main>

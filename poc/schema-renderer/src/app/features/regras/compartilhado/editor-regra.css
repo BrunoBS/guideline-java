@@ -1,0 +1,266 @@
+:where(.builder) .condition-add {
+  border: 2px solid #2455b5 !important;
+  background: #eaf1ff !important;
+  color: #003399 !important;
+}
+:where(.builder) .condition-card {
+  border: 1px solid #cbd8ed;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 14px 0;
+  background: #fff;
+}
+:where(.builder) .condition-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  color: #001f5b;
+}
+:where(.builder) .condition-if,
+:where(.builder) .condition-branch {
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 10px;
+  background: #f7f9fd;
+  border: 1px solid #dbe3ef;
+}
+:where(.builder) .condition-branch.true {
+  border-left: 3px solid #16804a;
+}
+:where(.builder) .condition-branch.false {
+  border-left: 3px solid #64748b;
+}
+:where(.builder) .condition-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+:where(.builder) .condition-grid label,
+:where(.builder) .condition-branch-field label {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 600;
+}
+:where(.builder) .condition-grid input,
+:where(.builder) .condition-grid select,
+:where(.builder) .condition-branch-field input,
+:where(.builder) .condition-branch-field select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #bcc9dc;
+  padding: 10px;
+  border-radius: 7px;
+  background: #fff;
+}
+:where(.builder) .condition-branch-field {
+  min-width: 0;
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid #dfe6f0;
+  border-radius: 10px;
+  background: #fff;
+}
+:where(.builder) .condition-field-name {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  color: #334155;
+}
+:where(.builder) .condition-field-name span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+:where(.builder) .condition-field-name strong {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: #eaf1ff;
+  color: #001f5b;
+  overflow-wrap: anywhere;
+}
+:where(.builder) .condition-branch-field .condition-delete-button {
+  border: 1px solid #d4ddeb !important;
+  background: #fff !important;
+  color: #a52332 !important;
+  border-radius: 8px !important;
+  min-width: 104px;
+  height: 36px;
+  padding: 0 12px !important;
+  font-size: 13px;
+  font-weight: 600;
+}
+:where(.builder) .condition-branch-field .condition-delete-button:hover {
+  background: #fff0ef !important;
+  border-color: #e7b5b5 !important;
+}
+:where(.builder) .condition-branch-field .condition-required {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+:where(.builder) .condition-branch-field .condition-required input {
+  width: auto;
+}
+:where(.builder) .condition-card button {
+  border: 1px solid #b8c9df;
+  border-radius: 7px;
+  background: #fff;
+  color: #2455b5;
+  padding: 9px;
+  cursor: pointer;
+}
+:where(.builder) .condition-card .condition-add-field {
+  margin-top: 10px;
+  background: #ecf2ff;
+}
+:where(.builder) .condition-branches {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+@media (max-width: 950px) {
+  :where(.builder) .condition-grid {
+    grid-template-columns: 1fr;
+  }
+}
+:where(.builder) .condition-field-info {
+  flex: 1;
+  min-width: 0;
+}
+:where(.builder) .condition-field-constraints .builder-help {
+  margin: 6px 0;
+}
+:where(.builder) .condition-field-constraints summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+:where(.builder) .condition-field-constraints pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+:where(.builder) .condition-comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 10px 12px;
+  margin-top: 12px;
+}
+:where(.builder) .condition-comparison > label {
+  min-width: 0;
+  margin: 0;
+}
+:where(.builder) .condition-comparison > button {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+:where(.builder) .condition-field-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e7edf5;
+}
+:where(.builder) .condition-field-header .condition-field-name {
+  flex-wrap: wrap;
+}
+:where(.builder) .condition-field-header .condition-required {
+  margin: 0;
+  font-size: 12px;
+}
+:where(.builder) .condition-branch > label {
+  font-size: 13px;
+}
+:where(.builder) .condition-branch > label select {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+:where(.builder) .condition-field-constraints {
+  margin-top: 12px;
+}
+@media (max-width: 550px) {
+  :where(.builder) .condition-comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :where(.builder) .condition-field-header .condition-field-name {
+    flex-basis: 100%;
+  }
+  :where(.builder) .condition-field-header .condition-delete-button {
+    margin-left: auto;
+  }
+  :where(.builder) .condition-title {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+:where(.builder) .condition-text {
+  padding-top: 12px;
+  border-top: 1px solid #e7edf5;
+}
+:where(.builder) .condition-text .builder-help {
+  margin: 0;
+  align-self: center;
+}
+
+:where(.builder) .condition-grid .condition-boolean-value {
+  position: relative;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid #bcc9dc;
+  border-radius: 7px;
+  background: #fff;
+  box-sizing: border-box;
+}
+:where(.builder) .condition-boolean-value .required-switch-input {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+}
+
+:where(.builder) .condition-unified textarea {
+  width: 100%;
+  min-height: 84px;
+  box-sizing: border-box;
+  border: 1px solid #bcc9dc;
+  border-radius: 7px;
+  padding: 10px;
+  resize: vertical;
+}
+:where(.builder) .condition-unified > p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+:where(.builder) .condition-unified .condition-boolean-value {
+  min-height: 40px;
+}
+
+:where(.builder) .condition-origin-hint {
+  font-size: 12px;
+  color: #475569;
+  cursor: help;
+}
+:where(.builder) .condition-origin-hint:focus-visible {
+  outline: 2px solid #2455b5;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+:where(.builder) .condition-required:has(input:disabled) {
+  cursor: help;
+}
+:where(.builder) .condition-required input:disabled + .required-switch-track {
+  opacity: 0.55;
+}

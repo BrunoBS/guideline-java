@@ -1,0 +1,198 @@
+<section class="field-options-card" *ngIf="ehObjeto || ehLista">
+  <h4>Estruturas e dependências</h4>
+  <p role="alert" class="builder-error" *ngIf="erro">{{ erro }}</p>
+  <ng-container *ngIf="ehObjeto">
+    <details class="structure-section" open>
+      <summary>Dependências entre campos</summary>
+      <div class="structure-grid">
+        <label
+          >Campo que ativa a dependência<select [(ngModel)]="gatilho">
+            <option value="">Selecione</option>
+            <option *ngFor="let campo of campos" [value]="campo">{{ campo }}</option>
+          </select></label
+        >
+        <label
+          >Campo exigido<select [(ngModel)]="dependente">
+            <option value="">Selecione</option>
+            <option *ngFor="let campo of campos" [value]="campo">{{ campo }}</option>
+          </select></label
+        >
+      </div>
+      <button type="button" (click)="adicionarDependencia()">
+        Adicionar dependência obrigatória
+      </button>
+      <div
+        class="structure-entry"
+        *ngFor="let entrada of entradas('dependentRequired'); trackBy: identificarEntrada"
+      >
+        <strong>Quando {{ entrada.key }} existir:</strong><span>{{ entrada.value | json }}</span
+        ><button type="button" (click)="removerEntrada('dependentRequired', entrada.key)">
+          Remover dependência
+        </button>
+      </div>
+      <details class="advanced-section">
+        <summary>Schema dependente avançado</summary>
+        <label
+          >Schema aplicado quando o campo existir<textarea
+            aria-label="Novo schema dependente"
+            [value]="textoDoRascunho('novoDependentSchema', '')"
+            (input)="editarRascunho('novoDependentSchema', $any($event.target).value)"
+            #schemaDependente
+            placeholder='Ex.: {"required":["detalhe"]}'
+          ></textarea>
+        </label>
+        <button type="button" (click)="definirSchemaDependente(schemaDependente.value)">
+          Aplicar schema dependente
+        </button>
+      </details>
+      <div
+        class="structure-entry"
+        *ngFor="let entrada of entradas('dependentSchemas'); trackBy: identificarEntrada"
+      >
+        <label
+          >Regra ativada por {{ entrada.key
+          }}<textarea
+            [attr.aria-label]="'Schema dependente de ' + entrada.key"
+            [value]="textoDoRascunho('dependentSchemas:' + entrada.key, json(entrada.value))"
+            (input)="editarRascunho('dependentSchemas:' + entrada.key, $any($event.target).value)"
+            #dependencia
+          ></textarea>
+        </label>
+        <div class="structure-actions">
+          <button
+            type="button"
+            (click)="definirEntradaJson('dependentSchemas', entrada.key, dependencia.value)"
+          >
+            Aplicar dependência</button
+          ><button type="button" (click)="removerEntrada('dependentSchemas', entrada.key)">
+            Remover
+          </button>
+        </div>
+      </div>
+    </details>
+    <details class="structure-section">
+      <summary>Nomes das propriedades</summary>
+      <label
+        >Padrão dos nomes das propriedades<input
+          aria-label="Padrão dos nomes"
+          #nomes
+          [value]="textoDoRascunho('propertyNames', node.propertyNames?.pattern || '')"
+          (input)="editarRascunho('propertyNames', $any($event.target).value)"
+      /></label>
+      <button type="button" (click)="definirNomes(nomes.value)">Aplicar padrão de nomes</button>
+    </details>
+    <details class="structure-section">
+      <summary>Propriedades dinâmicas</summary>
+      <div class="structure-grid">
+        <label>Expressão regular para propriedades dinâmicas<input [(ngModel)]="padrao" /></label>
+        <label
+          >Tipo do valor<select [(ngModel)]="tipo">
+            <option *ngFor="let opcao of tipos" [value]="opcao">{{ opcao }}</option>
+          </select></label
+        >
+      </div>
+      <button type="button" (click)="adicionarPadrao()">Adicionar padrão de propriedades</button>
+      <div
+        class="structure-entry"
+        *ngFor="let entrada of entradas('patternProperties'); trackBy: identificarEntrada"
+      >
+        <label
+          >Regra do padrão {{ entrada.key
+          }}<textarea
+            [attr.aria-label]="'Regra do padrão ' + entrada.key"
+            [value]="textoDoRascunho('patternProperties:' + entrada.key, json(entrada.value))"
+            (input)="editarRascunho('patternProperties:' + entrada.key, $any($event.target).value)"
+            #regraPadrao
+          ></textarea>
+        </label>
+        <div class="structure-actions">
+          <button
+            type="button"
+            (click)="definirEntradaJson('patternProperties', entrada.key, regraPadrao.value)"
+          >
+            Aplicar regra do padrão</button
+          ><button type="button" (click)="removerEntrada('patternProperties', entrada.key)">
+            Remover padrão
+          </button>
+        </div>
+      </div>
+    </details>
+  </ng-container>
+  <ng-container *ngIf="ehLista">
+    <details class="structure-section" open>
+      <summary>Itens por posição (tupla)</summary>
+      <label
+        >Tipo do próximo item posicional<select [(ngModel)]="tipo">
+          <option *ngFor="let opcao of tipos" [value]="opcao">{{ opcao }}</option>
+        </select></label
+      >
+      <button type="button" (click)="adicionarPosicao()">Adicionar posição na tupla</button>
+      <div
+        class="structure-entry"
+        *ngFor="let posicao of node.prefixItems || []; index as i; trackBy: identificarPosicao"
+      >
+        <label
+          >Posição {{ i + 1
+          }}<textarea
+            [attr.aria-label]="'Schema da posição ' + (i + 1)"
+            [value]="textoDoRascunho('prefixItems:' + i, json(posicao))"
+            (input)="editarRascunho('prefixItems:' + i, $any($event.target).value)"
+            #schemaPosicao
+          ></textarea>
+        </label>
+        <div class="structure-actions">
+          <button type="button" (click)="definirPosicao(i, schemaPosicao.value)">
+            Aplicar posição</button
+          ><button type="button" (click)="removerPosicao(i)">Remover posição</button>
+        </div>
+      </div>
+      <label
+        >Itens após a tupla<select
+          [ngModel]="node.items === false ? 'proibir' : 'manter'"
+          (ngModelChange)="definirItens($event)"
+        >
+          <option value="manter">Permitir / manter schema</option>
+          <option value="proibir">Proibir</option>
+        </select></label
+      >
+    </details>
+    <details class="structure-section">
+      <summary>Correspondências na lista (contains)</summary>
+      <label
+        >Regra dos itens correspondentes<textarea
+          aria-label="Regra contains"
+          #contem
+          [value]="
+            textoDoRascunho('contains', node.contains === undefined ? '' : json(node.contains))
+          "
+          (input)="editarRascunho('contains', $any($event.target).value)"
+        ></textarea>
+      </label>
+      <div class="structure-grid">
+        <label
+          >Mínimo de correspondências<input
+            aria-label="Mínimo de correspondências"
+            type="number"
+            min="0"
+            step="1"
+            #minimo
+            [value]="textoDoRascunho('minContains', '' + (node.minContains ?? ''))"
+            (input)="editarRascunho('minContains', $any($event.target).value)"
+        /></label>
+        <label
+          >Máximo de correspondências<input
+            aria-label="Máximo de correspondências"
+            type="number"
+            min="0"
+            step="1"
+            #maximo
+            [value]="textoDoRascunho('maxContains', '' + (node.maxContains ?? ''))"
+            (input)="editarRascunho('maxContains', $any($event.target).value)"
+        /></label>
+      </div>
+      <button type="button" (click)="definirContains(contem.value, minimo.value, maximo.value)">
+        Aplicar correspondências
+      </button>
+    </details>
+  </ng-container>
+</section>
