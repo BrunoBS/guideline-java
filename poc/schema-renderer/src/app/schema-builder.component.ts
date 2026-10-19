@@ -43,6 +43,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .rules-canvas label{display:grid;gap:6px;font-weight:600;margin:8px 0}
  .rules-canvas input,.rules-canvas select{padding:9px;border:1px solid #b8c9df;border-radius:7px;max-width:100%}
  .enum-editor{display:grid;gap:10px;margin:12px 0}.enum-table{width:100%;border-collapse:collapse}.enum-table th{text-align:left;color:#475569;font-size:13px}.enum-table td,.enum-table th{padding:7px;border-bottom:1px solid #e2e8f0}.enum-table input{width:100%;min-width:0}.enum-table button,.enum-add{border:1px solid #cbd8ea;border-radius:7px;background:white;padding:8px 12px;cursor:pointer;color:#2455b5}.enum-add{justify-self:start}
+ .oneof-rule-list{display:grid;gap:8px;margin:12px 0}.oneof-rule-list>strong{font-size:13px}.oneof-rule-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 11px;background:white;border:1px solid #dce4ef;border-radius:8px}.oneof-rule-row span{font-weight:650;overflow-wrap:anywhere}.oneof-rule-row button{color:#b42333!important;border-color:#e0d4d5!important}
  .logic-palette-title{display:none}
  .condition-add{border:2px solid #2455b5!important;background:#eaf1ff!important;color:#003399!important}
  .condition-card{border:1px solid #cbd8ed;border-radius:12px;padding:16px;margin:14px 0;background:#fff}
@@ -487,8 +488,18 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
       <label *ngIf="oneOfUsesSelector(alternative.schema)">Valor que identifica a alternativa<input [ngModel]="oneOfOptionValue(option)" (ngModelChange)="setOneOfValue(alternative.index,i,$event)"></label>
       <label>Campo obrigatório<select #requiredAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
       <button type="button" (click)="addOneOfRequired(alternative.index,i,requiredAlternative.value)">+ Exigir campo</button>
-      <p class="builder-help">Obrigatórios: {{oneOfRequired(option).join(', ') || 'nenhum adicional'}}</p>
-      <p class="builder-help" *ngIf="oneOfForbidden(option).length">Proibidos: {{oneOfForbidden(option).join(', ')}}</p>
+      <div class="oneof-rule-list"><strong>Campos obrigatórios</strong>
+       <div class="oneof-rule-row" *ngFor="let field of oneOfRequired(option)">
+        <span>{{field}}</span><button type="button" (click)="removeOneOfRequired(i,field)">Excluir</button>
+       </div>
+       <p class="builder-help" *ngIf="!oneOfRequired(option).length">Nenhum campo adicional</p>
+      </div>
+      <div class="oneof-rule-list" *ngIf="!oneOfUsesSelector(alternative.schema)"><strong>Campos proibidos</strong>
+       <div class="oneof-rule-row" *ngFor="let field of oneOfForbidden(option)">
+        <span>{{field}}</span><button type="button" (click)="removeOneOfForbidden(i,field)">Excluir</button>
+       </div>
+       <p class="builder-help" *ngIf="!oneOfForbidden(option).length">Nenhum campo proibido</p>
+      </div>
       <ng-container *ngIf="!oneOfUsesSelector(alternative.schema)">
        <label>Proibir campo
         <select #forbiddenAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select>
@@ -863,6 +874,19 @@ export class SchemaBuilderComponent implements OnChanges {
  addOneOfRequired(_index:number,index:number,field:string){
   if(!field||!this.conditionAvailableFields.includes(field))return;
   this.commit(root=>{const rule=root.oneOf?.[index];if(rule)rule.required=[...new Set([...(rule.required||[]),field])];});
+ }
+ removeOneOfRequired(index:number,key:string){
+  this.commit(root=>{const option=root.oneOf?.[index];if(!option)return;
+   option.required=(option.required||[]).filter((field:string)=>field!==key);
+   if(!option.required.length)delete option.required;
+  });
+ }
+ removeOneOfForbidden(index:number,key:string){
+  this.commit(root=>{const option=root.oneOf?.[index];if(!option||!this.oneOfForbiddenIsEditable(option))return;
+   const remaining=this.oneOfForbidden(option).filter(field=>field!==key);
+   if(!remaining.length)delete option.not;
+   else option.not=remaining.length===1?{required:[remaining[0]]}:{anyOf:remaining.map(field=>({required:[field]}))};
+  });
  }
  get conditionFieldPalette(){return this.palette.filter(item=>item.type!=='condition');}
  trackConditionIndex(_index:number,rule:{index:number;schema:Schema}){return rule.index;}
