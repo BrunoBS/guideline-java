@@ -627,7 +627,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <button type="button" class="enum-add" (click)="addArrayOption()">+ Adicionar opção</button>
     </ng-container>
    </div>
-   <label *ngIf="node.type==='array'" class="required-switch-label validation-switch"><span>Itens únicos</span><input type="checkbox" class="required-switch-input" [ngModel]="!!node.uniqueItems" (ngModelChange)="setBoolean('uniqueItems',$event)" role="switch" [attr.aria-checked]="!!node.uniqueItems"/><span class="required-switch-track" aria-hidden="true"></span></label>
+   <label *ngIf="node.type==='array'" class="required-switch-label validation-switch"><span>Itens únicos</span><input type="checkbox" class="required-switch-input" [ngModel]="arrayWidget(node)!=='list'||!!node.uniqueItems" [disabled]="arrayWidget(node)!=='list'" (ngModelChange)="setBoolean('uniqueItems',$event)" role="switch" [attr.aria-checked]="arrayWidget(node)!=='list'||!!node.uniqueItems"/><span class="required-switch-track" aria-hidden="true"></span></label><p *ngIf="node.type==='array'&&arrayWidget(node)!=='list'" class="validation-help">Na múltipla seleção, cada valor pode ser escolhido apenas uma vez.</p>
    <div class="rule-grid" *ngIf="this.isObjectSchema(node)">
     <label>Mínimo de propriedades<input type="number" min="0" step="1" [ngModel]="node.minProperties" (ngModelChange)="setNumber('minProperties',$event,0,true)"/></label>
     <label>Máximo de propriedades<input type="number" min="0" step="1" [ngModel]="node.maxProperties" (ngModelChange)="setNumber('maxProperties',$event,0,true)"/></label>
@@ -850,6 +850,20 @@ export class SchemaBuilderComponent implements OnChanges {
     node.uniqueItems=true;
     const type=this.arrayItemType(node);
     if(!['string','integer','number'].includes(type))node.items={type:'string'};
+    const item=node.items as Schema;
+    const saved=node['x-ui'].savedOptions as {value:any;label:string;autoLabel?:boolean}[]|undefined;
+    if(!item.enum?.length&&saved?.length){
+     item.enum=saved.map(option=>option.value);
+     node['x-ui'].options=saved;
+    }
+   }else{
+    const item=node.items;
+    if(item&&typeof item==='object'&&!Array.isArray(item)&&Array.isArray(item.enum)){
+     const existing=node['x-ui'].options||[];
+     node['x-ui'].savedOptions=item.enum.map((value:any)=>{const found=existing.find((option:any)=>Object.is(option.value,value));return {value,label:String(found?.label??value),autoLabel:found?.autoLabel};});
+     delete item.enum;
+    }
+    delete node['x-ui'].options;
    }
   });
  }
@@ -860,12 +874,14 @@ export class SchemaBuilderComponent implements OnChanges {
  }
  private saveArrayOptions(entries:{value:any;label:string;autoLabel?:boolean}[]){
   if(entries.some((entry,i)=>entries.findIndex(other=>Object.is(entry.value,other.value))!==i)){this.error='Valores duplicados não são permitidos.';return;}
+  if(entries.some((entry,i)=>entries.findIndex(other=>other.label.trim().toLocaleLowerCase()===entry.label.trim().toLocaleLowerCase())!==i)){this.error='Labels duplicados não são permitidos nas opções de múltipla seleção.';return;}
   this.error='';
   this.commit(root=>{const node=this.current(root)!;if(!node.items||typeof node.items!=='object')node.items={type:'string'};
    const item=node.items as Schema;
    if(entries.length)item.enum=entries.map(entry=>entry.value);else delete item.enum;
    node['x-ui']??={};
    node['x-ui'].options=entries.map(entry=>({value:entry.value,label:entry.label,autoLabel:entry.autoLabel??entry.label===String(entry.value)}));
+   delete node['x-ui'].savedOptions;
   });
  }
  addArrayOption(){const node=this.selected!,entries=this.arrayOptionEntries(node),type=this.arrayItemType(node);
@@ -908,6 +924,9 @@ export class SchemaBuilderComponent implements OnChanges {
     :type==='array'
      ?{type:'array',title:'Item',items:{type:'string'}}
      :{type,title:'Item'};
+   delete node['x-ui']?.options;
+   delete node['x-ui']?.savedOptions;
+   if(!['string','integer','number'].includes(type)&&node['x-ui'])node['x-ui'].widget='list';
 
   });
  }
