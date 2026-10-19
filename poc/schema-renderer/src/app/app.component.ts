@@ -378,26 +378,9 @@ export class AppComponent {
   this.previewOpen=true;
   this.sync(true);
  }
- private requiredEmptyFieldIssues(schema:Schema,value:any,path='',depth=0):ValidationIssue[]{
-  if(depth>20||!schema||typeof schema!=='object')return [];
-  const issues:ValidationIssue[]=[];
-  if(schema.type==='object'&&value&&typeof value==='object'&&!Array.isArray(value)){
-   for(const [key,child] of Object.entries(schema.properties||{})){
-    const prop=child as Schema,fieldValue=value[key];
-    const childPath=path+'/'+key.replace(/~/g,'~0').replace(/\//g,'~1');
-    if((schema.required||[]).includes(key)&&prop?.type==='string'&&typeof fieldValue==='string'&&!fieldValue.trim()){
-     issues.push({path:childPath,message:'Campo obrigatório: informe um valor.'});
-    }
-    if(fieldValue!==undefined&&fieldValue!==null)issues.push(...this.requiredEmptyFieldIssues(prop,fieldValue,childPath,depth+1));
-   }
-  }else if(schema.type==='array'&&Array.isArray(value)&&schema.items&&typeof schema.items==='object'){
-   value.forEach((item,index)=>issues.push(...this.requiredEmptyFieldIssues(schema.items as Schema,item,path+'/'+index,depth+1)));
-  }
-  return issues;
- }
  private sync(updateDeveloperSource:boolean){
   if(updateDeveloperSource)this.developerSource=JSON.stringify(this.value,null,2);
-  this.issues=[...validationIssues(this.schema,this.value),...this.requiredEmptyFieldIssues(this.schema,this.value)];
+  this.issues=validationIssues(this.schema,this.value);
   this.errors=this.issues.map(issue=>`${issue.path}: ${issue.message}`);
  }
 }
