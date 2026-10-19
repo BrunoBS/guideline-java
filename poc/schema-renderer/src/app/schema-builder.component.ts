@@ -50,7 +50,11 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
  .oneof-alternative-heading .oneof-remove-option{font-size:13px;color:#ad2435!important}
  .oneof-alternatives-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px}
  .oneof-rule-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
- .oneof-rule-column{min-width:0}.oneof-rule-column .oneof-rule-list{min-height:100px}
+ .oneof-rule-column{min-width:0}.oneof-rule-column .oneof-add-control{display:flex;align-items:stretch;gap:8px;width:100%}
+ .oneof-add-control select{flex:1;min-width:0;width:auto!important}
+ .condition-card .oneof-add-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;min-height:42px;padding:0!important;border:1px solid #b8c9df;border-radius:8px;background:#eaf1ff;color:#2455b5;font-size:23px;font-weight:700;line-height:1;cursor:pointer}
+ .condition-card .oneof-add-icon:hover{background:#d8e6ff}
+ .oneof-rule-list{min-height:100px}
  .oneof-rule-column select{width:100%}
  @media(max-width:700px){.oneof-rule-columns{grid-template-columns:1fr}}
  .oneof-rule-list{display:grid;gap:9px;margin:14px 0;padding:12px;border:1px solid;border-radius:10px}
@@ -518,16 +522,16 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
       <label *ngIf="oneOfUsesSelector(alternative.schema)">Valor que identifica a alternativa<input [ngModel]="oneOfOptionValue(option)" (change)="setOneOfValue(alternative.index,i,$any($event.target).value)"></label>
       <div class="oneof-rule-columns">
        <div class="oneof-rule-column">
-        <label>Exigir campo<select #requiredAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
-        <button type="button" (click)="addOneOfRequired(alternative.index,i,requiredAlternative.value);requiredAlternative.value=''">+ Exigir campo</button>
+        <label>Exigir campo</label>
+        <div class="oneof-add-control"><select #requiredAlternative [attr.aria-label]="'Exigir campo na alternativa '+(i+1)"><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select><button type="button" class="oneof-add-icon" (click)="addOneOfRequired(alternative.index,i,requiredAlternative.value);requiredAlternative.value=''" title="Adicionar campo" [attr.aria-label]="'Exigir campo selecionado'">+</button></div>
         <div class="oneof-rule-list oneof-required"><div class="oneof-rule-heading"><span class="oneof-rule-symbol">✓</span><strong>Obrigatórios</strong><span class="oneof-rule-count">{{oneOfRequired(option).length}}</span></div>
          <div class="oneof-rule-row" *ngFor="let field of oneOfRequired(option)"><span>{{field}}</span><button type="button" (click)="removeOneOfRequired(i,field)">Excluir</button></div>
          <p class="builder-help" *ngIf="!oneOfRequired(option).length">Nenhum</p>
         </div>
        </div>
        <div class="oneof-rule-column" *ngIf="!oneOfUsesSelector(alternative.schema)">
-        <label>Proibir campo<select #forbiddenAlternative><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select></label>
-        <button type="button" (click)="addOneOfForbidden(alternative.index,i,forbiddenAlternative.value);forbiddenAlternative.value=''">+ Proibir campo</button>
+        <label>Proibir campo</label>
+        <div class="oneof-add-control"><select #forbiddenAlternative [attr.aria-label]="'Proibir campo na alternativa '+(i+1)"><option value="">Selecione...</option><option *ngFor="let field of conditionAvailableFields" [value]="field">{{field}}</option></select><button type="button" class="oneof-add-icon" (click)="addOneOfForbidden(alternative.index,i,forbiddenAlternative.value);forbiddenAlternative.value=''" title="Adicionar campo" [attr.aria-label]="'Proibir campo selecionado'">+</button></div>
         <div class="oneof-rule-list oneof-forbidden"><div class="oneof-rule-heading"><span class="oneof-rule-symbol">×</span><strong>Proibidos</strong><span class="oneof-rule-count">{{oneOfForbidden(option).length}}</span></div>
          <div class="oneof-rule-row" *ngFor="let field of oneOfForbidden(option)"><span>{{field}}</span><button type="button" (click)="removeOneOfForbidden(i,field)">Excluir</button></div>
          <p class="builder-help" *ngIf="!oneOfForbidden(option).length">Nenhum</p>
