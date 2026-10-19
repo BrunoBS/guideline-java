@@ -604,7 +604,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    </div>
    <label *ngIf="node.type==='array'">Tipo dos itens
     <select [ngModel]="arrayItemType(node)" (ngModelChange)="setArrayItemType($event)">
-     <option value="string">Texto</option><option value="integer">Inteiro</option><option value="number">Decimal</option><option value="boolean">Sim / Não</option><option value="object">Objeto / agrupador</option><option value="array">Lista</option>
+     <option value="string">Texto</option><option value="integer">Inteiro</option><option value="number">Decimal</option><option value="boolean">Sim / Não</option><option value="object">Objeto / agrupador</option>
     </select>
    </label>
    <div class="field-options-card" *ngIf="node.type==='array'">
@@ -915,15 +915,14 @@ export class SchemaBuilderComponent implements OnChanges {
   return Array.isArray(item.type)?item.type[0]||'string':item.type||'string';
  }
  setArrayItemType(type:string){
+  if(type==='array'){this.error='Não é permitido criar uma lista dentro de outra lista.';return;}
   this.commit(root=>{
    const node=this.current(root)!;
    const existing=node.items&&typeof node.items==='object'&&!Array.isArray(node.items)?node.items:{};
    // Changing item type resets incompatible constraints and nested properties.
    node.items=type==='object'
     ?{type:'object',title:'Item',properties:{}}
-    :type==='array'
-     ?{type:'array',title:'Item',items:{type:'string'}}
-     :{type,title:'Item'};
+    :{type,title:'Item'};
    delete node['x-ui']?.options;
    delete node['x-ui']?.savedOptions;
    if(!['string','integer','number'].includes(type)&&node['x-ui'])node['x-ui'].widget='list';
