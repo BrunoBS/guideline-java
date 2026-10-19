@@ -888,7 +888,7 @@ export class SchemaBuilderComponent implements OnChanges {
   this.commit(root=>{
    const option:Schema={title:'Alternativa '+(index+1)};
    if(selector){
-    const existing=(root.oneOf||[]).map(item=>item.properties?.[selector]?.const);
+    const existing=(root.oneOf||[]).map((item:Schema)=>item.properties?.[selector]?.const);
     const allowed=root.properties?.[selector]?.enum||[];
     const available=allowed.find((value:any)=>!existing.some((old:any)=>Object.is(old,value)));
     if(available===undefined){this.error='Cadastre outro valor permitido no campo de escolha antes de criar a alternativa.';return;}
