@@ -612,7 +612,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
      <select [ngModel]="arrayWidget(node)" (ngModelChange)="setArrayWidget($event)">
       <option value="list">Lista dinâmica — adicionar/remover itens</option>
       <option value="checkboxes" *ngIf="arrayItemType(node)==='string'||arrayItemType(node)==='integer'||arrayItemType(node)==='number'">Múltipla seleção — opções predefinidas</option>
-      <option value="multiselect" *ngIf="arrayItemType(node)==='string'||arrayItemType(node)==='integer'||arrayItemType(node)==='number'">Múltipla seleção com pesquisa</option>
+      
      </select>
     </label>
     <ng-container *ngIf="arrayWidget(node)!=='list'">
@@ -842,7 +842,7 @@ export class SchemaBuilderComponent implements OnChanges {
   this.openContainer(this.selectedPath+'/items');
  }
  goToParentContainer(){this.selectedGroupId='';this.activeContainerPath=this.containerHistory.pop()||'';}
- arrayWidget(node:Schema):string{return node['x-ui']?.widget||'list';}
+ arrayWidget(node:Schema):string{return node['x-ui']?.widget==='multiselect'?'checkboxes':node['x-ui']?.widget||'list';}
  setArrayWidget(widget:string){
   if(!['list','checkboxes','multiselect'].includes(widget))return;
   this.commit(root=>{const node=this.current(root)!;node['x-ui']??={};node['x-ui'].widget=widget;
