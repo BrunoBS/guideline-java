@@ -1288,6 +1288,7 @@ export class SchemaBuilderComponent implements OnChanges {
   if(value===''||value===null||value===undefined){this.commit(root=>{delete this.current(root)![key];});return;}
   const n=Number(value);
   if(!Number.isFinite(n)||(min!==undefined&&n<min)||(integer&&!Number.isInteger(n))||(strictPositive&&n<=0)){this.error='Número inválido para '+key;return;}
+  if(key==='minLength'&&n>0&&this.selected?.['x-ui']?.allowEmpty===true){this.error='Desative Permitir texto vazio antes de definir um tamanho mínimo maior que zero.';return;}
   this.commit(root=>{this.current(root)![key]=n;});
  }
  setPattern(value:string){
