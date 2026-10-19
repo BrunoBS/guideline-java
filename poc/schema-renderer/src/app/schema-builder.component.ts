@@ -440,9 +440,9 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <label [attr.for]="'object-kind-'+field.path">Tipo da propriedade</label>
    <div class="oneof-add-control">
     <select [id]="'object-kind-'+field.path" #objectKind [attr.aria-label]="'Tipo da nova propriedade em '+(field.schema.title||field.label)">
-     <option value="">Selecione...</option><option *ngFor="let kind of inlineTypes" [value]="kind.type">{{kind.label}}</option>
+     <option *ngFor="let kind of inlineTypes" [value]="kind.type">{{kind.label}}</option>
     </select>
-    <button type="button" class="oneof-add-icon" (click)="addInlineAttribute(objectAttributesPath(field.path),objectKind.value);objectKind.value=''" [disabled]="!objectKind.value" [attr.aria-label]="'Adicionar propriedade a '+(field.schema.title||field.label)" title="Adicionar propriedade">+</button>
+    <button type="button" class="oneof-add-icon" (click)="addInlineAttribute(objectAttributesPath(field.path),objectKind.value)" [attr.aria-label]="'Adicionar propriedade a '+(field.schema.title||field.label)" title="Adicionar propriedade">+</button>
    </div>
   </div>
   </div>
@@ -938,7 +938,7 @@ export class SchemaBuilderComponent implements OnChanges {
 
   });
  }
- inlineTypes=[{type:'object',label:'Objeto'},{type:'string',label:'Texto'},{type:'integer',label:'Inteiro'},{type:'number',label:'Decimal'},{type:'boolean',label:'Sim/Não'},{type:'array',label:'Lista'}];
+ inlineTypes=[{type:'string',label:'Texto'},{type:'integer',label:'Inteiro'},{type:'number',label:'Decimal'},{type:'boolean',label:'Sim / Não'}];
  isArrayOfObjects(node:Schema):boolean{return node.type==='array'&&!!node.items&&typeof node.items==='object'&&!Array.isArray(node.items)&&this.isObjectSchema(node.items as Schema);}
  objectAttributesPath(path:string):string{const node=this.getNodeAt(this.schema,path);return node&&this.isArrayOfObjects(node)?path+'/items':path;}
  objectChildren(path:string){const node=this.getNodeAt(this.schema,path);return Object.entries(node?.properties||{}).map(([key,schema])=>({path:path+'/properties/'+this.escape(key),label:key,schema:schema as Schema}));}
