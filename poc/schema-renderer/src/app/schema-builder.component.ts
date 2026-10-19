@@ -587,6 +587,7 @@ type NodeRow={path:string;label:string;depth:number;schema:Schema;required:boole
    <div class="field-options-card" *ngIf="selectedPath!=='' && (mode==='dev' || editorTab==='property')">
     <strong class="field-options-title">Opções do campo</strong>
     <label class="required-switch-label" *ngIf="!selectedPath.endsWith('/items')"><span>Obrigatório</span><input type="checkbox" class="required-switch-input" [ngModel]="selectedRequired" (ngModelChange)="setRequired($event)" role="switch" [attr.aria-checked]="selectedRequired"/><span class="required-switch-track" aria-hidden="true"></span></label>
+    <label class="required-switch-label" *ngIf="node.type==='string'"><span>Permitir texto vazio</span><input type="checkbox" class="required-switch-input" [ngModel]="allowsEmptyText(node)" (ngModelChange)="setAllowEmptyText($event)" role="switch" [attr.aria-checked]="allowsEmptyText(node)"/><span class="required-switch-track" aria-hidden="true"></span></label>
     <label class="required-switch-label"><span>Permitir nulo</span><input type="checkbox" class="required-switch-input" [ngModel]="isNullableField(node)" (ngModelChange)="setNullableField($event)" role="switch" [attr.aria-checked]="isNullableField(node)"/><span class="required-switch-track" aria-hidden="true"></span></label>
    </div>
    </div>
@@ -1254,6 +1255,7 @@ export class SchemaBuilderComponent implements OnChanges {
  private commit(edit:(root:Schema)=>void){
   const next=structuredClone(this.schema);
   edit(next);
+  this.enforceRequiredTextConstraints(next);
   if(this.editorModalOpen&&this.editorDraft){this.editorDraft=next;this.rebuild();return;}
   this.persistedSchema=next;
   this.rebuild();
@@ -1377,6 +1379,40 @@ export class SchemaBuilderComponent implements OnChanges {
   });
  }
  setType(type:string){this.commit(root=>{this.current(root)!.type=type;});}
+ allowsEmptyText(node:Schema):boolean{return node['x-ui']?.allowEmpty===true;}
+ setAllowEmptyText(allowed:boolean){
+  const current=this.selected;
+  if(!current||current.type!=='string')return;
+  if(allowed&&current.minLength!==undefined&&current.minLength>1){
+   this.error='Para permitir texto vazio, remova ou ajuste primeiro o tamanho mínimo. O JSON Schema não pode exigir ambos sem uma regra alternativa.';return;
+  }
+  if(allowed&&current.pattern){this.error='Remova primeiro a expressão regular: ela pode impedir o texto vazio.';return;}
+  if(allowed&&current.format){this.error='Remova primeiro o formato: ele pode impedir o texto vazio.';return;}
+  this.error='';
+  this.commit(root=>{
+   const node=this.current(root)!;
+   node['x-ui']??={};
+   node['x-ui'].allowEmpty=allowed;
+   if(allowed&&node.minLength===1)delete node.minLength;
+   if(!allowed&&this.isRequiredPath(root,this.selectedPath)&&(node.minLength===undefined||node.minLength<1))node.minLength=1;
+  });
+ }
+ private isRequiredPath(root:Schema,path:string):boolean{
+  const parts=this.segments(path),name=parts.pop();
+  if(parts.pop()!=='properties'||!name)return false;
+  const parent=this.getNodeAt(root,'/'+parts.map(part=>this.escape(part)).join('/'));
+  return !!parent?.required?.includes(name);
+ }
+ private enforceRequiredTextConstraints(node:Schema,depth=0):void{
+  if(depth>30||!node||typeof node!=='object')return;
+  for(const [name,child] of Object.entries(node.properties||{})){
+   if(!child||typeof child!=='object')continue;
+   const prop=child as Schema;
+   if((node.required||[]).includes(name)&&prop.type==='string'&&prop['x-ui']?.allowEmpty!==true&&(prop.minLength===undefined||prop.minLength<1))prop.minLength=1;
+   this.enforceRequiredTextConstraints(prop,depth+1);
+  }
+  if(node.type==='array'&&node.items&&typeof node.items==='object'&&!Array.isArray(node.items))this.enforceRequiredTextConstraints(node.items as Schema,depth+1);
+ }
  setRequired(checked:boolean){
   this.commit(root=>{
    const parts=this.segments(this.selectedPath),name=parts.pop()!;
