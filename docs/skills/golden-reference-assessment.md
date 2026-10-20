@@ -110,3 +110,107 @@ Cada `SKILL.md` deverá conter: propósito e gatilho, contrato obrigatório, pr�
 - Não alterar código produtivo nesta fase.
 - Separar observação, hipótese, regra candidata e decisão aprovada.
 - Não transformar divergências do Workspace Service em padrão da plataforma automaticamente.
+
+
+---
+
+# Auditoria ampliada ponta a ponta — 2026-10-20
+
+## Método e cobertura
+
+Foram enumeradas as árvores Git de quatro repositórios na branch `main`: `account-service` (820 arquivos), `platform-libraries` (619), `guideline-java` (137) e `platform-build` (6). **Enumeração não equivale a leitura integral de todos os arquivos**. A inspeção aprofundada foi feita por amostragem orientada a risco, cruzando fontes de código, testes, migrations, documentação e CI.
+
+No `account-service` foram identificadas **83 migrations** (`V1` a `V83`) e **125 arquivos em `src/test`** (109 arquivos Java; 71 terminam em `IT.java`, 35 em `Test.java`, os demais são suportes/fixtures e outras classes). O impedimento anterior de listagem de diretórios foi resolvido via Git Trees API. **Não foi executado Maven, Testcontainers ou Docker nesta auditoria**; a existência dos testes é confirmada, sua aprovação em execução não.
+
+## Conclusões por eixo
+
+### A. Governança e contrato arquitetural — prioridade CRÍTICA
+
+- `guideline-java/README.md` descreve `config/exception/shared/core/features/infra`, Controller→Service→Repository e validator que retorna lista de erros.
+- `account-service/GoldenArchitectureTest.java` **impõe por ArchUnit** as zonas `config/foundation/core/feature/entrypoint`, controllers em `entrypoint`, `foundation` sem dependência de `core/feature/entrypoint`, `core` sem dependência de `feature/entrypoint`, e endpoints recebendo `AuthorizationContext`.
+- O serviço usa Facade, Use Case, Domain, Repository, Integration e ValidationResult/ValidationException conforme contexto; a prescrição universal de validators retornando listas é incorreta para o baseline atual.
+- **Decisão técnica recomendada (ainda não aprovada):** tratar os testes ArchUnit e o código da Golden como baseline verificável do perfil `golden-workspace`; manter princípios genéricos do README apenas onde compatíveis; não reescrever silenciosamente o README nem generalizar todos os detalhes de Workspace a qualquer projeto.
+
+### B. Segurança e visibilidade — prioridade CRÍTICA
+
+- `platform-libraries/.../visibility/ResourceVisibilityAspect.java`: `@Around`; exige sessão; OWNER bypass; sem grupos de authorizer lança `GROUPS_NOT_FOUND`; ativa filtro para entidade anotada e desativa no `finally` se foi quem ativou.
+- `ResourceVisibilityFilterManager.java`: normaliza grupos para maiúsculas, elimina duplicatas, limite 500, usa filtro por classe de entidade; se já ativo, retorna `false` (não o desativa no retorno do escopo interno).
+- **Padrão positivo confirmado no código:** fail-closed sem sessão/grupos; escopo aninhado não desmonta filtro externo; limpeza em `finally`.
+- **Riscos que dependem de testes específicos:** filtros Hibernate não devem ser presumidos sobre SQL nativo; retorno `OWNER` bypass é intencional e exige política de negócio; acesso compartilhado usa métodos sem anotação de visibilidade e deve demonstrar contrato/participação antes de ler dados de outro escopo.
+- `WorkspaceAuthorizationIT.java` usa `@WithMySql` e `@WithMockAuthorization` e cobre negação de criação e ausência de escrita após 403. `ResourceSharingApiIT.java` cobre fluxos extensos de compartilhamento e concorrência, mas ainda requer matriz completa de rastreio dos métodos de referência.
+
+### C. Persistência, migrations e concorrência — prioridade ALTA
+
+- Flyway `V1..V83` existe, inclusive evolução de Resource Sharing (`V38`, `V39`, `V40`, `V41`, `V80`) e rename de Schema Binding (`V83`).
+- `PublishedMigrationChecksumTest` compara checksums de migrations publicadas contra `src/test/resources/migration/applied-checksums.csv`; fixture lista V1..V44. **Não presumir** que V45..V83 estejam publicados ou possam ser alterados: verificar histórico de ambientes antes de qualquer consolidação.
+- `DatabaseUpgradeMigrationIT` inicia em V2, insere dados legados e migra até o estado atual; `DatabaseMigrationIT` inspeciona tabelas/índices. `WorkspaceNameConcurrencyIT` cobre corrida de nomes; `ResourceSharingApiIT` contém testes de configurações concorrentes e de desativação de feature durante criação de contrato.
+- `Contract` possui `@Version` e constraint única `owner_workspace_id/owner_application_id/feature_id`; `ContractRepository` usa `FOR UPDATE`, `FOR SHARE` e queries paginadas com `countQuery`. `ParticipantRepository` pagina IDs e faz batch `findByIdIn` com `@EntityGraph`.
+- **Regras candidatas:** nunca substituir UNIQUE por `exists`; usar locks com justificativa; preservar ordenação após fetch em lote; testar concorrência real e rollback; adicionar migration em vez de alterar uma já aplicada.
+- **Atenção:** há 83 migrations e um teste explícito de compatibilidade. A sugestão anterior de consolidar todas em V1 seria insegura sem verificar que nenhum ambiente compartilha histórico aplicado.
+
+### D. Schema, validação e lifecycle — prioridade ALTA
+
+- `SchemaDefinitionValidationAdapter` usa `networknt` com `DRAFT_2020_12`, distingue sintaxe da definição e validação de dados; acumula `ValidationResult` com caminhos de erro.
+- `SchemaVersionCommandService` separa criação/atualização de draft, publicação e remoção de draft; usa locks de versões e `@Auditable`.
+- `Workspace` concentra transições ACTIVE→INACTIVE→QUARANTINED e restauração; `Contract` altera lifecycle em métodos simples, com validação complementar no Command.
+- **Regra candidata:** JSON Schema define estrutura/contrato de payload; domínio decide estado e autorização; schema publicado não pode ser tratado como draft mutável. Testar versão, concorrência, schema inválido e resolução do publicado.
+- **Pendente:** revisar completamente `SchemaVersionOperationValidator`, `SchemaResolutionAdapter`, anotações de validação na Foundation e testes associados antes de fixar política de publicação e fallback.
+
+### E. Testes, CI e Foundation — prioridade ALTA
+
+- `pom.xml` do `account-service` importa `platform-parent:1.0.0`, BOM `platform-libraries-bom:1.0.0`, e módulos de teste `platform-testing-http/database/authorization/redis`.
+- `.github/workflows/verify.yml`: Java 25, MySQL 8.4.11 em Docker, Maven repo isolado, `mvn clean verify` em push/PR da main. Isso comprova **configuração do gate**, não o status de um run específico.
+- `GoldenArchitectureTest` e outros quatro testes de arquitetura dão critérios executáveis de zonas e dependências; há testes de API, persistência, migrations, autorização, concorrência, schema, auditoria e Redis.
+- `platform-libraries` inclui testes de Aspect/FilterManager e integração Spring JPA da visibilidade; testes de módulos platform-testing também existem.
+- **Regra candidata:** skill deve instruir a executar `mvn clean verify`, registrar resultados e nunca alegar testes executados se apenas foram inspecionados. Preferir `platform-testing-*` em vez de recriar fixtures.
+
+### F. Divergência adicional de fonte — prioridade ALTA
+
+- `platform-build/platform-parent/pom.xml` na main usa `com.empresa.platform` e referências `platform-crud`/`platform-test-support`, enquanto `account-service/pom.xml` e `account-service/docs/golden/FOUNDATION-USAGE.md` usam `br.com.portalmanager.platform.library` e descrevem `platform-crud` como removido.
+- **Não inferir** que o artefato publicado `platform-parent:1.0.0` tenha o conteúdo do repositório `platform-build` consultado. É divergência de fontes a reconciliar por artefato publicado, release/tag ou POM efetivo. Skill não deve copiar coordenadas do repositório desatualizado.
+
+## Matriz de riscos e encaminhamento
+
+| ID | Severidade | Achado | Ação recomendada | Evidência de aceite |
+| --- | --- | --- | --- | --- |
+| GOV-01 | Crítica | README guideline conflita com ArchUnit e camadas Golden | Publicar perfil específico de Golden, separar orientação genérica | Skill reproduz invariantes do GoldenArchitectureTest |
+| GOV-02 | Alta | `platform-build` main diverge do parent consumido | Conferir POM efetivo e artefato de Packages | Coordenadas e dependências efetivas verificadas |
+| SEC-01 | Crítica | Exceções de sharing sem visibilidade Hibernate | Rastrear chamadores e gates de autorização | Testes negativos de acesso cruzado e SQL nativo |
+| SEC-04 | Alta | Filtro por entidade e `finally` confirmado; SQL nativo não confirmado | Cobrir SQL nativo, nested scopes, owner e ausência de grupos | Integração Spring/JPA/MySQL com casos negativos |
+| DB-01 | Alta | Criação concorrente e UNIQUE | Confirmar tratamento de conflito e códigos HTTP | Teste simultâneo reproduzível |
+| DB-03 | Média | Paginação IDs + batch | Reordenar segundo IDs paginados quando necessário | Teste com ordem determinística |
+| DB-04 | Alta | Evolução Flyway extensa | Conferir constraints finais e histórico aplicado | Migration IT + schema validate + checksum |
+| VALID-01 | Alta | Schema draft/publicação e AOP | Mapear política completa e fallback | Testes de versão, draft e published |
+| DOMAIN-01 | Média | Lifecycle guardado em locais diferentes | Estabelecer regra mínima de invariantes | Testes de transição inválida |
+| TEST-01 | Alta | Suíte encontrada, não executada nesta auditoria | Rodar `mvn clean verify` em runner apto | Log/CI verde vinculado a commit |
+| DOC-01 | Média | Documentos históricos podem divergir | Preferir fonte ativa + teste; marcar histórico | Sem instruções obsoletas nas Skills |
+
+## Contrato operacional para as Skills
+
+Cada Skill deve impor fluxo: **identificar escopo → ler referências canônicas → planejar mudança → implementar mínima alteração → criar/atualizar testes → executar gates disponíveis → revisar segurança, transação, schema, migrations e contratos → reportar evidências e limitações**.
+
+**Obrigatório:** proibir declarações de `BUILD SUCCESS` sem execução; não assumir filtro Hibernate em SQL nativo; não usar `@ResourceVisibility` mecanicamente em compartilhamento; não editar migration aplicada; não duplicar capability da Foundation; não aceitar exceção de segurança sem teste negativo; não reescrever a arquitetura baseada em README histórico.
+
+**Exceções:** devem informar motivo, escopo, evidência e impacto. Regras de aplicação específicas não devem se tornar universais para os 10–15 serviços.
+
+## Plano de materialização das Skills
+
+**Onda 1 (bloqueante):** `golden-architecture`, `api-security`, `testing-strategy`.
+**Onda 2:** `persistence`, `transaction-management`, `domain-modeling`, `schema-validation`.
+**Onda 3:** `error-handling`, `integration-patterns`, `architecture-review`, `performance-review`, `code-quality`.
+
+Antes de ativar as Skills, reconciliar GOV-01/GOV-02 e validar o texto contra os testes existentes. O presente documento é **avaliação**, não Skill executável.
+
+## Links diretos para evidências
+
+- [GoldenArchitectureTest](https://github.com/BrunoBS/account-service/blob/main/src/test/java/br/com/portalmanager/platform/workspace/GoldenArchitectureTest.java)
+- [ResourceVisibilityAspect](https://github.com/BrunoBS/platform-libraries/blob/main/modules/platform-authorization/src/main/java/br/com/portalmanager/platform/library/authorization/visibility/ResourceVisibilityAspect.java)
+- [ResourceVisibilityFilterManager](https://github.com/BrunoBS/platform-libraries/blob/main/modules/platform-authorization/src/main/java/br/com/portalmanager/platform/library/authorization/visibility/ResourceVisibilityFilterManager.java)
+- [ResourceSharingApiIT](https://github.com/BrunoBS/account-service/blob/main/src/test/java/br/com/portalmanager/platform/workspace/entrypoint/sharing/ResourceSharingApiIT.java)
+- [DatabaseUpgradeMigrationIT](https://github.com/BrunoBS/account-service/blob/main/src/test/java/br/com/portalmanager/platform/workspace/core/workspace/repository/DatabaseUpgradeMigrationIT.java)
+- [PublishedMigrationChecksumTest](https://github.com/BrunoBS/account-service/blob/main/src/test/java/br/com/portalmanager/platform/workspace/core/workspace/repository/PublishedMigrationChecksumTest.java)
+- [SchemaDefinitionValidationAdapter](https://github.com/BrunoBS/account-service/blob/main/src/main/java/br/com/portalmanager/platform/workspace/foundation/schema/integration/SchemaDefinitionValidationAdapter.java)
+- [verify.yml](https://github.com/BrunoBS/account-service/blob/main/.github/workflows/verify.yml)
+- [Foundation Usage](https://github.com/BrunoBS/account-service/blob/main/docs/golden/FOUNDATION-USAGE.md)
+- [Guideline README](https://github.com/BrunoBS/guideline-java/blob/main/README.md)
+- [platform-build parent](https://github.com/BrunoBS/platform-build/blob/main/platform-parent/pom.xml)
