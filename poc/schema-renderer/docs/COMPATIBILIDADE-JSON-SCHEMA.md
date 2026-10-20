@@ -3,6 +3,35 @@
 Este documento define o perfil do Studio. Validação do contrato, geração de controles
 e autoria guiada são capacidades distintas. Não há declaração de conformidade integral.
 
+## Perfil de negócio da Construção
+
+O perfil visual é deliberadamente menor que o perfil do validador e do renderer.
+`compatibilidade-construcao.ts` examina tipos, posições e combinações. Se houver
+recurso não representável, toda mutação visual é bloqueada, com motivos e caminhos;
+o documento original é preservado e a edição deve continuar em **Para Dev**.
+A remoção do recurso incompatível desbloqueia automaticamente a Construção.
+Texto JSON inválido também impede editar o último schema válido visualmente.
+
+São permitidos: objeto raiz, seis tipos de campo, um tipo com null nos campos,
+limites básicos, enums de texto/número, listas homogêneas de tipos simples ou objetos,
+SE com comparação única ou lista plana E/OU em allOf e oneOf por conjuntos de campos. Alternativas por valor importadas exigem o Para Dev.
+Grupos aninhados e inversão da expressão ficam no Para Dev e bloqueiam a Construção;
+comparações diferente/não contém/ausente continuam disponíveis. Listas aninhadas, itens com
+união/restrições sem controles, referências, dependências, padrões de propriedades,
+booleans schemas e composições gerais ficam no Para Dev. Anotações conhecidas
+(title/description/examples/$comment) são preservadas sem interpretar seus valores
+como regras. Recursos desconhecidos bloqueiam o perfil visual conservador.
+
+O bloco de dependências e padrões não é exposto na Construção, inclusive nos modais.
+Componentes técnicos preservados no código têm testes próprios, mas isso não implica
+acesso de negócio nem suporte visual a todo schema que usa as mesmas keywords.
+Os limites do perfil se aplicam também às linhas “Sim”/“Parcial” da matriz abaixo.
+
+Visualização e exportação permanecem disponíveis durante o bloqueio. O renderer
+suporta contratos mais amplos; partes complexas podem usar JSON com aviso. Ele
+valida o documento original e não promete controles convencionais para qualquer
+composição. As referências externas não são buscadas automaticamente na rede.
+
 ## Referências e limites
 
 - `$id` resolve bases absolutas/relativas de recursos incorporados. `$ref` aceita JSON
@@ -62,12 +91,23 @@ Ao marcar texto obrigatório no Builder, a convenção de autoria pode criar `mi
 exceto com `x-ui.allowEmpty`. Essa convenção não faz parte da semântica de `required` e
 não é aplicada silenciosamente a schemas importados ao editar outros atributos.
 
-`x-ui.visible` é extensão de apresentação. Campos ocultos que já existem na origem
-preservam seus valores no payload e continuam sujeitos à validação. Campos introduzidos
-exclusivamente por um ramo desativado são removidos pela reconciliação. Campos obrigatórios
-na origem permanecem visíveis. Entre condições simultâneas, um ramo ativo que torne o
-campo obrigatório/visível prevalece sobre outro que o oculte. O aviso de conflitos é
-conservador e não prova satisfatibilidade de contratos arbitrários.
+`x-ui.visible` é extensão de apresentação. Na Construção, ocultar exige que a origem
+aceite `null` em todas as restrições, inclusive enum/const/not. O ramo oculto recebe
+`type: "null"`; o visível usa o tipo não nulo da origem. Limites de texto, números,
+objetos e listas são preservados na origem. Campos obrigatórios não podem ser ocultados.
+O renderer atribui `null` ao campo quando esse ramo explícito é ativado, descartando o
+valor anterior. A reconciliação é recursiva para objetos e itens de listas, sem modificar
+o documento. O editor de valores JSON continua validando exatamente o payload digitado,
+sem corrigir silenciosamente seus dados.
+
+Schemas técnicos antigos que apenas ocultam visualmente mantêm os valores e a validação
+integral. Não há migração automática nem bloqueio geral por nulabilidade: a validação fica no
+atributo da condição, com aviso e controle de ocultação desabilitado quando necessário.
+Um atributo já oculto pode ser tornado visível para corrigir a configuração. Campos introduzidos exclusivamente por um ramo desativado
+continuam sendo removidos pela reconciliação. Um ramo ativo que exige o campo deve mantê-lo
+visível; tipos/restrições incompatíveis de condições simultâneas continuam produzindo erros
+de contrato, sem ignorar validações. O aviso de conflitos é conservador e não prova
+satisfatibilidade de contratos arbitrários.
 
 ## Anotações e formatos
 
@@ -119,29 +159,29 @@ Uma linha com várias keywords se aplica individualmente a cada uma.
 | `properties`                                           | Sim, incluindo chave própria `__proto__`                            | Campos nomeados                                                 | Sim                                        | Sim         |
 | `required`                                             | Presença própria; não conta propriedades herdadas                   | Obrigatoriedade/visibilidade                                    | Sim                                        | Sim         |
 | `minProperties`, `maxProperties`                       | Sim                                                                 | Limita inclusão/remoção e valida                                | Sim                                        | Sim         |
-| `patternProperties`                                    | Sim                                                                 | Propriedades dinâmicas; combina padrões coincidentes            | Padrão, tipo e subschema JSON              | Sim         |
+| `patternProperties`                                    | Sim                                                                 | Propriedades dinâmicas; combina padrões coincidentes            | Não — Para Dev                             | Sim         |
 | `additionalProperties`                                 | Sim                                                                 | Campos dinâmicos/objeto fechado                                 | Sim                                        | Sim         |
-| `propertyNames`                                        | Sim                                                                 | Valida chaves                                                   | Padrão e subschema JSON                    | Sim         |
-| `dependentRequired`                                    | Sim                                                                 | Recalcula obrigatoriedade                                       | Sim                                        | Sim         |
-| `dependentSchemas`                                     | Sim                                                                 | Resolve condições do objeto                                     | Gatilho e subschema JSON                   | Sim         |
-| `prefixItems`                                          | Sim                                                                 | Tuplas por posição                                              | Posições e subschema JSON                  | Sim         |
+| `propertyNames`                                        | Sim                                                                 | Valida chaves                                                   | Não — Para Dev                             | Sim         |
+| `dependentRequired`                                    | Sim                                                                 | Recalcula obrigatoriedade                                       | Não — Para Dev                             | Sim         |
+| `dependentSchemas`                                     | Sim                                                                 | Resolve condições do objeto                                     | Não — Para Dev                             | Sim         |
+| `prefixItems`                                          | Sim                                                                 | Tuplas por posição                                              | Não — Para Dev                             | Sim         |
 | `items`                                                | Sim                                                                 | Lista homogênea/restante da tupla                               | Sim                                        | Sim         |
 | `minItems`, `maxItems`                                 | Sim                                                                 | Inclusão/remoção e validação                                    | Sim                                        | Sim         |
 | `uniqueItems`                                          | Sim                                                                 | Diagnóstico de duplicação                                       | Sim                                        | Sim         |
-| `contains`, `minContains`, `maxContains`               | Casos core oficiais aprovados, incluindo interações com unevaluated | Contagem e itens correspondentes                                | Tipo/subschema e limites                   | Sim         |
+| `contains`, `minContains`, `maxContains`               | Casos core oficiais aprovados, incluindo interações com unevaluated | Contagem e itens correspondentes                                | Não — Para Dev                             | Sim         |
 | `allOf`                                                | Sim                                                                 | Interseção conservadora                                         | Múltiplas regras e grupos E                | Sim         |
 | `anyOf`                                                | Sim                                                                 | Combinação conservadora das alternativas                        | Grupos OU no SE                            | Sim         |
-| `oneOf`                                                | Sim                                                                 | Exclusividade, nenhuma/sobreposição, diagnóstico por opção      | Conjuntos de campos/valores                | Sim         |
+| `oneOf`                                                | Sim                                                                 | Exclusividade, nenhuma/sobreposição, diagnóstico por opção      | Conjuntos de campos                        | Sim         |
 | `not`                                                  | Sim                                                                 | Restrição/validação                                             | Negação, diferente e campos proibidos      | Sim         |
-| `if`, `then`, `else`                                   | Sim                                                                 | Ramos e obrigatoriedade/visibilidade                            | SE simples, E/OU/negação e ramos           | Sim         |
+| `if`, `then`, `else`                                   | Sim                                                                 | Ramos e obrigatoriedade/visibilidade                            | SE simples, lista plana E/OU e ramos       | Sim         |
 | `unevaluatedProperties`                                | Casos core oficiais aprovados, com orçamento explícito              | Propriedades dinâmicas conservadoras                            | Sem editor dedicado                        | Sim         |
 | `unevaluatedItems`                                     | Casos core oficiais aprovados, com orçamento explícito              | Lista/tupla e validação                                         | Sem editor dedicado                        | Sim         |
 | `title`, `description`                                 | Annotation                                                          | Rótulos e dicas                                                 | Sim                                        | Sim         |
-| `default`                                              | Annotation, sem mutação na validação                                | Inicialização do campo                                          | Sim                                        | Sim         |
+| `default`                                              | Annotation, sem mutação na validação                                | Inicialização do campo                                          | Não — Para Dev                             | Sim         |
 | `examples`                                             | Annotation                                                          | Dicas/candidatos em editores                                    | Sem editor dedicado                        | Sim         |
 | `deprecated`                                           | Annotation                                                          | Sem destaque dedicado                                           | Não                                        | Sim         |
-| `readOnly`                                             | Annotation                                                          | Desabilita edição guiada do valor                               | Sim                                        | Sim         |
-| `writeOnly`                                            | Annotation                                                          | Identifica, sem remover dados                                   | Sim                                        | Sim         |
+| `readOnly`                                             | Annotation                                                          | Desabilita edição guiada do valor                               | Não — Para Dev                             | Sim         |
+| `writeOnly`                                            | Annotation                                                          | Identifica, sem remover dados                                   | Não — Para Dev                             | Sim         |
 | `contentEncoding`, `contentMediaType`, `contentSchema` | Annotation, sem decodificação/assertion automática                  | JSON/texto, sem decodificador                                   | Não                                        | Sim         |
 | `x-ui`, `x-enumLabels`                                 | Extensões ignoradas pelo validador padrão                           | Comportamentos descritos acima                                  | Parcial                                    | Sim         |
 | Outras keywords/extensões                              | Preservadas; sem promessa de semântica                              | Sem promessa de controle                                        | Não                                        | Sim         |

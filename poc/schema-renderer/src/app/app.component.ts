@@ -1,6 +1,6 @@
 import { copiarSchemaParaClipboard, baixarSchema } from './features/builder/transferencia-schema';
 import { compilarValidador, lerDocumentoSchema } from './core/schema/schema-validator';
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FieldComponent } from './features/renderer/field/field.component';
@@ -23,6 +23,12 @@ import { parameterKeyRequestSchema } from './data/parameter-key-request.schema';
   templateUrl: './app.component.html',
 })
 export class AppComponent {
+  @HostListener('document:keydown.escape')
+  fecharVisualizacoes() {
+    this.previewOpen = false;
+    this.schemaPreviewOpen = false;
+  }
+
   area: 'home' | 'builder' | 'renderer' = 'home';
   activeTab = 1;
   builderTab: 'construction' | 'dev' | 'json' = 'construction';
@@ -81,6 +87,8 @@ export class AppComponent {
     try {
       const parsed = this.lerSchemaDoEditor();
       this.schema = structuredClone(parsed);
+      this.builderSource = JSON.stringify(parsed, null, 2);
+      this.builderSchemaError = '';
       this.builderError = '';
       this.area = 'builder';
     } catch (error) {

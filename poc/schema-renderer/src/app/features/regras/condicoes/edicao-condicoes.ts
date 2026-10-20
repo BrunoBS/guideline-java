@@ -20,7 +20,13 @@ import {
   formatarValorAlternativa,
 } from '../alternativas/valores-alternativas';
 import { valoresJsonIguais } from '../../../core/schema/json-value';
-import { obterTipos, obterTipoDoValor, type Schema } from '../../../core/schema/schema-engine';
+import {
+  valorAtendeSchema,
+  obterTiposNaoNulos,
+  obterTipos,
+  obterTipoDoValor,
+  type Schema,
+} from '../../../core/schema/schema-engine';
 import { resolverCampoDaCondicao, escolherValorInicialDaCondicao } from './valores-condicao';
 import { ehSchemaObjeto, obterNoSchema } from '../../builder/estrutura-builder';
 import { criarSchemaDoCampo } from '../../campos/catalogo-campos';
@@ -389,6 +395,11 @@ export class EditorCondicoes {
       if (regra) regra.if = structuredClone(expressao);
     });
   }
+  adicionarComparacao(index: number) {
+    const atual = this.condicoesVisiveis.find((regra) => regra.index === index)?.schema;
+    if (!atual || this.condicaoEhAvancada(atual)) return;
+    this.definirExpressao(index, { allOf: [structuredClone(atual.if), structuredClone(atual.if)] });
+  }
   agruparExpressao(index: number, modo: string) {
     const atual = this.condicoesVisiveis.find((r) => r.index === index)?.schema;
     if (atual && ['allOf', 'anyOf', 'not'].includes(modo))
@@ -423,7 +434,11 @@ export class EditorCondicoes {
     }
     return true;
   }
-  private editarRamo(index: number, branch: 'then' | 'else', edit: (node: Schema) => void) {
+  private editarRamo(
+    index: number,
+    branch: 'then' | 'else',
+    edit: (node: Schema, regra: Schema) => void,
+  ) {
     if (
       !this.permitirEdicaoDoRamo(
         this.condicoesVisiveis.find((r) => r.index === index)?.schema,
@@ -435,7 +450,7 @@ export class EditorCondicoes {
       const rule = this.obterCondicaoEditavel(root, index);
       if (!rule) return;
       rule[branch] ??= {};
-      edit(rule[branch]);
+      edit(rule[branch], rule);
     });
   }
   definirRestricaoDoRamo(index: number, branch: 'then' | 'else', key: string, restricao: Schema) {
@@ -447,18 +462,36 @@ export class EditorCondicoes {
       )
     )
       return;
+    const atual = this.condicoesVisiveis.find((r) => r.index === index)?.schema?.[branch]
+      ?.properties?.[key];
+    if (atual?.['x-ui']?.visible === false) {
+      this.error = 'Torne o campo visível antes de configurar uma comparação.';
+      return;
+    }
     this.editarRamo(index, branch, (node) => {
       node.properties ??= {};
       node.properties[key] = restricao;
     });
   }
   adicionarCampoExistenteAoRamo(index: number, branch: 'then' | 'else', key: string) {
-    if (!this.camposDisponiveis.includes(key)) return;
-    this.editarRamo(index, branch, (node) => {
+    if (!this.camposDisponiveis.includes(key) || !this.permitirPreenchimento(key)) return;
+    this.editarRamo(index, branch, (node, regra) => {
       node.properties ??= {};
       if (Object.hasOwn(node.properties, key) || node.required?.includes(key)) return;
       node.properties[key] = { 'x-ui': { visible: true } };
+      this.definirTipoDeVisibilidade(node.properties[key], key, true);
+      this.garantirOutroRamoVisivel(regra, branch, key);
     });
+  }
+  private garantirOutroRamoVisivel(regra: Schema, branch: 'then' | 'else', key: string) {
+    const outro = branch === 'then' ? 'else' : 'then';
+    if (typeof regra[outro] === 'boolean') return;
+    regra[outro] ??= {};
+    regra[outro].properties ??= {};
+    if (!Object.hasOwn(regra[outro].properties, key)) {
+      regra[outro].properties[key] = { 'x-ui': { visible: true } };
+      this.definirTipoDeVisibilidade(regra[outro].properties[key], key, true);
+    }
   }
   campoDoRamoEstaVisivel(rule: Schema, branch: 'then' | 'else', key: string): boolean {
     if (this.campoEhObrigatorioGlobalmente(key) || this.campoDoRamoEhObrigatorio(rule, branch, key))
@@ -477,6 +510,49 @@ export class EditorCondicoes {
   campoEhObrigatorioGlobalmente(key: string): boolean {
     return this.objetoAtual?.required?.includes(key) ?? false;
   }
+  avisoDoCampoNoRamo(key: string): string {
+    const origem = this.objetoAtual?.properties?.[key];
+    return origem && !valorAtendeSchema(origem, null, this.schema)
+      ? 'Este campo não aceita null na origem. Pode ser usado na condição, mas precisa permanecer visível. Para permitir ocultação, habilite Permitir nulo na origem.'
+      : '';
+  }
+  avisoDeOcultacao(rule: Schema, branch: 'then' | 'else', key: string): string {
+    if (this.campoEhObrigatorioGlobalmente(key)) return this.avisoObrigatorioNaOrigem;
+    if (this.campoDoRamoEhObrigatorio(rule, branch, key))
+      return 'Campos obrigatórios neste ramo precisam permanecer visíveis.';
+    const origem = this.objetoAtual?.properties?.[key];
+    if (!origem || !valorAtendeSchema(origem, null, this.schema))
+      return 'Para ocultar este campo, permita valor nulo na configuração de origem, incluindo os valores permitidos.';
+    const restricao = { ...rule[branch]?.properties?.[key] };
+    delete restricao.type;
+    if (!valorAtendeSchema(restricao, null, this.schema))
+      return 'A comparação deste ramo não permite null. Remova a comparação antes de ocultar o campo.';
+    return '';
+  }
+  private permitirPreenchimento(key: string): boolean {
+    const origem = this.objetoAtual?.properties?.[key];
+    if (!origem || !valorAtendeSchema(origem, null, this.schema)) return true;
+    const candidatos = Object.hasOwn(origem, 'const') ? [origem.const] : origem.enum;
+    if (
+      Array.isArray(candidatos) &&
+      !candidatos.some(
+        (valor: unknown) => valor !== null && valorAtendeSchema(origem, valor, this.schema),
+      )
+    ) {
+      this.error =
+        'A origem só permite null. Cadastre um valor não nulo válido antes de tornar o campo visível.';
+      return false;
+    }
+    return true;
+  }
+  private definirTipoDeVisibilidade(campo: Schema, key: string, visivel: boolean) {
+    const origem = this.objetoAtual?.properties?.[key];
+    if (!origem) return;
+    if (!valorAtendeSchema(origem, null, this.schema) && !(visivel && campo.type === 'null'))
+      return;
+    const tipos = obterTiposNaoNulos(origem);
+    campo.type = visivel ? (tipos.length === 1 ? tipos[0] : tipos) : 'null';
+  }
   definirVisibilidadeDoCampoDoRamo(
     index: number,
     branch: 'then' | 'else',
@@ -484,7 +560,13 @@ export class EditorCondicoes {
     visivel: boolean,
   ) {
     const regra = this.condicoesVisiveis.find((r) => r.index === index)?.schema;
+    if (visivel && !this.permitirPreenchimento(key)) return;
     if (!this.permitirEdicaoDoRamo(regra, branch, key)) return;
+    if (regra && !visivel && this.avisoDeOcultacao(regra, branch, key)) {
+      this.error = this.avisoDeOcultacao(regra, branch, key);
+      return;
+    }
+
     if (
       !regra ||
       (!visivel &&
@@ -492,10 +574,12 @@ export class EditorCondicoes {
           this.campoDoRamoEhObrigatorio(regra, branch, key)))
     )
       return;
-    this.editarRamo(index, branch, (node) => {
+    this.editarRamo(index, branch, (node, regraAtual) => {
+      this.garantirOutroRamoVisivel(regraAtual, branch, key);
       node.properties ??= {};
       const campo = node.properties[key] ?? (node.properties[key] = {});
       if (typeof campo !== 'object' || campo === null) return;
+      this.definirTipoDeVisibilidade(campo, key, visivel);
       campo['x-ui'] = { ...campo['x-ui'], visible: visivel };
     });
   }
@@ -544,6 +628,7 @@ export class EditorCondicoes {
     enabled: boolean,
   ) {
     if (this.campoEhObrigatorioGlobalmente(key)) return;
+    if (enabled && !this.permitirPreenchimento(key)) return;
     if (
       !this.permitirEdicaoDoRamo(
         this.condicoesVisiveis.find((r) => r.index === index)?.schema,
@@ -558,9 +643,11 @@ export class EditorCondicoes {
       if (!container || !regra || container.required?.includes(key)) return;
       const node = regra[branch] ?? (regra[branch] = {});
       if (enabled) {
+        this.garantirOutroRamoVisivel(regra, branch, key);
         node.properties ??= {};
         const campo = node.properties[key] ?? (node.properties[key] = {});
         if (typeof campo !== 'object' || campo === null) return;
+        this.definirTipoDeVisibilidade(campo, key, true);
         campo['x-ui'] = { ...campo['x-ui'], visible: true };
       }
       const required = new Set<string>(node.required || []);

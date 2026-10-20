@@ -1,3 +1,5 @@
+import { AtributosObjetoComponent } from './atributos-objeto.component';
+import { avaliarCompatibilidadeDaConstrucao } from './compatibilidade-construcao';
 import { EditorEstruturasComponent } from './editor-estruturas.component';
 import { CommonModule } from '@angular/common';
 import {
@@ -45,6 +47,7 @@ import type { LinhaSchema } from './estrutura-builder';
   selector: 'app-schema-builder',
   standalone: true,
   imports: [
+    AtributosObjetoComponent,
     CommonModule,
     FormsModule,
     EditorTextoComponent,
@@ -56,7 +59,11 @@ import type { LinhaSchema } from './estrutura-builder';
     EditorCondicoesComponent,
     EditorAlternativasComponent,
   ],
-  styleUrls: ['./schema-builder.component.css', '../campos/compartilhado/editor-campo.css'],
+  styleUrls: [
+    './schema-builder.component.css',
+    '../campos/compartilhado/editor-campo.css',
+    './construcao-ajuda.css',
+  ],
   encapsulation: ViewEncapsulation.None,
   templateUrl: './schema-builder.component.html',
 })
@@ -100,9 +107,19 @@ export class SchemaBuilderComponent implements OnChanges {
   private editorDraft: Schema | null = null;
   @Input() set schema(value: Schema) {
     this.persistedSchema = value;
+    this.motivosDeBloqueio = avaliarCompatibilidadeDaConstrucao(value);
+    this.cancelarEdicao();
   }
   get schema(): Schema {
     return this.editorDraft ?? this.persistedSchema;
+  }
+  motivosDeBloqueio = avaliarCompatibilidadeDaConstrucao(this.persistedSchema);
+  @Input() bloqueioExterno = '';
+  @Output() abrirDev = new EventEmitter<void>();
+  get edicaoBloqueada() {
+    return (
+      this.mode === 'construction' && (!!this.bloqueioExterno || this.motivosDeBloqueio.length > 0)
+    );
   }
   @Input() mode: 'construction' | 'dev' = 'construction';
   @Output() schemaChange = new EventEmitter<Schema>();
@@ -114,21 +131,25 @@ export class SchemaBuilderComponent implements OnChanges {
     this.propriedades.propertyNameError = '';
   }
   abrirEditorDoCampo(path: string) {
+    if (this.edicaoBloqueada) return;
     this.iniciarRascunho();
     this.selecionarCampo(path);
     this.editorModalOpen = true;
   }
   abrirEditorDoFormulario() {
+    if (this.edicaoBloqueada) return;
     this.iniciarRascunho();
     this.selecionarFormulario();
     this.editorModalOpen = true;
   }
   abrirEditorDoGrupo(id: string) {
+    if (this.edicaoBloqueada) return;
     this.iniciarRascunho();
     this.selecionarGrupo(id);
     this.editorModalOpen = true;
   }
   salvarEdicao() {
+    if (this.edicaoBloqueada) return;
     if (this.propriedades.propertyNameDraft !== null)
       this.propriedades.confirmarNomeDaPropriedade();
     if (this.propriedades.propertyNameError) return;
@@ -139,6 +160,7 @@ export class SchemaBuilderComponent implements OnChanges {
     this.editingForm = false;
     this.selectedGroupId = '';
     this.persistedSchema = draft;
+    this.motivosDeBloqueio = avaliarCompatibilidadeDaConstrucao(draft);
     this.atualizarArvore();
     this.schemaChange.emit(draft);
   }
@@ -177,12 +199,10 @@ export class SchemaBuilderComponent implements OnChanges {
   activeContainerPath = '';
   containerHistory: string[] = [];
   error = '';
-  inlineTypes = [
-    { type: 'string', label: 'Texto' },
-    { type: 'integer', label: 'Inteiro' },
-    { type: 'number', label: 'Decimal' },
-    { type: 'boolean', label: 'Sim / Não' },
-  ];
+  readonly inlineTypes = CATALOGO_CAMPOS.map((campo) => ({
+    type: campo.tipo,
+    label: campo.rotulo,
+  }));
 
   types = ['string', 'integer', 'number', 'boolean', 'object', 'array', 'null'];
   compositionKinds = ['oneOf', 'anyOf', 'allOf'];
@@ -365,11 +385,19 @@ export class SchemaBuilderComponent implements OnChanges {
 
   dragSource = '';
   iniciarArrasteDoCampo(path: string, event: DragEvent) {
+    if (this.edicaoBloqueada) {
+      event.preventDefault();
+      return;
+    }
     this.dragSource = 'field:' + path;
     event.stopPropagation();
     event.dataTransfer?.setData('text/plain', this.dragSource);
   }
   iniciarArrasteDoGrupo(id: string, event: DragEvent) {
+    if (this.edicaoBloqueada) {
+      event.preventDefault();
+      return;
+    }
     this.dragSource = 'group:' + id;
     event.stopPropagation();
     event.dataTransfer?.setData('text/plain', this.dragSource);
@@ -442,7 +470,8 @@ export class SchemaBuilderComponent implements OnChanges {
   }
   abrirItensDaLista() {
     if (
-      this.campoSelecionado?.type !== 'array' ||
+      !this.campoSelecionado ||
+      this.obterTipoDeEdicao(this.campoSelecionado) !== 'array' ||
       this.listas.obterTipoDoItemDaLista(this.campoSelecionado) !== 'object'
     )
       return;
@@ -454,7 +483,7 @@ export class SchemaBuilderComponent implements OnChanges {
   }
   ehListaDeObjetos(node: Schema): boolean {
     return (
-      node.type === 'array' &&
+      this.obterTipoDeEdicao(node) === 'array' &&
       !!node.items &&
       typeof node.items === 'object' &&
       !Array.isArray(node.items) &&
@@ -623,6 +652,12 @@ export class SchemaBuilderComponent implements OnChanges {
   get campoSelecionado() {
     return this.obterNo(this.schema, this.selectedPath);
   }
+  obterTipoDeEdicao(node: Schema): string {
+    return Array.isArray(node.type) ? node.type.find((tipo: string) => tipo !== 'null') : node.type;
+  }
+  obterSchemaDeEdicao(node: Schema): Schema {
+    return Array.isArray(node.type) ? { ...node, type: this.obterTipoDeEdicao(node) } : node;
+  }
   campoPermiteNulo(node: Schema) {
     return Array.isArray(node.type) && node.type.includes('null');
   }
@@ -636,6 +671,20 @@ export class SchemaBuilderComponent implements OnChanges {
           ? [node.type]
           : [];
       node.type = enabled ? [...types, 'null'] : types.length === 1 ? types[0] : types;
+      if (Array.isArray(node.enum)) {
+        const opcoes = node.enum.map((valor: unknown, indice: number) => ({
+          valor,
+          rotulo: node['x-enumLabels']?.[indice] ?? String(valor),
+        }));
+        const proxima = enabled
+          ? opcoes.some((opcao: { valor: unknown }) => opcao.valor === null)
+            ? opcoes
+            : [...opcoes, { valor: null, rotulo: 'Nulo' }]
+          : opcoes.filter((opcao: { valor: unknown }) => opcao.valor !== null);
+        node.enum = proxima.map((opcao: { valor: unknown }) => opcao.valor);
+        if (Array.isArray(node['x-enumLabels']))
+          node['x-enumLabels'] = proxima.map((opcao: { rotulo: string }) => opcao.rotulo);
+      }
     });
   }
   get nomeDoCampoSelecionado() {
@@ -674,6 +723,7 @@ export class SchemaBuilderComponent implements OnChanges {
     }
   }
   private aplicarAlteracao(edit: (root: Schema) => void) {
+    if (this.edicaoBloqueada) return;
     const next = structuredClone(this.schema);
     edit(next);
 
@@ -683,6 +733,7 @@ export class SchemaBuilderComponent implements OnChanges {
       return;
     }
     this.persistedSchema = next;
+    this.motivosDeBloqueio = avaliarCompatibilidadeDaConstrucao(next);
     this.atualizarArvore();
     this.schemaChange.emit(next);
   }

@@ -132,7 +132,7 @@ test('restrição unificada no ramo preserva o schema original e é descartada a
 test('adicionar campo separa visibilidade e obrigatoriedade sem apagar validações', () => {
   const construtor = criarConstrutor({
     type: 'object',
-    properties: { tipo: { type: 'string' }, detalhe: { type: 'string' } },
+    properties: { tipo: { type: 'string' }, detalhe: { type: ['string', 'null'] } },
     allOf: [{ if: { properties: { tipo: { const: 'X' } }, required: ['tipo'] }, then: {} }],
   });
   construtor.condicoes.adicionarCampoExistenteAoRamo(0, 'then', 'detalhe');
@@ -153,6 +153,7 @@ test('adicionar campo separa visibilidade e obrigatoriedade sem apagar validaç�
   construtor.condicoes.definirVisibilidadeDoCampoDoRamo(0, 'then', 'detalhe', false);
   assert.deepEqual(construtor.schema.allOf[0].then.properties.detalhe, {
     'x-ui': { visible: false },
+    type: 'null',
     not: { const: 'proibido' },
   });
   construtor.condicoes.adicionarCampoExistenteAoRamo(0, 'then', 'detalhe');
@@ -201,6 +202,7 @@ test('exclusão referenciada e renomeação conflitante não alteram o contrato'
     allOf: [{ properties: { canal: {}, meio: {} } }],
   };
   const construtor = criarConstrutor(schema);
+  construtor.mode = 'dev';
   construtor.abrirEditorDoCampo('/properties/canal');
   construtor.propriedades.removerCampoSelecionado();
   assert.match(construtor.error, /regras/);
@@ -217,6 +219,7 @@ test('campo interno restringido por regra de outro nível é renomeado junto com
     allOf: [{ properties: { grupo: { required: ['nome'] } } }],
   };
   const construtor = criarConstrutor(original);
+  construtor.mode = 'dev';
   construtor.abrirEditorDoCampo('/properties/grupo/properties/nome');
   construtor.propriedades.aoEditarNomeDaPropriedade('titulo');
   assert.equal(construtor.propriedades.validarNomeDaPropriedadeSelecionada(), true);

@@ -161,7 +161,8 @@ test('editar obrigatoriedade e visibilidade preserva referÃªncias e regras avanÃ
   tela.editor.definirObrigatoriedadeDoCampoDoRamo(0, 'else', 'valor', false);
   tela.editor.definirVisibilidadeDoCampoDoRamo(0, 'else', 'valor', false);
   const esperado = structuredClone(ramo);
-  (esperado.properties.valor['x-ui'] as any).visible = false;
+  (esperado.properties.valor['x-ui'] as any).visible = true;
+  assert.match(tela.editor.mensagemErro, /permita valor nulo/);
   assert.deepEqual(tela.schema.allOf[0].else, esperado);
 });
 

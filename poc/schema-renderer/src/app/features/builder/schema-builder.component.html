@@ -1,97 +1,132 @@
-<div class="builder simplified">
-  <div class="builder-stepper" *ngIf="mode === 'construction'" aria-label="Etapas do builder">
-    <div
-      class="builder-step"
-      [class.active]="builderStep === 'components'"
-      [class.completed]="builderStep === 'rules'"
-    >
-      <span class="step-number">1</span
-      ><span><strong>Componentes</strong><small>Estrutura e campos</small></span>
+<div class="construction-shell">
+  <details class="construction-limits" *ngIf="mode === 'construction'">
+    <summary>O que posso criar na Construção?</summary>
+    <div class="construction-guide-content">
+      <p class="construction-guide-intro">
+        Monte formulários com campos e regras de negócio, sem editar JSON.
+      </p>
+      <div class="construction-guide-grid">
+        <section aria-label="Campos e validações">
+          <h5>Campos e validações</h5>
+          <ul>
+            <li>Texto, inteiro, decimal e sim/não.</li>
+            <li>Objetos para agrupar campos e listas de texto, números, sim/não ou objetos.</li>
+            <li>
+              Campos obrigatórios, opções de escolha e limites de tamanho, quantidade ou valor,
+              conforme o tipo.
+            </li>
+            <li>Campos opcionais e campos que aceitam valor nulo.</li>
+          </ul>
+        </section>
+        <section aria-label="Regras de negócio">
+          <h5>Regras de negócio</h5>
+          <ul>
+            <li>
+              <strong>Quando:</strong> comparar campos e combinar as condições com E ou OU. Cada
+              lista usa uma única combinação.
+            </li>
+            <li>
+              <strong>Então / Caso contrário:</strong> definir visibilidade, obrigatoriedade e
+              comparações dos campos existentes.
+            </li>
+            <li>
+              <strong>Alternativas exclusivas:</strong> escolher entre conjuntos de campos, como
+              Cartão ou Pix.
+            </li>
+          </ul>
+          <p class="construction-guide-example">
+            Exemplo: se precisa de aprovação E o valor é maior que 1.000, mostrar e exigir a
+            justificativa.
+          </p>
+        </section>
+      </div>
+      <section class="construction-guide-dev" aria-label="Quando usar o Para Dev">
+        <h5>Quando usar o Para Dev</h5>
+        <p>Para regras que não têm controles na Construção, como:</p>
+        <ul>
+          <li>
+            Misturar E e OU em grupos dentro da mesma condição ou inverter uma expressão inteira.
+          </li>
+          <li>
+            Reutilizar estruturas por referência ou aceitar vários tipos diferentes no mesmo campo.
+          </li>
+          <li>
+            Dependências entre campos, propriedades por padrão e listas com tipos diferentes por
+            posição.
+          </li>
+        </ul>
+        <p>
+          Ao importar um schema fora desses limites, a edição visual fica desabilitada e o aviso
+          explica os motivos. O JSON original é preservado. Corrigir o schema no Para Dev libera a
+          Construção quando ele se torna compatível.
+        </p>
+      </section>
+      <p class="construction-guide-preview">
+        Você pode continuar visualizando o formulário e consultando ou exportando o schema. A
+        visualização suporta mais cenários que a Construção, mas partes complexas podem exigir
+        edição JSON e exibir avisos.
+      </p>
     </div>
-    <span class="step-connector" aria-hidden="true"></span>
-    <div class="builder-step" [class.active]="builderStep === 'rules'">
-      <span class="step-number">2</span
-      ><span><strong>Regras e condições</strong><small>Comportamento e validação</small></span>
-    </div>
-  </div>
-  <aside
-    class="palette"
-    [class.desktop-palette]="mode === 'construction'"
-    *ngIf="mode === 'dev' || (mode === 'construction' && builderStep === 'components')"
+  </details>
+  <section
+    class="construction-lock"
+    *ngIf="edicaoBloqueada"
+    aria-label="Edição visual indisponível"
   >
-    <strong>{{ mode === 'dev' ? 'Estrutura técnica' : 'Adicionar componentes' }}</strong>
-    <p class="builder-help">
-      Escolha um tipo para adicionar ao formulário ou ao objeto selecionado.
+    <strong>Edição visual indisponível para este schema</strong>
+    <p>
+      O documento original está preservado. Você pode visualizar o formulário, consultar ou exportar
+      o schema e continuar no Para Dev.
     </p>
-    <button
-      type="button"
-      class="palette-item"
-      *ngFor="let item of palette"
-      (click)="adicionarPropriedadeDoTipo(item.type)"
-    >
-      <span>{{ item.icon }}</span> {{ item.label }} <span style="margin-left: auto">+</span>
-    </button>
-    <p class="builder-help logic-palette-title">A condição cria os ramos SE / ENTÃO / SENÃO.</p>
-    <button
-      type="button"
-      class="structure-toggle"
-      *ngIf="mode === 'dev'"
-      (click)="showStructure = !showStructure"
-    >
-      {{ showStructure ? '▾ Ocultar' : '▸ Mostrar' }} estrutura completa
-    </button>
-    <div class="structure-panel tree" *ngIf="mode === 'dev' && showStructure">
-      <strong>Estrutura do schema</strong>
-      <p class="builder-help">Selecione qualquer nó, inclusive definições e regras.</p>
-      <button
-        *ngFor="let row of rows"
-        type="button"
-        class="tree-row"
-        [class.campoSelecionado]="selectedPath === row.path"
-        [style.padding-left.px]="9 + row.depth * 12"
-        (click)="selecionarCampo(row.path)"
+    <p *ngIf="bloqueioExterno">Corrija o JSON no Para Dev antes de usar a Construção.</p>
+    <details *ngIf="motivosDeBloqueio.length">
+      <summary>Ver motivos ({{ motivosDeBloqueio.length }})</summary>
+      <ul>
+        <li *ngFor="let motivo of motivosDeBloqueio">
+          <code>{{ motivo.caminho }}</code
+          >: {{ motivo.mensagem }}
+        </li>
+      </ul>
+    </details>
+    <button type="button" (click)="abrirDev.emit()">Continuar no Para Dev</button>
+  </section>
+  <fieldset
+    class="builder simplified construction-controls"
+    [disabled]="edicaoBloqueada"
+    [attr.inert]="edicaoBloqueada ? '' : null"
+  >
+    <div class="builder-stepper" *ngIf="mode === 'construction'" aria-label="Etapas do builder">
+      <div
+        class="builder-step"
+        [class.active]="builderStep === 'components'"
+        [class.completed]="builderStep === 'rules'"
       >
-        <span>{{ row.depth ? '↳' : '▣' }}</span
-        ><span>{{ row.label }}</span
-        ><small>({{ obterRotuloDoTipo(row.schema) }})</small>
-      </button>
+        <span class="step-number">1</span
+        ><span><strong>Componentes</strong><small>Estrutura e campos</small></span>
+      </div>
+      <span class="step-connector" aria-hidden="true"></span>
+      <div class="builder-step" [class.active]="builderStep === 'rules'">
+        <span class="step-number">2</span
+        ><span><strong>Regras e condições</strong><small>Comportamento e validação</small></span>
+      </div>
     </div>
-  </aside>
-  <section class="canvas" *ngIf="mode === 'construction' && builderStep === 'components'">
-    <div class="canvas-header">
+    <div class="section-heading construction-heading" *ngIf="mode === 'construction'">
       <div>
-        <strong>{{ tituloDoObjetoAtual }}</strong>
-        <p>{{ descricaoDoObjetoAtual }}</p>
-        <button
-          type="button"
-          *ngIf="!activeContainerPath"
-          class="form-settings-button"
-          (click)="abrirEditorDoFormulario()"
-        >
-          ✎ Configurar formulário
-        </button>
-      </div>
-      <div class="builder-actions" style="margin: 0">
-        <button type="button" *ngIf="activeContainerPath" (click)="voltarAoObjetoPai()">
-          ← Voltar
-        </button>
-
-        <button
-          type="button"
-          *ngIf="
-            campoSelecionado &&
-            campoSelecionado.type === 'array' &&
-            listas.obterTipoDoItemDaLista(campoSelecionado) === 'object'
-          "
-          (click)="abrirItensDaLista()"
-        >
-          Abrir lista de objetos
-        </button>
-
-        <span class="builder-help">{{ camposVisiveis.length }} campos</span>
+        <h4>Construir formulário</h4>
+        <p>
+          Adicione campos, agrupadores e listas. Selecione um campo para configurar suas regras.
+        </p>
       </div>
     </div>
-    <div class="mobile-palette" *ngIf="false">
+    <aside
+      class="palette"
+      [class.desktop-palette]="mode === 'construction'"
+      *ngIf="mode === 'dev' || (mode === 'construction' && builderStep === 'components')"
+    >
+      <strong>{{ mode === 'dev' ? 'Estrutura técnica' : 'Adicionar componentes' }}</strong>
+      <p class="builder-help">
+        Escolha um tipo para adicionar ao formulário ou ao objeto selecionado.
+      </p>
       <button
         type="button"
         class="palette-item"
@@ -100,682 +135,717 @@
       >
         <span>{{ item.icon }}</span> {{ item.label }} <span style="margin-left: auto">+</span>
       </button>
-    </div>
-    <div class="canvas-fields">
-      <div
-        class="canvas-field-card"
-        [class.schema-group]="ehSchemaObjeto(field.schema)"
-        *ngFor="let field of camposSemGrupo"
-        [style.order]="obterPosicaoDoCampo('field:' + obterChaveDaPropriedade(field.path))"
-        [class.active]="selectedPath === field.path"
+      <p class="builder-help logic-palette-title">A condição cria os ramos SE / ENTÃO / SENÃO.</p>
+      <button
+        type="button"
+        class="structure-toggle"
+        *ngIf="mode === 'dev'"
+        (click)="showStructure = !showStructure"
       >
-        <div
-          class="schema-group-header"
-          *ngIf="ehSchemaObjeto(field.schema); else regularFieldHeader"
+        {{ showStructure ? '▾ Ocultar' : '▸ Mostrar' }} estrutura completa
+      </button>
+      <div class="structure-panel tree" *ngIf="mode === 'dev' && showStructure">
+        <strong>Estrutura do schema</strong>
+        <p class="builder-help">Selecione qualquer nó, inclusive definições e regras.</p>
+        <button
+          *ngFor="let row of rows"
+          type="button"
+          class="tree-row"
+          [class.campoSelecionado]="selectedPath === row.path"
+          [style.padding-left.px]="9 + row.depth * 12"
+          (click)="selecionarCampo(row.path)"
         >
+          <span>{{ row.depth ? '↳' : '▣' }}</span
+          ><span>{{ row.label }}</span
+          ><small>({{ obterRotuloDoTipo(row.schema) }})</small>
+        </button>
+      </div>
+    </aside>
+    <section class="canvas" *ngIf="mode === 'construction' && builderStep === 'components'">
+      <div class="canvas-header">
+        <div>
+          <strong>{{ tituloDoObjetoAtual }}</strong>
+          <p>{{ descricaoDoObjetoAtual }}</p>
           <button
             type="button"
-            class="schema-group-select"
-            (click)="abrirEditorDoCampo(field.path)"
+            *ngIf="!activeContainerPath"
+            class="form-settings-button"
+            (click)="abrirEditorDoFormulario()"
           >
-            <span class="group-heading-copy"
-              ><strong
-                >{{ field.schema.title || field.label }}
-                <span *ngIf="field.required">*</span></strong
-              ><span class="group-heading-description">{{
-                field.schema.description || ''
-              }}</span></span
-            >
+            ✎ Configurar formulário
           </button>
-          <div class="group-heading-controls">
-            <span class="group-heading-type">object</span
-            ><button
-              type="button"
-              class="schema-group-toggle"
-              (click)="alternarExpansaoDoObjeto(field.path)"
-              [attr.aria-expanded]="!collapsedObjects.has(field.path)"
-              [attr.aria-label]="
-                collapsedObjects.has(field.path) ? 'Mostrar atributos' : 'Ocultar atributos'
-              "
-            >
-              {{ collapsedObjects.has(field.path) ? '▸' : '▾' }}
-            </button>
-          </div>
         </div>
-        <ng-template #regularFieldHeader>
-          <button type="button" class="canvas-field" (click)="abrirEditorDoCampo(field.path)">
-            <span class="canvas-field-title"
-              ><span
-                >{{ field.schema.title || field.label }} <span *ngIf="field.required">*</span></span
-              ><small>{{ obterRotuloDoTipo(field.schema) }}</small></span
-            >
-            <span class="canvas-field-meta">{{ field.schema.description || field.label }}</span>
-            <span class="canvas-field-meta"
-              >{{ field.required ? 'Obrigatório' : 'Opcional' }} · Clique para configurar</span
-            >
+        <div class="builder-actions" style="margin: 0">
+          <button type="button" *ngIf="activeContainerPath" (click)="voltarAoObjetoPai()">
+            ← Voltar
           </button>
-        </ng-template>
-        <div
-          class="inline-object group-inner-panel"
-          *ngIf="ehSchemaObjeto(field.schema) || ehListaDeObjetos(field.schema)"
-        >
-          <div class="inline-object-heading">
-            <span
-              >{{
-                listarPropriedadesDoObjeto(obterCaminhoDasPropriedades(field.path)).length
-              }}
-              atributo(s)</span
-            >
-          </div>
-          <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
-            <div
-              class="inline-object-child"
-              *ngFor="
-                let child of listarPropriedadesDoObjeto(obterCaminhoDasPropriedades(field.path))
-              "
-            >
-              <button
-                type="button"
-                class="inline-object-child-main"
-                (click)="abrirEditorDoCampo(child.path)"
-                title="Configurar propriedade e validações"
-              >
-                <span class="inline-object-child-copy"
-                  ><strong
-                    >{{ child.schema.title || child.label }}
-                    <span
-                      *ngIf="
-                        propriedadeEhObrigatoria(
-                          obterCaminhoDasPropriedades(field.path),
-                          child.label
-                        )
-                      "
-                      >*</span
-                    ></strong
-                  ><small>{{ child.schema.description || child.label }}</small></span
-                ><span class="inline-object-child-type">{{ obterRotuloDoTipo(child.schema) }}</span>
-              </button>
-              <button
-                type="button"
-                *ngIf="ehSchemaObjeto(child.schema) || ehListaDeObjetos(child.schema)"
-                (click)="abrirObjeto(obterCaminhoDasPropriedades(child.path))"
-                aria-label="Abrir atributos do objeto"
-              >
-                Abrir atributos →
-              </button>
-              <div class="field-card-tools">
-                <button
-                  type="button"
-                  (click)="moverPropriedade(child.path, -1)"
-                  [disabled]="!podeMoverPropriedade(child.path, -1)"
-                  aria-label="Subir atributo"
-                >
-                  ↑</button
-                ><button
-                  type="button"
-                  (click)="moverPropriedade(child.path, 1)"
-                  [disabled]="!podeMoverPropriedade(child.path, 1)"
-                  aria-label="Descer atributo"
-                >
-                  ↓</button
-                ><button
-                  type="button"
-                  (click)="solicitarExclusaoDoCampo(child.path)"
-                  aria-label="Excluir atributo"
-                  title="Excluir"
-                >
-                  <span class="action-icon" aria-hidden="true">×</span><span>Excluir</span>
-                </button>
-              </div>
-            </div>
-            <div class="inline-object-actions inline-object-picker">
-              <label [attr.for]="'object-kind-' + field.path">Tipo da propriedade</label>
-              <div class="oneof-add-control">
-                <select
-                  [id]="'object-kind-' + field.path"
-                  #objectKind
-                  [attr.aria-label]="
-                    'Tipo da nova propriedade em ' + (field.schema.title || field.label)
-                  "
-                >
-                  <option *ngFor="let kind of inlineTypes" [value]="kind.type">
-                    {{ kind.label }}
-                  </option>
-                </select>
-                <button
-                  type="button"
-                  class="oneof-add-icon"
-                  (click)="
-                    adicionarPropriedadeNoObjeto(
-                      obterCaminhoDasPropriedades(field.path),
-                      objectKind.value
-                    )
-                  "
-                  [attr.aria-label]="
-                    'Adicionar propriedade a ' + (field.schema.title || field.label)
-                  "
-                  title="Adicionar propriedade"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div class="field-card-tools">
           <button
             type="button"
-            (click)="moverCampo(field.path, -1)"
-            [disabled]="!podeMoverCampo(field.path, -1)"
-            aria-label="Subir campo"
+            *ngIf="
+              campoSelecionado &&
+              obterTipoDeEdicao(campoSelecionado) === 'array' &&
+              listas.obterTipoDoItemDaLista(campoSelecionado) === 'object'
+            "
+            (click)="abrirItensDaLista()"
           >
-            ↑</button
-          ><button
-            type="button"
-            (click)="moverCampo(field.path, 1)"
-            [disabled]="!podeMoverCampo(field.path, 1)"
-            aria-label="Descer campo"
-          >
-            ↓</button
-          ><button
-            type="button"
-            (click)="solicitarExclusaoDoCampo(field.path)"
-            title="Excluir campo"
-            aria-label="Excluir campo"
-          >
-            <span>Excluir</span>
+            Abrir lista de objetos
           </button>
+
+          <span class="builder-help">{{ camposVisiveis.length }} campos</span>
         </div>
       </div>
-    </div>
-
-    <div
-      class="canvas-empty"
-      *ngIf="
-        !camposVisiveis.length && !condicoes.condicoesVisiveis.length && !listarGruposVisuais.length
-      "
-    >
-      {{
-        activeContainerPath
-          ? 'Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade.'
-          : 'Seu formulário está vazio. Toque em Adicionar campo para começar.'
-      }}
-    </div>
-  </section>
-
-  <div class="workflow-navigation" *ngIf="mode === 'construction' && builderStep === 'components'">
-    <span class="builder-help">Etapa 1 de 2 · Configure os campos antes das regras.</span
-    ><button type="button" class="workflow-next" (click)="selecionarEtapa('rules')">
-      Próximo: Regras e condições →
-    </button>
-  </div>
-  <section class="canvas rules-canvas" *ngIf="mode === 'construction' && builderStep === 'rules'">
-    <div class="canvas-header">
-      <div>
-        <strong>Regras e condições</strong>
-        <p>
-          Selecione campos existentes e configure as restrições. O Builder gera JSON Schema Draft
-          2020-12.
-        </p>
+      <div class="mobile-palette" *ngIf="false">
+        <button
+          type="button"
+          class="palette-item"
+          *ngFor="let item of palette"
+          (click)="adicionarPropriedadeDoTipo(item.type)"
+        >
+          <span>{{ item.icon }}</span> {{ item.label }} <span style="margin-left: auto">+</span>
+        </button>
       </div>
-    </div>
-    <p class="builder-error" *ngIf="!condicoes.camposDisponiveis.length">
-      Crie primeiro os campos na etapa Componentes.
-    </p>
-    <app-editor-condicoes
-      [schema]="schema"
-      [caminhoObjeto]="activeContainerPath"
-      (alteracao)="aplicarAlteracaoDeRegra($event)"
-      (erro)="error = $event"
-    ></app-editor-condicoes>
-    <app-editor-alternativas
-      [schema]="schema"
-      [caminhoObjeto]="activeContainerPath"
-      (alteracao)="aplicarAlteracaoDeRegra($event)"
-      (erro)="error = $event"
-    ></app-editor-alternativas>
-    <details class="field-options-card">
-      <summary>Dependências e padrões do objeto selecionado</summary>
-      <app-editor-estruturas
-        [schema]="schema"
-        [caminho]="activeContainerPath"
-        (alteracao)="aplicarAlteracaoDeRegra($event)"
-      ></app-editor-estruturas>
-    </details>
-    <p
-      class="builder-help"
-      *ngIf="!condicoes.condicoesVisiveis.length && !alternativas.regrasVisiveis.length"
-    >
-      Ainda não há regras. Crie uma condição ou uma alternativa.
-    </p>
-  </section>
-  <div class="workflow-navigation" *ngIf="mode === 'construction' && builderStep === 'rules'">
-    <button type="button" class="workflow-back" (click)="selecionarEtapa('components')">
-      ← Anterior: Componentes</button
-    ><span class="builder-help">Etapa 2 de 2 · Regras configuradas no schema.</span>
-  </div>
-  <div
-    class="editor-modal-backdrop"
-    *ngIf="mode === 'construction' && editorModalOpen"
-    (click)="cancelarEdicao()"
-  ></div>
-  <div
-    class="editor-modal-shell"
-    *ngIf="mode === 'dev' || editorModalOpen"
-    role="dialog"
-    [attr.aria-modal]="mode === 'construction' ? 'true' : null"
-    aria-label="Configuração do campo"
-  >
-    <div
-      class="inspector"
-      [class.field-modal]="false"
-      [class.inspector-disabled]="mode === 'construction' && !selectedPath && !editingForm"
-      *ngIf="!selectedGroupId"
-    >
-      <ng-container *ngIf="campoSelecionado as node">
-        <div class="editor-heading field-editor-heading">
-          <strong>{{ editingForm ? 'Configurar formulário' : 'Editar campo' }}</strong>
-          <div class="editor-field-type" *ngIf="mode === 'construction' && selectedPath">
-            <span>Tipo do campo</span><strong>{{ obterRotuloDoTipo(node) }}</strong>
-          </div>
-        </div>
-        <p class="editor-empty" *ngIf="mode === 'construction' && !selectedPath && !editingForm">
-          Selecione um campo em Campos do schema para editar suas propriedades e validações.
-        </p>
-        <div *ngIf="mode === 'dev' || selectedPath || editingForm">
-          <div class="builder-actions" *ngIf="mode === 'dev'">
-            <button
-              type="button"
-              *ngIf="this.ehSchemaObjeto(node)"
-              (click)="adicionarPropriedade()"
-            >
-              + Propriedade
-            </button>
-            <button type="button" *ngIf="node.type === 'array'" (click)="adicionarItens()">
-              + Definir items
-            </button>
-            <button
-              type="button"
-              *ngIf="selectedPath !== ''"
-              (click)="propriedades.removerCampoSelecionado()"
-            >
-              Excluir nó
-            </button>
-          </div>
-          <nav
-            class="editor-tabs"
-            *ngIf="mode === 'construction' && !editingForm"
-            aria-label="Seções do editor"
+      <div class="canvas-fields">
+        <div
+          class="canvas-field-card"
+          [class.schema-group]="ehSchemaObjeto(field.schema)"
+          *ngFor="let field of camposSemGrupo"
+          [style.order]="obterPosicaoDoCampo('field:' + obterChaveDaPropriedade(field.path))"
+          [class.active]="selectedPath === field.path"
+        >
+          <div
+            class="schema-group-header"
+            *ngIf="ehSchemaObjeto(field.schema); else regularFieldHeader"
           >
             <button
               type="button"
-              [class.active]="editorTab === 'property'"
-              (click)="editorTab = 'property'"
+              class="schema-group-select"
+              (click)="abrirEditorDoCampo(field.path)"
             >
-              Propriedade</button
-            ><button
-              type="button"
-              [class.active]="editorTab === 'validation'"
-              (click)="editorTab = 'validation'"
-            >
-              Validações
+              <span class="group-heading-copy"
+                ><strong
+                  >{{ field.schema.title || field.label }}
+                  <span *ngIf="field.required">*</span></strong
+                ><span class="group-heading-description">{{
+                  field.schema.description || ''
+                }}</span></span
+              >
             </button>
-          </nav>
-          <div *ngIf="mode === 'dev' || editingForm || editorTab === 'property'">
-            <label *ngIf="possuiPropriedadeSelecionada"
-              >Nome da propriedade
-              <input
-                [ngModel]="propriedades.propertyNameDraft ?? nomeDoCampoSelecionado"
-                (ngModelChange)="propriedades.aoEditarNomeDaPropriedade($event)"
-                (blur)="propriedades.validarNomeDaPropriedadeSelecionada()"
-                (keydown.enter)="
-                  $event.preventDefault(); propriedades.validarNomeDaPropriedadeSelecionada()
+            <div class="group-heading-controls">
+              <span class="group-heading-type">object</span
+              ><button
+                type="button"
+                class="schema-group-toggle"
+                (click)="alternarExpansaoDoObjeto(field.path)"
+                [attr.aria-expanded]="!collapsedObjects.has(field.path)"
+                [attr.aria-label]="
+                  collapsedObjects.has(field.path) ? 'Mostrar atributos' : 'Ocultar atributos'
                 "
-                [attr.aria-invalid]="propriedades.propertyNameError ? 'true' : null"
-              />
-              <small class="builder-error" *ngIf="propriedades.propertyNameError">{{
-                propriedades.propertyNameError
-              }}</small>
-            </label>
-            <label
-              >Título<input
-                [ngModel]="node.title || ''"
-                (ngModelChange)="validacoes.definirAtributo('title', $event)"
-            /></label>
-            <label
-              >Descrição<input
-                [ngModel]="node.description || ''"
-                (ngModelChange)="validacoes.definirAtributo('description', $event)"
-            /></label>
-            <label *ngIf="mode === 'dev'"
-              >Tipo
-              <select
-                [ngModel]="node.type || 'object'"
-                (ngModelChange)="validacoes.definirTipo($event)"
               >
-                <option *ngFor="let t of types" [value]="t">{{ t }}</option>
-              </select>
-            </label>
-            <div
-              class="field-options-card"
-              *ngIf="selectedPath !== '' && (mode === 'dev' || editorTab === 'property')"
+                {{ collapsedObjects.has(field.path) ? '▸' : '▾' }}
+              </button>
+            </div>
+          </div>
+          <ng-template #regularFieldHeader>
+            <button type="button" class="canvas-field" (click)="abrirEditorDoCampo(field.path)">
+              <span class="canvas-field-title"
+                ><span
+                  >{{ field.schema.title || field.label }}
+                  <span *ngIf="field.required">*</span></span
+                ><small>{{ obterRotuloDoTipo(field.schema) }}</small></span
+              >
+              <span class="canvas-field-meta">{{ field.schema.description || field.label }}</span>
+              <span class="canvas-field-meta"
+                >{{ field.required ? 'Obrigatório' : 'Opcional' }} · Clique para configurar</span
+              >
+            </button>
+          </ng-template>
+          <div
+            class="inline-object group-inner-panel"
+            *ngIf="ehSchemaObjeto(field.schema) || ehListaDeObjetos(field.schema)"
+          >
+            <div class="inline-object-heading">
+              <span
+                >{{
+                  listarPropriedadesDoObjeto(obterCaminhoDasPropriedades(field.path)).length
+                }}
+                atributo(s)</span
+              >
+            </div>
+            <div class="object-contents" *ngIf="!collapsedObjects.has(field.path)">
+              <app-atributos-objeto
+                [schema]="schema"
+                [caminho]="obterCaminhoDasPropriedades(field.path)"
+                [titulo]="field.schema.title || field.label"
+                [selecionado]="selectedPath"
+                (editar)="abrirEditorDoCampo($event)"
+                (excluir)="solicitarExclusaoDoCampo($event)"
+                (adicionar)="adicionarPropriedadeNoObjeto($event.caminho, $event.tipo)"
+                (mover)="moverPropriedade($event.caminho, $event.direcao)"
+              >
+              </app-atributos-objeto>
+            </div>
+          </div>
+
+          <div class="field-card-tools">
+            <button
+              type="button"
+              (click)="moverCampo(field.path, -1)"
+              [disabled]="!podeMoverCampo(field.path, -1)"
+              aria-label="Subir campo"
             >
-              <strong class="field-options-title">Opções do campo</strong>
-              <label class="required-switch-label" *ngIf="!selectedPath.endsWith('/items')"
-                ><span>Obrigatório</span
-                ><input
-                  type="checkbox"
-                  class="required-switch-input"
-                  [ngModel]="campoSelecionadoEhObrigatorio"
-                  (ngModelChange)="validacoes.definirObrigatoriedade($event)"
-                  role="switch"
-                  [attr.aria-checked]="campoSelecionadoEhObrigatorio" /><span
-                  class="required-switch-track"
-                  aria-hidden="true"
-                ></span
-              ></label>
+              ↑</button
+            ><button
+              type="button"
+              (click)="moverCampo(field.path, 1)"
+              [disabled]="!podeMoverCampo(field.path, 1)"
+              aria-label="Descer campo"
+            >
+              ↓</button
+            ><button
+              type="button"
+              (click)="solicitarExclusaoDoCampo(field.path)"
+              title="Excluir campo"
+              aria-label="Excluir campo"
+            >
+              <span>Excluir</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="canvas-empty"
+        *ngIf="
+          !camposVisiveis.length &&
+          !condicoes.condicoesVisiveis.length &&
+          !listarGruposVisuais.length
+        "
+      >
+        {{
+          activeContainerPath
+            ? 'Este agrupador está vazio. Toque em Adicionar campo para incluir uma propriedade.'
+            : 'Seu formulário está vazio. Toque em Adicionar campo para começar.'
+        }}
+      </div>
+    </section>
+
+    <section class="canvas rules-canvas" *ngIf="builderStep === 'rules'">
+      <div class="canvas-header">
+        <div>
+          <strong>Regras e condições</strong>
+          <p>
+            Selecione campos existentes e configure as restrições. O Builder gera JSON Schema Draft
+            2020-12.
+          </p>
+        </div>
+      </div>
+      <p class="builder-error" *ngIf="!condicoes.camposDisponiveis.length">
+        Crie primeiro os campos na etapa Componentes.
+      </p>
+      <app-editor-condicoes
+        [schema]="schema"
+        [caminhoObjeto]="activeContainerPath"
+        (alteracao)="aplicarAlteracaoDeRegra($event)"
+        (erro)="error = $event"
+      ></app-editor-condicoes>
+      <app-editor-alternativas
+        [schema]="schema"
+        [caminhoObjeto]="activeContainerPath"
+        (alteracao)="aplicarAlteracaoDeRegra($event)"
+        (erro)="error = $event"
+      ></app-editor-alternativas>
+
+      <p
+        class="builder-help"
+        *ngIf="!condicoes.condicoesVisiveis.length && !alternativas.regrasVisiveis.length"
+      >
+        Ainda não há regras. Crie uma condição ou uma alternativa.
+      </p>
+    </section>
+    <nav
+      class="workflow-navigation"
+      *ngIf="mode === 'construction'"
+      aria-label="Navegação das etapas"
+    >
+      <button
+        type="button"
+        class="workflow-back"
+        aria-label="← Anterior: Componentes"
+        [disabled]="builderStep === 'components'"
+        (click)="selecionarEtapa('components')"
+      >
+        ← Anterior
+      </button>
+      <span class="builder-help workflow-progress">
+        {{
+          builderStep === 'components'
+            ? 'Etapa 1 de 2 · Configure os campos antes das regras.'
+            : 'Etapa 2 de 2 · Regras configuradas no schema.'
+        }}
+      </span>
+      <button
+        type="button"
+        class="workflow-next"
+        aria-label="Próximo: Regras e condições →"
+        [disabled]="builderStep === 'rules'"
+        (click)="selecionarEtapa('rules')"
+      >
+        Próximo →
+      </button>
+    </nav>
+    <div
+      class="editor-modal-backdrop"
+      *ngIf="mode === 'construction' && editorModalOpen"
+      (click)="cancelarEdicao()"
+    ></div>
+    <div
+      class="editor-modal-shell"
+      *ngIf="mode === 'dev' || editorModalOpen"
+      role="dialog"
+      [attr.aria-modal]="mode === 'construction' ? 'true' : null"
+      aria-label="Configuração do campo"
+    >
+      <div
+        class="inspector"
+        [class.field-modal]="false"
+        [class.inspector-disabled]="mode === 'construction' && !selectedPath && !editingForm"
+        *ngIf="!selectedGroupId"
+      >
+        <ng-container *ngIf="campoSelecionado as node">
+          <div class="editor-heading field-editor-heading">
+            <strong>{{ editingForm ? 'Configurar formulário' : 'Editar campo' }}</strong>
+            <div class="editor-field-type" *ngIf="mode === 'construction' && selectedPath">
+              <span>Tipo do campo</span><strong>{{ obterRotuloDoTipo(node) }}</strong>
+            </div>
+          </div>
+          <p class="editor-empty" *ngIf="mode === 'construction' && !selectedPath && !editingForm">
+            Selecione um campo em Campos do schema para editar suas propriedades e validações.
+          </p>
+          <div *ngIf="mode === 'dev' || selectedPath || editingForm">
+            <div class="builder-actions" *ngIf="mode === 'dev'">
+              <button
+                type="button"
+                *ngIf="this.ehSchemaObjeto(node)"
+                (click)="adicionarPropriedade()"
+              >
+                + Propriedade
+              </button>
+              <button
+                type="button"
+                *ngIf="obterTipoDeEdicao(node) === 'array'"
+                (click)="adicionarItens()"
+              >
+                + Definir items
+              </button>
+              <button
+                type="button"
+                *ngIf="selectedPath !== ''"
+                (click)="propriedades.removerCampoSelecionado()"
+              >
+                Excluir nó
+              </button>
+            </div>
+            <nav
+              class="editor-tabs"
+              *ngIf="mode === 'construction' && !editingForm"
+              aria-label="Seções do editor"
+            >
+              <button
+                type="button"
+                [class.active]="editorTab === 'property'"
+                (click)="editorTab = 'property'"
+              >
+                Propriedade</button
+              ><button
+                type="button"
+                [class.active]="editorTab === 'validation'"
+                (click)="editorTab = 'validation'"
+              >
+                Validações
+              </button>
+            </nav>
+            <div *ngIf="mode === 'dev' || editingForm || editorTab === 'property'">
+              <label *ngIf="possuiPropriedadeSelecionada"
+                >Nome da propriedade
+                <input
+                  [ngModel]="propriedades.propertyNameDraft ?? nomeDoCampoSelecionado"
+                  (ngModelChange)="propriedades.aoEditarNomeDaPropriedade($event)"
+                  (blur)="propriedades.validarNomeDaPropriedadeSelecionada()"
+                  (keydown.enter)="
+                    $event.preventDefault(); propriedades.validarNomeDaPropriedadeSelecionada()
+                  "
+                  [attr.aria-invalid]="propriedades.propertyNameError ? 'true' : null"
+                />
+                <small class="builder-error" *ngIf="propriedades.propertyNameError">{{
+                  propriedades.propertyNameError
+                }}</small>
+              </label>
+              <label
+                >Título<input
+                  [ngModel]="node.title || ''"
+                  (ngModelChange)="validacoes.definirAtributo('title', $event)"
+              /></label>
+              <label
+                >Descrição<input
+                  [ngModel]="node.description || ''"
+                  (ngModelChange)="validacoes.definirAtributo('description', $event)"
+              /></label>
+              <label *ngIf="mode === 'dev'"
+                >Tipo
+                <select
+                  [ngModel]="node.type || 'object'"
+                  (ngModelChange)="validacoes.definirTipo($event)"
+                >
+                  <option *ngFor="let t of types" [value]="t">{{ t }}</option>
+                </select>
+              </label>
+              <div
+                class="field-options-card"
+                *ngIf="selectedPath !== '' && (mode === 'dev' || editorTab === 'property')"
+              >
+                <strong class="field-options-title">Opções do campo</strong>
+                <label class="required-switch-label" *ngIf="!selectedPath.endsWith('/items')"
+                  ><span>Obrigatório</span
+                  ><input
+                    type="checkbox"
+                    class="required-switch-input"
+                    [ngModel]="campoSelecionadoEhObrigatorio"
+                    (ngModelChange)="validacoes.definirObrigatoriedade($event)"
+                    role="switch"
+                    [attr.aria-checked]="campoSelecionadoEhObrigatorio" /><span
+                    class="required-switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+                <app-editor-texto
+                  *ngIf="obterTipoDeEdicao(node) === 'string'"
+                  secao="propriedade"
+                  [schema]="obterSchemaDeEdicao(node)"
+                  (alteracao)="aplicarAlteracaoDoCampo($event)"
+                ></app-editor-texto>
+                <label class="required-switch-label"
+                  ><span>Permitir nulo</span
+                  ><input
+                    type="checkbox"
+                    class="required-switch-input"
+                    [ngModel]="campoPermiteNulo(node)"
+                    (ngModelChange)="definirCampoAnulavel($event)"
+                    role="switch"
+                    [attr.aria-checked]="campoPermiteNulo(node)" /><span
+                    class="required-switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+            </div>
+            <div *ngIf="mode === 'dev' || (!editingForm && editorTab === 'validation')">
+              <h4 class="rule-heading">Validações de {{ obterRotuloDoTipo(node) }}</h4>
+              <p class="validation-help" *ngIf="mode === 'construction'">
+                Configure apenas as regras aplicáveis a este tipo de campo.
+              </p>
               <app-editor-texto
-                *ngIf="node.type === 'string'"
-                secao="propriedade"
-                [schema]="node"
+                *ngIf="obterTipoDeEdicao(node) === 'string'"
+                [schema]="obterSchemaDeEdicao(node)"
                 (alteracao)="aplicarAlteracaoDoCampo($event)"
               ></app-editor-texto>
-              <label class="required-switch-label"
-                ><span>Permitir nulo</span
-                ><input
-                  type="checkbox"
-                  class="required-switch-input"
-                  [ngModel]="campoPermiteNulo(node)"
-                  (ngModelChange)="definirCampoAnulavel($event)"
-                  role="switch"
-                  [attr.aria-checked]="campoPermiteNulo(node)" /><span
-                  class="required-switch-track"
-                  aria-hidden="true"
-                ></span
-              ></label>
-            </div>
-          </div>
-          <div *ngIf="mode === 'dev' || (!editingForm && editorTab === 'validation')">
-            <h4 class="rule-heading">Validações de {{ obterRotuloDoTipo(node) }}</h4>
-            <p class="validation-help" *ngIf="mode === 'construction'">
-              Configure apenas as regras aplicáveis a este tipo de campo.
-            </p>
-            <app-editor-texto
-              *ngIf="node.type === 'string'"
-              [schema]="node"
-              (alteracao)="aplicarAlteracaoDoCampo($event)"
-            ></app-editor-texto>
-            <app-editor-numero
-              *ngIf="node.type === 'integer' || node.type === 'number'"
-              [schema]="node"
-              (alteracao)="aplicarAlteracaoDoCampo($event)"
-            ></app-editor-numero>
-            <app-editor-lista
-              *ngIf="node.type === 'array'"
-              [schema]="node"
-              (alteracao)="aplicarAlteracaoDoCampo($event)"
-              (alteracaoLista)="aplicarAlteracaoDaLista($event)"
-            ></app-editor-lista>
-            <app-editor-objeto
-              *ngIf="ehSchemaObjeto(node)"
-              [schema]="node"
-              (alteracao)="aplicarAlteracaoDoCampo($event)"
-            ></app-editor-objeto>
+              <app-editor-numero
+                *ngIf="
+                  obterTipoDeEdicao(node) === 'integer' || obterTipoDeEdicao(node) === 'number'
+                "
+                [schema]="obterSchemaDeEdicao(node)"
+                (alteracao)="aplicarAlteracaoDoCampo($event)"
+              ></app-editor-numero>
+              <app-editor-lista
+                *ngIf="obterTipoDeEdicao(node) === 'array'"
+                [schema]="obterSchemaDeEdicao(node)"
+                (alteracao)="aplicarAlteracaoDoCampo($event)"
+                (alteracaoLista)="aplicarAlteracaoDaLista($event)"
+              ></app-editor-lista>
+              <app-editor-objeto
+                *ngIf="ehSchemaObjeto(node)"
+                [schema]="obterSchemaDeEdicao(node)"
+                (alteracao)="aplicarAlteracaoDoCampo($event)"
+              ></app-editor-objeto>
 
-            <app-editor-estruturas
-              [schema]="schema"
-              [caminho]="selectedPath"
-              (alteracao)="aplicarAlteracaoDeRegra($event)"
-            ></app-editor-estruturas>
-            <app-editor-booleano
-              *ngIf="node.type === 'boolean'"
-              [schema]="node"
-              (alteracao)="aplicarAlteracaoDoCampo($event)"
-            ></app-editor-booleano>
-            <h4
-              class="rule-heading"
-              *ngIf="node.type === 'string' || node.type === 'integer' || node.type === 'number'"
-            >
-              Valores permitidos
-            </h4>
-            <div
-              class="enum-editor"
-              *ngIf="node.type === 'string' || node.type === 'integer' || node.type === 'number'"
-            >
-              <p class="builder-help">
-                Informe os valores aceitos e os nomes apresentados no formulário. O valor será
-                enviado no JSON.
-              </p>
-              <table class="enum-table">
-                <thead>
-                  <tr>
-                    <th>Valor</th>
-                    <th>Label</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    *ngFor="
-                      let entry of validacoes.listarValoresPermitidos(node);
-                      let i = index;
-                      trackBy: validacoes.identificarOpcao
-                    "
-                  >
-                    <td>
-                      <input
-                        [ngModel]="validacoes.obterTextoDoValorPermitido(entry.value, node)"
-                        (change)="
-                          validacoes.atualizarValorPermitido(i, 'value', $any($event.target).value)
-                        "
-                        [attr.aria-label]="'Valor ' + (i + 1)"
-                      />
-                    </td>
-                    <td>
-                      <input
-                        [ngModel]="entry.label"
-                        (change)="
-                          validacoes.atualizarValorPermitido(i, 'label', $any($event.target).value)
-                        "
-                        [attr.aria-label]="'Label ' + (i + 1)"
-                      />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        (click)="validacoes.removerValorPermitido(i)"
-                        [attr.aria-label]="'Remover valor ' + (i + 1)"
-                      >
-                        Excluir
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <button type="button" class="enum-add" (click)="validacoes.adicionarValorPermitido()">
-                + Adicionar valor
-              </button>
-            </div>
-          </div>
-          <ng-container *ngIf="mode === 'dev'">
-            <h4 class="rule-heading">Composições visuais</h4>
-            <div *ngFor="let kind of compositionKinds">
-              <strong>{{ kind }}</strong>
-              <div class="composition-actions">
-                <button type="button" (click)="validacoes.adicionarComposicao(kind)">
-                  + Alternativa
-                </button>
-              </div>
-              <div *ngFor="let branch of node[kind]; let i = index" class="composition-row">
+              <app-editor-estruturas
+                *ngIf="mode === 'dev'"
+                [schema]="schema"
+                [caminho]="selectedPath"
+                (alteracao)="aplicarAlteracaoDeRegra($event)"
+              ></app-editor-estruturas>
+              <app-editor-booleano
+                *ngIf="obterTipoDeEdicao(node) === 'boolean'"
+                [schema]="obterSchemaDeEdicao(node)"
+                (alteracao)="aplicarAlteracaoDoCampo($event)"
+              ></app-editor-booleano>
+              <h4
+                class="rule-heading"
+                *ngIf="
+                  obterTipoDeEdicao(node) === 'string' ||
+                  obterTipoDeEdicao(node) === 'integer' ||
+                  obterTipoDeEdicao(node) === 'number'
+                "
+              >
+                Valores permitidos
+              </h4>
+              <div
+                class="enum-editor"
+                *ngIf="
+                  obterTipoDeEdicao(node) === 'string' ||
+                  obterTipoDeEdicao(node) === 'integer' ||
+                  obterTipoDeEdicao(node) === 'number'
+                "
+              >
+                <p class="builder-help">
+                  Informe os valores aceitos e os nomes apresentados no formulário. O valor será
+                  enviado no JSON.
+                </p>
+                <table class="enum-table">
+                  <thead>
+                    <tr>
+                      <th>Valor</th>
+                      <th>Label</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      *ngFor="
+                        let entry of validacoes.listarValoresPermitidos(node);
+                        let i = index;
+                        trackBy: validacoes.identificarOpcao
+                      "
+                    >
+                      <td>
+                        <input
+                          [ngModel]="validacoes.obterTextoDoValorPermitido(entry.value, node)"
+                          (change)="
+                            validacoes.atualizarValorPermitido(
+                              i,
+                              'value',
+                              $any($event.target).value
+                            )
+                          "
+                          [attr.aria-label]="'Valor ' + (i + 1)"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          [ngModel]="entry.label"
+                          (change)="
+                            validacoes.atualizarValorPermitido(
+                              i,
+                              'label',
+                              $any($event.target).value
+                            )
+                          "
+                          [attr.aria-label]="'Label ' + (i + 1)"
+                        />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          (click)="validacoes.removerValorPermitido(i)"
+                          [attr.aria-label]="'Remover valor ' + (i + 1)"
+                        >
+                          Excluir
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
                 <button
                   type="button"
-                  class="tree-row"
-                  (click)="selecionarCampo(selectedPath + '/' + kind + '/' + i)"
+                  class="enum-add"
+                  (click)="validacoes.adicionarValorPermitido()"
                 >
-                  Editar {{ kind }} #{{ i + 1 }}
-                </button>
-                <button type="button" (click)="validacoes.removerComposicao(kind, i)">
-                  Excluir
+                  + Adicionar valor
                 </button>
               </div>
             </div>
-            <h4 class="rule-heading">Condicionais</h4>
-            <div class="composition-actions">
-              <button
-                type="button"
-                *ngFor="let kind of conditionalKinds"
-                (click)="validacoes.alternarRamoCondicional(kind)"
-              >
-                {{ node[kind] === undefined ? 'Adicionar' : 'Remover' }} {{ kind }}
-              </button>
-            </div>
-            <div class="composition-actions">
-              <button
-                type="button"
-                *ngFor="let kind of conditionalKinds"
-                [disabled]="node[kind] === undefined"
-                (click)="selecionarCampo(selectedPath + '/' + kind)"
-              >
-                Editar {{ kind }}
-              </button>
-            </div>
-            <h4 class="rule-heading">Definições reutilizáveis</h4>
-            <div class="composition-actions">
-              <input
-                aria-label="Nome da definição"
-                placeholder="Nome da definição"
-                [(ngModel)]="newDefinitionName"
-              /><button type="button" (click)="adicionarDefinicao('$defs')">
-                + Definição ($defs)
-              </button>
-            </div>
-            <div *ngFor="let entry of listarEntradas(node['$defs'])" class="composition-row">
-              <button
-                type="button"
-                class="tree-row"
-                (click)="selecionarCampo(selectedPath + '/$defs/' + escaparCaminho(entry[0]))"
-              >
-                {{ entry[0] }}
-              </button>
-              <button type="button" (click)="removerDefinicao('$defs', entry[0])">Excluir</button>
-            </div>
-            <label
-              >Referência ($ref)
-              <select [ngModel]="node['$ref'] || ''" (ngModelChange)="definirReferencia($event)">
-                <option value="">Sem referência</option>
-                <option
-                  *ngFor="let name of nomesDasDefinicoes"
-                  [value]="'#/$defs/' + escaparCaminho(name)"
+            <ng-container *ngIf="mode === 'dev'">
+              <h4 class="rule-heading">Composições visuais</h4>
+              <div *ngFor="let kind of compositionKinds">
+                <strong>{{ kind }}</strong>
+                <div class="composition-actions">
+                  <button type="button" (click)="validacoes.adicionarComposicao(kind)">
+                    + Alternativa
+                  </button>
+                </div>
+                <div *ngFor="let branch of node[kind]; let i = index" class="composition-row">
+                  <button
+                    type="button"
+                    class="tree-row"
+                    (click)="selecionarCampo(selectedPath + '/' + kind + '/' + i)"
+                  >
+                    Editar {{ kind }} #{{ i + 1 }}
+                  </button>
+                  <button type="button" (click)="validacoes.removerComposicao(kind, i)">
+                    Excluir
+                  </button>
+                </div>
+              </div>
+              <h4 class="rule-heading">Condicionais</h4>
+              <div class="composition-actions">
+                <button
+                  type="button"
+                  *ngFor="let kind of conditionalKinds"
+                  (click)="validacoes.alternarRamoCondicional(kind)"
                 >
-                  {{ name }}
-                </option>
-                <option
-                  *ngIf="node['$ref'] && !ehReferenciaLocal(node['$ref'])"
-                  [value]="node['$ref']"
+                  {{ node[kind] === undefined ? 'Adicionar' : 'Remover' }} {{ kind }}
+                </button>
+              </div>
+              <div class="composition-actions">
+                <button
+                  type="button"
+                  *ngFor="let kind of conditionalKinds"
+                  [disabled]="node[kind] === undefined"
+                  (click)="selecionarCampo(selectedPath + '/' + kind)"
                 >
-                  {{ node['$ref'] }} (externa ou personalizada)
-                </option>
-              </select>
-            </label>
-            <p class="builder-help">
-              Referências externas existentes são preservadas. Para criá-las, use o editor avançado.
-            </p>
-            <h4 class="rule-heading" *ngIf="this.ehSchemaObjeto(node)">Propriedades dinâmicas</h4>
-            <ng-container *ngIf="this.ehSchemaObjeto(node)">
+                  Editar {{ kind }}
+                </button>
+              </div>
+              <h4 class="rule-heading">Definições reutilizáveis</h4>
               <div class="composition-actions">
                 <input
-                  aria-label="Expressão regular da chave"
-                  placeholder="Ex.: ^custom_"
-                  [(ngModel)]="newPatternName"
-                /><button type="button" (click)="adicionarDefinicao('patternProperties')">
-                  + Padrão de chave
+                  aria-label="Nome da definição"
+                  placeholder="Nome da definição"
+                  [(ngModel)]="newDefinitionName"
+                /><button type="button" (click)="adicionarDefinicao('$defs')">
+                  + Definição ($defs)
                 </button>
               </div>
-              <div
-                *ngFor="let entry of listarEntradas(node.patternProperties)"
-                class="composition-row"
-              >
+              <div *ngFor="let entry of listarEntradas(node['$defs'])" class="composition-row">
                 <button
                   type="button"
                   class="tree-row"
-                  (click)="
-                    selecionarCampo(selectedPath + '/patternProperties/' + escaparCaminho(entry[0]))
-                  "
+                  (click)="selecionarCampo(selectedPath + '/$defs/' + escaparCaminho(entry[0]))"
                 >
                   {{ entry[0] }}
                 </button>
-                <button type="button" (click)="removerDefinicao('patternProperties', entry[0])">
-                  Excluir
-                </button>
+                <button type="button" (click)="removerDefinicao('$defs', entry[0])">Excluir</button>
               </div>
               <label
-                >Schema de propriedades adicionais
-                <select
-                  [ngModel]="obterModoDePropriedadesAdicionais(node)"
-                  (ngModelChange)="definirModoDePropriedadesAdicionais($event)"
-                >
-                  <option value="allow">Permitir qualquer valor</option>
-                  <option value="deny">Não permitir</option>
-                  <option value="schema">Validar por schema</option>
+                >Referência ($ref)
+                <select [ngModel]="node['$ref'] || ''" (ngModelChange)="definirReferencia($event)">
+                  <option value="">Sem referência</option>
+                  <option
+                    *ngFor="let name of nomesDasDefinicoes"
+                    [value]="'#/$defs/' + escaparCaminho(name)"
+                  >
+                    {{ name }}
+                  </option>
+                  <option
+                    *ngIf="node['$ref'] && !ehReferenciaLocal(node['$ref'])"
+                    [value]="node['$ref']"
+                  >
+                    {{ node['$ref'] }} (externa ou personalizada)
+                  </option>
                 </select>
               </label>
-              <button
-                type="button"
-                *ngIf="obterModoDePropriedadesAdicionais(node) === 'schema'"
-                (click)="selecionarCampo(selectedPath + '/additionalProperties')"
-              >
-                Editar schema adicional
-              </button>
+              <p class="builder-help">
+                Referências externas existentes são preservadas. Para criá-las, use o editor
+                avançado.
+              </p>
+              <h4 class="rule-heading" *ngIf="this.ehSchemaObjeto(node)">Propriedades dinâmicas</h4>
+              <ng-container *ngIf="this.ehSchemaObjeto(node)">
+                <div class="composition-actions">
+                  <input
+                    aria-label="Expressão regular da chave"
+                    placeholder="Ex.: ^custom_"
+                    [(ngModel)]="newPatternName"
+                  /><button type="button" (click)="adicionarDefinicao('patternProperties')">
+                    + Padrão de chave
+                  </button>
+                </div>
+                <div
+                  *ngFor="let entry of listarEntradas(node.patternProperties)"
+                  class="composition-row"
+                >
+                  <button
+                    type="button"
+                    class="tree-row"
+                    (click)="
+                      selecionarCampo(
+                        selectedPath + '/patternProperties/' + escaparCaminho(entry[0])
+                      )
+                    "
+                  >
+                    {{ entry[0] }}
+                  </button>
+                  <button type="button" (click)="removerDefinicao('patternProperties', entry[0])">
+                    Excluir
+                  </button>
+                </div>
+                <label
+                  >Schema de propriedades adicionais
+                  <select
+                    [ngModel]="obterModoDePropriedadesAdicionais(node)"
+                    (ngModelChange)="definirModoDePropriedadesAdicionais($event)"
+                  >
+                    <option value="allow">Permitir qualquer valor</option>
+                    <option value="deny">Não permitir</option>
+                    <option value="schema">Validar por schema</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  *ngIf="obterModoDePropriedadesAdicionais(node) === 'schema'"
+                  (click)="selecionarCampo(selectedPath + '/additionalProperties')"
+                >
+                  Editar schema adicional
+                </button>
+              </ng-container>
+              <h4 class="rule-heading">Regras avançadas</h4>
+              <p class="builder-help">
+                Edite as regras JSON deste nó para usar if/then/else, allOf, oneOf, anyOf, not,
+                $defs, $ref, patternProperties e dependências. O restante do nó será preservado.
+              </p>
+              <label
+                >Regras avançadas (JSON)
+                <textarea
+                  [ngModel]="validacoes.obterTextoDasRegrasAvancadas(node)"
+                  (change)="validacoes.definirRegrasAvancadas($any($event.target).value)"
+                  style="min-height: 150px; font-family: monospace"
+                ></textarea>
+              </label>
+              <p class="builder-help">
+                Os campos não suportados visualmente são preservados. Enum deve conter valores JSON
+                válidos, um por linha.
+              </p>
             </ng-container>
-            <h4 class="rule-heading">Regras avançadas</h4>
-            <p class="builder-help">
-              Edite as regras JSON deste nó para usar if/then/else, allOf, oneOf, anyOf, not, $defs,
-              $ref, patternProperties e dependências. O restante do nó será preservado.
-            </p>
-            <label
-              >Regras avançadas (JSON)
-              <textarea
-                [ngModel]="validacoes.obterTextoDasRegrasAvancadas(node)"
-                (change)="validacoes.definirRegrasAvancadas($any($event.target).value)"
-                style="min-height: 150px; font-family: monospace"
-              ></textarea>
-            </label>
-            <p class="builder-help">
-              Os campos não suportados visualmente são preservados. Enum deve conter valores JSON
-              válidos, um por linha.
-            </p>
-          </ng-container>
-          <p class="builder-error" *ngIf="error">{{ error }}</p>
-        </div>
-      </ng-container>
-    </div>
-    <div class="editor-modal-actions" *ngIf="mode === 'construction'">
-      <button type="button" (click)="cancelarEdicao()">Cancelar</button
-      ><button type="button" (click)="salvarEdicao()">Salvar alterações</button>
-    </div>
-  </div>
-  <div class="confirm-overlay" *ngIf="showDeleteConfirmation" (click)="cancelarExclusao()">
-    <section
-      class="confirm-dialog"
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="confirm-delete-title"
-      aria-describedby="confirm-delete-description"
-      (click)="$event.stopPropagation()"
-    >
-      <div class="confirm-icon">!</div>
-      <h3 id="confirm-delete-title">Excluir campo?</h3>
-      <p id="confirm-delete-description">
-        O campo <strong>{{ nomeDoCampoSelecionado }}</strong> será removido do schema. Essa ação não
-        pode ser desfeita.
-      </p>
-      <div class="confirm-actions">
-        <button type="button" class="confirm-cancel" (click)="cancelarExclusao()">Cancelar</button
-        ><button type="button" class="confirm-danger" (click)="confirmarExclusao()">
-          Excluir campo
-        </button>
+            <p class="builder-error" *ngIf="error">{{ error }}</p>
+          </div>
+        </ng-container>
       </div>
-    </section>
-  </div>
+      <div class="editor-modal-actions" *ngIf="mode === 'construction'">
+        <button type="button" (click)="cancelarEdicao()">Cancelar</button
+        ><button type="button" (click)="salvarEdicao()">Salvar alterações</button>
+      </div>
+    </div>
+    <div class="confirm-overlay" *ngIf="showDeleteConfirmation" (click)="cancelarExclusao()">
+      <section
+        class="confirm-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-delete-title"
+        aria-describedby="confirm-delete-description"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="confirm-icon">!</div>
+        <h3 id="confirm-delete-title">Excluir campo?</h3>
+        <p id="confirm-delete-description">
+          O campo <strong>{{ nomeDoCampoSelecionado }}</strong> será removido do schema. Essa ação
+          não pode ser desfeita.
+        </p>
+        <div class="confirm-actions">
+          <button type="button" class="confirm-cancel" (click)="cancelarExclusao()">Cancelar</button
+          ><button type="button" class="confirm-danger" (click)="confirmarExclusao()">
+            Excluir campo
+          </button>
+        </div>
+      </section>
+    </div>
+  </fieldset>
 </div>

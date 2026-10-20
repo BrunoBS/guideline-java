@@ -286,7 +286,10 @@
       <div class="section-heading">
         <div>
           <h3>Schema Studio</h3>
-          <p>Crie o contrato visualmente, configure regras avançadas e teste o formulário.</p>
+          <p>
+            Crie campos e regras de negócio. Use Para Dev para contratos avançados e teste o
+            formulário.
+          </p>
         </div>
         <div class="schema-modal-actions">
           <button
@@ -307,18 +310,11 @@
       </div>
       <div class="builder-vertical" *ngIf="builderTab === 'construction'">
         <section class="builder-construction" aria-label="Opções de construção">
-          <div class="section-heading">
-            <div>
-              <h4>Construir formulário</h4>
-              <p>
-                Adicione campos, agrupadores e listas. Selecione um campo para configurar suas
-                regras.
-              </p>
-            </div>
-          </div>
           @defer (when area === 'builder') {
             <app-schema-builder
               mode="construction"
+              [bloqueioExterno]="builderSchemaError"
+              (abrirDev)="selecionarAbaDoConstrutor('dev')"
               [schema]="schema"
               (schemaChange)="aoAlterarSchema($event)"
             ></app-schema-builder>

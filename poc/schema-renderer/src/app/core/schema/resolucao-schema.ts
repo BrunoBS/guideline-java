@@ -78,7 +78,8 @@ export function coletarRegrasAplicaveis(schema: any, value: any, root: Schema, d
         permiteNulo(declared) &&
         obterTiposNaoNulos(declared).length &&
         out.properties?.[key] &&
-        !ehSchemaProibido(out.properties[key])
+        !ehSchemaProibido(out.properties[key]) &&
+        typeof out.properties[key]['x-ui']?.visible !== 'boolean'
       ) {
         out.properties[key] = { ...out.properties[key], type: declared.type };
       }

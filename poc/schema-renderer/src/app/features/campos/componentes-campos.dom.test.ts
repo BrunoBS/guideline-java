@@ -1,4 +1,6 @@
 import '@angular/compiler';
+import { EditorQuandoComponent } from '../regras/condicoes/editor-quando.component';
+import { AtributosObjetoComponent } from '../builder/atributos-objeto.component';
 import { EditorExpressaoComponent } from '../regras/condicoes/editor-expressao.component';
 import { EditorValorCondicaoComponent } from '../regras/condicoes/editor-valor-condicao.component';
 import { EditorEstruturasComponent } from '../builder/editor-estruturas.component';
@@ -6,6 +8,7 @@ import { lerPadraoDeTexto } from '../regras/condicoes/restricoes-texto-condicion
 import { schemaCompatibilidadeTipos } from '../../testes/fixtures/compatibilidade-tipos.schema';
 import { AppComponent } from '../../app.component';
 import { provideZonelessChangeDetection, ɵresolveComponentResources } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { JSDOM } from 'jsdom';
@@ -49,6 +52,8 @@ for (const chave of [
 }
 Object.defineProperty(globalThis, 'navigator', { value: dom.window.navigator, configurable: true });
 const componentes = [
+  [EditorQuandoComponent, '../regras/condicoes/editor-quando.component.html'],
+  [AtributosObjetoComponent, '../builder/atributos-objeto.component.html'],
   [EditorExpressaoComponent, '../regras/condicoes/editor-expressao.component.html'],
   [EditorValorCondicaoComponent, '../regras/condicoes/editor-valor-condicao.component.html'],
   [EditorEstruturasComponent, '../builder/editor-estruturas.component.html'],
@@ -311,14 +316,23 @@ test('lista anulável sai do estado nulo e cria itens pelo renderizador especial
   tela.destroy();
 });
 
-async function abrirEtapaDeRegras(schema: Schema) {
+async function abrirEtapaDeRegras(schema: Schema, modo: 'construction' | 'dev' = 'construction') {
   await prepararComponentes();
   const tela = TestBed.createComponent(SchemaBuilderComponent);
   tela.componentRef.setInput('schema', schema);
+  tela.componentRef.setInput('mode', modo);
   tela.componentInstance.builderStep = 'rules';
   tela.detectChanges();
   await tela.whenStable();
   return tela;
+}
+
+async function aplicarQuando(tela: any, indice = 0) {
+  const botoes = (tela.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+    '.apply-when',
+  );
+  botoes[indice].click();
+  await tela.whenStable();
 }
 
 test('componente de condição configura SE e ENTÃO por eventos e preserva o schema original', async () => {
@@ -351,6 +365,7 @@ test('componente de condição configura SE e ENTÃO por eventos e preserva o sc
   controlesDoRamo[1].click();
   await tela.whenStable();
 
+  await aplicarQuando(tela);
   const schema = tela.componentInstance.schema;
   assert.equal(schema.allOf[0].if.properties.tipo.const, 'especial');
   assert.deepEqual(schema.allOf[0].then.required, ['detalhe']);
@@ -365,7 +380,7 @@ test('componente de condição configura SE e ENTÃO por eventos e preserva o sc
   tela.destroy();
 });
 
-test('componente de alternativas cria oneOf por valor e mantém alterações e exclusão no builder', async () => {
+test('componente de alternativas cria conjuntos de campos diretamente e mantém alterações e exclusão no builder', async () => {
   const original = {
     type: 'object',
     properties: { canal: { type: 'string', enum: ['EMAIL', 'SMS'] }, destino: { type: 'string' } },
@@ -376,10 +391,8 @@ test('componente de alternativas cria oneOf por valor e mantém alterações e e
     elemento.querySelector('app-editor-alternativas .builder-actions button') as HTMLButtonElement
   ).click();
   await tela.whenStable();
-  const modos = elemento.querySelectorAll('app-editor-alternativas .oneof-mode-choice');
-  assert.equal(modos.length, 2);
-  (modos[1] as HTMLButtonElement).click();
-  await tela.whenStable();
+  assert.equal(elemento.querySelector('.oneof-mode-picker'), null);
+  assert.equal(elemento.querySelector('.oneof-mode-choice'), null);
   const titulo = elemento.querySelector(
     'app-editor-alternativas .oneof-alternative input',
   ) as HTMLInputElement;
@@ -387,8 +400,8 @@ test('componente de alternativas cria oneOf por valor e mantém alterações e e
   await tela.whenStable();
   assert.equal(tela.componentInstance.schema.oneOf[0].title, 'Contato por email');
   assert.deepEqual(
-    tela.componentInstance.schema.oneOf.map((regra: Schema) => regra.properties.canal.const),
-    ['EMAIL', 'SMS'],
+    tela.componentInstance.schema.oneOf.map((regra: Schema) => regra.required[0]),
+    ['canal', 'destino'],
   );
   assert.deepEqual(validarValor(tela.componentInstance.schema, { canal: 'EMAIL' }), []);
   assert.notDeepEqual(validarValor(tela.componentInstance.schema, {}), []);
@@ -694,6 +707,7 @@ test('SE booleano usa liga/desliga e mantém valores booleanos com igual e difer
   assert.ok(grade.textContent?.includes('Não (desligado)'));
   controle.click();
   await tela.whenStable();
+  await aplicarQuando(tela);
   assert.equal(tela.componentInstance.schema.allOf[0].if.properties.ativo.const, true);
   assert.ok(grade.textContent?.includes('Sim (ligado)'));
   const seletores = grade.querySelectorAll('select');
@@ -702,6 +716,7 @@ test('SE booleano usa liga/desliga e mantém valores booleanos com igual e difer
   controle = grade.querySelector('input[role="switch"]') as HTMLInputElement;
   controle.click();
   await tela.whenStable();
+  await aplicarQuando(tela);
   assert.deepEqual(tela.componentInstance.schema.allOf[0].if.properties.ativo, {
     not: { const: false },
   });
@@ -724,7 +739,7 @@ test('editor único preserva a origem e adapta comparação e controles aos seis
     properties: Object.fromEntries(tipos.map((tipo) => [tipo, { type: tipo }])),
     allOf: [{ if: {}, then: { properties: Object.fromEntries(tipos.map((tipo) => [tipo, {}])) } }],
   };
-  const tela = await abrirEtapaDeRegras(schema);
+  const tela = await abrirEtapaDeRegras(schema, 'dev');
   const elemento = tela.nativeElement as HTMLElement;
   const editores = elemento.querySelectorAll('.condition-branch.true app-editor-restricao');
   assert.equal(editores.length, 6);
@@ -779,7 +794,7 @@ test('comparação exata respeita os limites da origem e mantém limites importa
     allOf: [{ if: {}, then: { properties: { texto: { minLength: 4, maxLength: 8 } } } }],
   };
   const original = structuredClone(schema);
-  const tela = await abrirEtapaDeRegras(schema);
+  const tela = await abrirEtapaDeRegras(schema, 'dev');
   const elemento = tela.nativeElement as HTMLElement;
   const editor = elemento.querySelector('app-editor-restricao')!;
   editar(editor.querySelector('select') as HTMLSelectElement, 'equals', 'change');
@@ -855,10 +870,6 @@ test('alternativas por campos bloqueiam proibir atributos obrigatórios e preser
     elemento.querySelector('app-editor-alternativas .builder-actions button') as HTMLButtonElement
   ).click();
   await tela.whenStable();
-  (
-    elemento.querySelector('app-editor-alternativas .oneof-mode-choice') as HTMLButtonElement
-  ).click();
-  await tela.whenStable();
   const proibidos = elemento.querySelector(
     '[aria-label="Proibir campo na alternativa 1"]',
   ) as HTMLSelectElement;
@@ -881,18 +892,17 @@ test('alternativas por campos bloqueiam proibir atributos obrigatórios e preser
 });
 
 test('enum numérico mantém valores tipados e restaura a seleção ao recusar duplicatas', async () => {
-  const tela = await abrirEtapaDeRegras({
-    type: 'object',
-    properties: { escolha: { type: 'integer', enum: [1, 2, 3] } },
-  });
+  const tela = await abrirEtapaDeRegras(
+    {
+      type: 'object',
+      properties: { escolha: { type: 'integer', enum: [1, 2, 3] } },
+    },
+    'dev',
+  );
   const elemento = tela.nativeElement as HTMLElement;
-  (
-    elemento.querySelector('app-editor-alternativas .builder-actions button') as HTMLButtonElement
-  ).click();
-  await tela.whenStable();
-  (
-    elemento.querySelectorAll('app-editor-alternativas .oneof-mode-choice')[1] as HTMLButtonElement
-  ).click();
+  const editor = tela.debugElement.query(By.directive(EditorAlternativasComponent))
+    .componentInstance as EditorAlternativasComponent;
+  editor.alternativas.adicionarRegra('value');
   await tela.whenStable();
   const select = elemento.querySelector('.oneof-alternative select') as HTMLSelectElement;
   const opcao = (numero: number) =>
@@ -912,18 +922,17 @@ test('enum numérico mantém valores tipados e restaura a seleção ao recusar d
 });
 
 test('controle booleano de alternativas preserva false e rejeita valor já usado', async () => {
-  const tela = await abrirEtapaDeRegras({
-    type: 'object',
-    properties: { ativo: { type: 'boolean' } },
-  });
+  const tela = await abrirEtapaDeRegras(
+    {
+      type: 'object',
+      properties: { ativo: { type: 'boolean' } },
+    },
+    'dev',
+  );
   const elemento = tela.nativeElement as HTMLElement;
-  (
-    elemento.querySelector('app-editor-alternativas .builder-actions button') as HTMLButtonElement
-  ).click();
-  await tela.whenStable();
-  (
-    elemento.querySelectorAll('app-editor-alternativas .oneof-mode-choice')[1] as HTMLButtonElement
-  ).click();
+  const editor = tela.debugElement.query(By.directive(EditorAlternativasComponent))
+    .componentInstance as EditorAlternativasComponent;
+  editor.alternativas.adicionarRegra('value');
   await tela.whenStable();
   const toggle = elemento.querySelector(
     '.oneof-alternative input[role="switch"]',
@@ -947,19 +956,15 @@ test('interface cria e exclui oneOf no objeto interno mantendo a regra da raiz',
     },
     oneOf: [{ properties: { modo: { const: 'A' } } }, { properties: { modo: { const: 'B' } } }],
   };
-  const tela = await abrirEtapaDeRegras(schema);
+  const tela = await abrirEtapaDeRegras(schema, 'dev');
   tela.componentInstance.abrirObjeto('/properties/grupo');
   tela.changeDetectorRef.markForCheck();
   await tela.whenStable();
   const elemento = tela.nativeElement as HTMLElement;
   assert.equal(elemento.querySelector('app-editor-alternativas .oneof-alternative'), null);
-  (
-    elemento.querySelector('app-editor-alternativas .builder-actions button') as HTMLButtonElement
-  ).click();
-  await tela.whenStable();
-  (
-    elemento.querySelectorAll('app-editor-alternativas .oneof-mode-choice')[1] as HTMLButtonElement
-  ).click();
+  const editor = tela.debugElement.query(By.directive(EditorAlternativasComponent))
+    .componentInstance as EditorAlternativasComponent;
+  editor.alternativas.adicionarRegra('value');
   await tela.whenStable();
   assert.equal(elemento.querySelectorAll('app-editor-alternativas .oneof-alternative').length, 2);
   assert.equal(
@@ -984,13 +989,14 @@ test('SE distingue texto null de nulo e edita JSON sem salvar conteúdo parcial'
     properties: { valor: { type: ['string', 'null', 'object', 'array', 'integer'] } },
     allOf: [{ if: { properties: { valor: { const: 'null' } }, required: ['valor'] }, then: {} }],
   };
-  const tela = await abrirEtapaDeRegras(schema);
+  const tela = await abrirEtapaDeRegras(schema, 'dev');
   const elemento = tela.nativeElement as HTMLElement;
   const grade = elemento.querySelector('.condition-grid')!;
   const tipo = grade.querySelector('[aria-label="Tipo do valor esperado"]') as HTMLSelectElement;
   assert.equal((grade.querySelector('input') as HTMLInputElement).value, 'null');
   editar(tipo, 'null', 'change');
   await tela.whenStable();
+  await aplicarQuando(tela);
   assert.equal(tela.componentInstance.schema.allOf[0].if.properties.valor.const, null);
   assert.equal(grade.querySelector('input'), null);
   editar(tipo, 'object', 'change');
@@ -999,13 +1005,15 @@ test('SE distingue texto null de nulo e edita JSON sem salvar conteúdo parcial'
   json.value = '{';
   json.dispatchEvent(new Event('input', { bubbles: true }));
   await tela.whenStable();
-  assert.deepEqual(tela.componentInstance.schema.allOf[0].if.properties.valor.const, {});
+  await aplicarQuando(tela);
+  assert.equal(tela.componentInstance.schema.allOf[0].if.properties.valor.const, null);
   json.dispatchEvent(new Event('change', { bubbles: true }));
   await tela.whenStable();
   assert.ok(elemento.querySelector('[role="alert"]'));
   json.value = '{"codigo":1}';
   json.dispatchEvent(new Event('change', { bubbles: true }));
   await tela.whenStable();
+  await aplicarQuando(tela);
   assert.deepEqual(tela.componentInstance.schema.allOf[0].if.properties.valor.const, { codigo: 1 });
   editar(tipo, 'array', 'change');
   await tela.whenStable();
@@ -1013,6 +1021,7 @@ test('SE distingue texto null de nulo e edita JSON sem salvar conteúdo parcial'
   lista.value = '[1,"a"]';
   lista.dispatchEvent(new Event('change', { bubbles: true }));
   await tela.whenStable();
+  await aplicarQuando(tela);
   assert.deepEqual(tela.componentInstance.schema.allOf[0].if.properties.valor.const, [1, 'a']);
   editar(tipo, 'integer', 'change');
   await tela.whenStable();
@@ -1033,7 +1042,7 @@ test('ramos booleanos importados desabilitam edição e preservam true e false a
       },
     ],
   };
-  const tela = await abrirEtapaDeRegras(original);
+  const tela = await abrirEtapaDeRegras(original, 'dev');
   const elemento = tela.nativeElement as HTMLElement;
   const ramos = elemento.querySelectorAll(
     'fieldset.condition-branch',
@@ -1045,6 +1054,7 @@ test('ramos booleanos importados desabilitam edição e preservam true e false a
   await tela.whenStable();
   assert.equal(tela.componentInstance.schema.allOf[0].then, false);
   assert.equal(tela.componentInstance.schema.allOf[0].else, true);
+  await aplicarQuando(tela);
   assert.equal(tela.componentInstance.schema.allOf[0].if.properties.ativo.const, false);
   tela.destroy();
 });
@@ -1059,9 +1069,11 @@ test('SE oferece comparações numéricas e de texto e grava os keywords corresp
   const seletores = grade.querySelectorAll('select');
   editar(seletores[1], 'greaterOrEqual', 'change');
   await tela.whenStable();
+  await aplicarQuando(tela);
   assert.deepEqual(tela.componentInstance.schema.allOf[0].if.properties.idade, { minimum: 18 });
   editar(grade.querySelector('input')!, '21');
   await tela.whenStable();
+  await aplicarQuando(tela);
   assert.deepEqual(tela.componentInstance.schema.allOf[0].if.properties.idade, { minimum: 21 });
   editar(seletores[0], 'nome', 'change');
   await tela.whenStable();
@@ -1069,6 +1081,7 @@ test('SE oferece comparações numéricas e de texto e grava os keywords corresp
   await tela.whenStable();
   editar(seletores[1], 'contains', 'change');
   await tela.whenStable();
+  await aplicarQuando(tela);
   assert.equal(tela.componentInstance.schema.allOf[0].if.properties.nome.pattern, 'a\\.b');
   assert.equal(seletores[1].value, 'contains');
   tela.destroy();
@@ -1091,9 +1104,11 @@ test('SE presente e ausente não exibem valor esperado e preservam os ramos', as
   editar(operador, 'present', 'change');
   await tela.whenStable();
   assert.equal(grade.querySelector('input'), null);
+  await aplicarQuando(tela);
   assert.deepEqual(tela.componentInstance.schema.allOf[0].if, { required: ['nome'] });
   editar(operador, 'absent', 'change');
   await tela.whenStable();
+  await aplicarQuando(tela);
   assert.deepEqual(tela.componentInstance.schema.allOf[0].if, { not: { required: ['nome'] } });
   editar(operador, 'equals', 'change');
   await tela.whenStable();
@@ -1118,11 +1133,10 @@ test('editor recursivo cria grupo OU, condição interna e negação por eventos
   };
   const tela = await abrirEtapaDeRegras(schema);
   const elemento = tela.nativeElement as HTMLElement;
-  const agrupar = [...elemento.querySelectorAll('button')].find((b) =>
-    b.textContent?.includes('Agrupar: Qualquer'),
-  )!;
-  agrupar.click();
+  const atender = elemento.querySelector('select[aria-label="Atender"]') as HTMLSelectElement;
+  editar(atender, 'anyOf', 'change');
   await tela.whenStable();
+  await aplicarQuando(tela);
   assert.ok(tela.componentInstance.schema.allOf[0].if.anyOf);
   const folha = elemento.querySelector('app-editor-expressao app-editor-expressao')!;
   const campo = [...folha.querySelectorAll('select')][0];
@@ -1131,10 +1145,7 @@ test('editor recursivo cria grupo OU, condição interna e negação por eventos
   const input = folha.querySelector('input[role="switch"]') as HTMLInputElement;
   assert.equal(input.checked, false);
   await tela.whenStable();
-  [...folha.querySelectorAll('button')]
-    .find((b) => b.textContent?.trim() === 'Aplicar condição')!
-    .click();
-  await tela.whenStable();
+  await aplicarQuando(tela);
   assert.equal(
     tela.componentInstance.schema.allOf[0].if.anyOf[0].properties.grupo.properties.ativo.const,
     false,
@@ -1144,12 +1155,15 @@ test('editor recursivo cria grupo OU, condição interna e negação por eventos
 });
 
 test('editor guiado de estruturas adiciona dependência obrigatória em rascunho por eventos reais', async () => {
-  const tela = await abrirEtapaDeRegras({
-    type: 'object',
-    properties: {
-      grupo: { type: 'object', properties: { a: { type: 'string' }, b: { type: 'integer' } } },
+  const tela = await abrirEtapaDeRegras(
+    {
+      type: 'object',
+      properties: {
+        grupo: { type: 'object', properties: { a: { type: 'string' }, b: { type: 'integer' } } },
+      },
     },
-  });
+    'dev',
+  );
   tela.componentInstance.abrirEditorDoCampo('/properties/grupo');
   tela.componentInstance.editorTab = 'validation';
   tela.changeDetectorRef.markForCheck();
@@ -1171,31 +1185,25 @@ test('editor guiado de estruturas adiciona dependência obrigatória em rascunho
   tela.destroy();
 });
 
-test('dependências guiadas também estão disponíveis no objeto raiz na etapa Regras', async () => {
-  const tela = await abrirEtapaDeRegras({
-    type: 'object',
-    properties: { a: { type: 'string' }, b: { type: 'string' } },
-  });
-  const editor = (tela.nativeElement as HTMLElement).querySelector('app-editor-estruturas')!;
-  const seletores = editor.querySelectorAll('select');
-  editar(seletores[0], 'a', 'change');
-  editar(seletores[1], 'b', 'change');
-  await tela.whenStable();
-  [...editor.querySelectorAll('button')]
-    .find((b) => b.textContent?.includes('Adicionar dependência obrigatória'))!
-    .click();
-  await tela.whenStable();
-  assert.deepEqual(tela.componentInstance.schema.dependentRequired, { a: ['b'] });
+test('Construção não expõe dependências e padrões do objeto', async () => {
+  const tela = await abrirEtapaDeRegras({ type: 'object', properties: { a: { type: 'string' } } });
+  assert.equal((tela.nativeElement as HTMLElement).querySelector('app-editor-estruturas'), null);
+  assert.ok(
+    (tela.nativeElement as HTMLElement).textContent?.includes('O que posso criar na Construção?'),
+  );
   tela.destroy();
 });
 
 test('rascunhos de dependências e padrões preservam o DOM e JSON parcial durante outras alterações', async () => {
-  const tela = await abrirEtapaDeRegras({
-    type: 'object',
-    properties: { a: { type: 'string' }, b: { type: 'string' } },
-    dependentSchemas: { a: { required: ['b'] } },
-    patternProperties: { '^x': { type: 'string' } },
-  });
+  const tela = await abrirEtapaDeRegras(
+    {
+      type: 'object',
+      properties: { a: { type: 'string' }, b: { type: 'string' } },
+      dependentSchemas: { a: { required: ['b'] } },
+      patternProperties: { '^x': { type: 'string' } },
+    },
+    'dev',
+  );
   const elemento = tela.nativeElement as HTMLElement,
     editor = elemento.querySelector('app-editor-estruturas')!;
   const dependencia = editor.querySelector(
@@ -1233,21 +1241,24 @@ test('rascunhos de dependências e padrões preservam o DOM e JSON parcial duran
 });
 
 test('SE composto compartilha switch e enum tipado, preservando rascunho ao aplicar outra condição e trocar E/OU', async () => {
-  const tela = await abrirEtapaDeRegras({
-    type: 'object',
-    properties: { ativo: { type: 'boolean' }, codigo: { enum: [12, '12', null, 'null'] } },
-    allOf: [
-      {
-        if: {
-          anyOf: [
-            { properties: { ativo: { const: false } }, required: ['ativo'] },
-            { properties: { codigo: { const: 12 } }, required: ['codigo'] },
-          ],
+  const tela = await abrirEtapaDeRegras(
+    {
+      type: 'object',
+      properties: { ativo: { type: 'boolean' }, codigo: { enum: [12, '12', null, 'null'] } },
+      allOf: [
+        {
+          if: {
+            anyOf: [
+              { properties: { ativo: { const: false } }, required: ['ativo'] },
+              { properties: { codigo: { const: 12 } }, required: ['codigo'] },
+            ],
+          },
+          then: { title: 'preservar' },
         },
-        then: { title: 'preservar' },
-      },
-    ],
-  });
+      ],
+    },
+    'dev',
+  );
   const elemento = tela.nativeElement as HTMLElement,
     grupo = elemento.querySelector('app-editor-expressao')!;
   const filhos = grupo.querySelectorAll('.expression-child');
@@ -1261,39 +1272,38 @@ test('SE composto compartilha switch e enum tipado, preservando rascunho ao apli
   const controle = bool.querySelector('input[role="switch"]') as HTMLInputElement;
   controle.click();
   await tela.whenStable();
-  (bool.querySelector('.apply-condition') as HTMLButtonElement).click();
-  await tela.whenStable();
-  assert.equal(tela.componentInstance.schema.allOf[0].if.anyOf[0].properties.ativo.const, true);
+  assert.equal(tela.componentInstance.schema.allOf[0].if.anyOf[0].properties.ativo.const, false);
   assert.equal(enums.querySelector('select[aria-label="Valor esperado"]'), seletor);
   assert.equal(seletor.selectedIndex, 1);
-  const operador = grupo.querySelector(
-    'select[aria-label="Operador do grupo"]',
-  ) as HTMLSelectElement;
+  const operador = grupo.querySelector('select[aria-label="Atender"]') as HTMLSelectElement;
   editar(operador, 'allOf', 'change');
   await tela.whenStable();
-  assert.ok(tela.componentInstance.schema.allOf[0].if.allOf);
-  assert.equal(tela.componentInstance.schema.allOf[0].if.anyOf, undefined);
+  assert.ok(grupo.querySelector('select[aria-label="Atender"]'));
+  assert.ok(tela.componentInstance.schema.allOf[0].if.anyOf);
   assert.equal(enums.querySelector('select[aria-label="Valor esperado"]'), seletor);
   assert.equal(seletor.selectedIndex, 1);
-  (enums.querySelector('.apply-condition') as HTMLButtonElement).click();
-  await tela.whenStable();
+  await aplicarQuando(tela);
+  assert.equal(tela.componentInstance.schema.allOf[0].if.allOf[0].properties.ativo.const, true);
   assert.equal(tela.componentInstance.schema.allOf[0].if.allOf[1].properties.codigo.const, '12');
   assert.equal(tela.componentInstance.schema.allOf[0].then.title, 'preservar');
   tela.destroy();
 });
 
 test('estruturas de objeto e lista anuláveis mostram seções e mantêm rascunhos contains', async () => {
-  const tela = await abrirEtapaDeRegras({
-    type: 'object',
-    properties: {
-      grupo: { type: ['object', 'null'], properties: { a: {}, b: {} } },
-      lista: {
-        type: ['array', 'null'],
-        prefixItems: [{ type: 'string' }],
-        contains: { type: 'integer' },
+  const tela = await abrirEtapaDeRegras(
+    {
+      type: 'object',
+      properties: {
+        grupo: { type: ['object', 'null'], properties: { a: {}, b: {} } },
+        lista: {
+          type: ['array', 'null'],
+          prefixItems: [{ type: 'string' }],
+          contains: { type: 'integer' },
+        },
       },
     },
-  });
+    'dev',
+  );
   tela.componentInstance.abrirEditorDoCampo('/properties/grupo');
   tela.componentInstance.editorTab = 'validation';
   tela.changeDetectorRef.markForCheck();
@@ -1416,4 +1426,320 @@ test('enum iniciado por null permite criar valor não nulo e schema somente null
       );
     tela.destroy();
   }
+});
+
+test('fluxo de negócio oferece apenas condições E/OU e preserva ações', async () => {
+  const original = {
+    type: 'object',
+    properties: { ativo: { type: 'boolean' }, justificativa: { type: 'string' } },
+    allOf: [
+      {
+        if: { properties: { ativo: { const: true } }, required: ['ativo'] },
+        then: { required: ['justificativa'] },
+      },
+    ],
+  };
+  const tela = await abrirEtapaDeRegras(original);
+  const elemento = tela.nativeElement as HTMLElement;
+  const botoes = () => [...elemento.querySelectorAll('button')];
+  assert.equal(
+    botoes().some((botao) => botao.textContent?.includes('Agrupar:')),
+    false,
+  );
+  assert.equal(elemento.querySelector('.condition-advanced'), null);
+  botoes()
+    .find((botao) => botao.textContent?.trim() === '+ Adicionar condição')!
+    .click();
+  await tela.whenStable();
+  assert.equal(tela.componentInstance.edicaoBloqueada, false);
+  await aplicarQuando(tela);
+  assert.equal(tela.componentInstance.schema.allOf[0].if.allOf.length, 2);
+  const atender = elemento.querySelector('select[aria-label="Atender"]') as HTMLSelectElement;
+  editar(atender, 'anyOf', 'change');
+  await tela.whenStable();
+  await aplicarQuando(tela);
+  const condicoes = structuredClone(tela.componentInstance.schema.allOf[0].if);
+  assert.equal(condicoes.anyOf.length, 2);
+  assert.equal(elemento.querySelector('.condition-advanced'), null);
+  assert.equal(
+    botoes().some((botao) => /Inverter|Grupo de condições|Ver JSON/.test(botao.textContent || '')),
+    false,
+  );
+  assert.deepEqual(tela.componentInstance.schema.allOf[0].then, original.allOf[0].then);
+  assert.equal(tela.componentInstance.edicaoBloqueada, false);
+  tela.destroy();
+});
+
+test('lista E/OU apresenta ausente e diferente como comparações, sem inversão ou opções avançadas', async () => {
+  const schema = {
+    type: 'object',
+    properties: { nome: { type: 'string' }, detalhe: { type: 'string' } },
+    allOf: [
+      {
+        if: {
+          anyOf: [
+            { not: { required: ['nome'] } },
+            { properties: { nome: { not: { const: 'X' } } } },
+          ],
+        },
+        then: { required: ['detalhe'] },
+      },
+    ],
+  };
+  const tela = await abrirEtapaDeRegras(schema);
+  const elemento = tela.nativeElement as HTMLElement;
+  const folhas = elemento.querySelectorAll('.expression-child');
+  assert.equal((folhas[0].querySelectorAll('select')[1] as HTMLSelectElement).value, 'absent');
+  assert.equal((folhas[1].querySelectorAll('select')[1] as HTMLSelectElement).value, 'different');
+  assert.equal(elemento.querySelector('.condition-advanced'), null);
+  assert.equal(elemento.textContent?.includes('Condição invertida'), false);
+  assert.equal(tela.componentInstance.edicaoBloqueada, false);
+  assert.deepEqual(tela.componentInstance.schema, schema);
+  tela.destroy();
+});
+
+test('condições são linhas sem cards individuais e conectores acompanham E/OU', async () => {
+  const original = {
+    type: 'object',
+    properties: { ativo: { type: 'boolean' }, detalhe: { type: 'string' } },
+    allOf: [
+      {
+        if: { allOf: [{ properties: { ativo: { const: true } } }, { required: ['detalhe'] }] },
+        then: { required: ['detalhe'] },
+      },
+    ],
+  };
+  const tela = await abrirEtapaDeRegras(original);
+  const elemento = tela.nativeElement as HTMLElement;
+  const conectores = () =>
+    [...elemento.querySelectorAll('.condition-connector')].map((no) => no.textContent?.trim());
+  assert.deepEqual(conectores(), ['SE', 'E']);
+  assert.equal(elemento.querySelector('.expression-child fieldset'), null);
+  assert.equal(elemento.querySelector('.expression-child legend'), null);
+  assert.equal(elemento.querySelectorAll('.expression-child app-editor-expressao').length, 2);
+  editar(
+    elemento.querySelector('select[aria-label="Atender"]') as HTMLSelectElement,
+    'anyOf',
+    'change',
+  );
+  await tela.whenStable();
+  assert.deepEqual(conectores(), ['SE', 'OU']);
+  await aplicarQuando(tela);
+  assert.equal(tela.componentInstance.schema.allOf[0].if.anyOf.length, 2);
+  assert.deepEqual(tela.componentInstance.schema.allOf[0].then, original.allOf[0].then);
+  tela.destroy();
+});
+
+test('Aplicar único valida todas as linhas e publica o IF uma vez, sem alterar o original antes', async () => {
+  const original = {
+    type: 'object',
+    properties: {
+      ativo: { type: 'boolean' },
+      idade: { type: 'integer' },
+      detalhe: { type: 'string' },
+    },
+    allOf: [
+      {
+        if: { properties: { ativo: { const: true } }, required: ['ativo'] },
+        then: { required: ['detalhe'] },
+      },
+    ],
+  };
+  const tela = await abrirEtapaDeRegras(original);
+  const elemento = tela.nativeElement as HTMLElement;
+  let publicados = 0;
+  tela.componentInstance.schemaChange.subscribe(() => publicados++);
+  (elemento.querySelector('.condition-grid input[role="switch"]') as HTMLInputElement).click();
+  await tela.whenStable();
+  assert.deepEqual(tela.componentInstance.schema, original);
+  (elemento.querySelector('.condition-toolbar button') as HTMLButtonElement).click();
+  await tela.whenStable();
+  const linhas = elemento.querySelectorAll('.expression-child');
+  const campos = linhas[1].querySelectorAll('select');
+  editar(campos[0], '/idade', 'change');
+  await tela.whenStable();
+  editar(linhas[1].querySelector('input')!, '1.5');
+  editar(elemento.querySelector('[aria-label="Atender"]') as HTMLSelectElement, 'anyOf', 'change');
+  await tela.whenStable();
+  assert.equal(elemento.querySelectorAll('.apply-when').length, 1);
+  assert.equal(elemento.querySelector('.expression-child .apply-condition'), null);
+  await aplicarQuando(tela);
+  assert.equal(publicados, 0);
+  assert.deepEqual(tela.componentInstance.schema, original);
+  assert.ok(elemento.querySelector('[role="alert"]'));
+  editar(linhas[1].querySelector('input')!, '18');
+  await tela.whenStable();
+  await aplicarQuando(tela);
+  assert.equal(publicados, 1);
+  assert.equal(elemento.querySelector('[role="alert"]'), null);
+  assert.equal(tela.componentInstance.schema.allOf[0].if.anyOf[0].properties.ativo.const, false);
+  assert.equal(tela.componentInstance.schema.allOf[0].if.anyOf[1].properties.idade.const, 18);
+  assert.deepEqual(tela.componentInstance.schema.allOf[0].then, original.allOf[0].then);
+  assert.equal(original.allOf[0].if.properties.ativo.const, true);
+  tela.destroy();
+});
+
+test('Descartar limpa o rascunho do IF e preserva alterações já salvas no ENTÃO', async () => {
+  const original = {
+    type: 'object',
+    properties: { nome: { type: 'string' }, detalhe: { type: 'string' } },
+    allOf: [{ if: { properties: { nome: { const: 'A' } } }, then: {} }],
+  };
+  const tela = await abrirEtapaDeRegras(original);
+  const elemento = tela.nativeElement as HTMLElement;
+  editar(elemento.querySelector('.condition-grid input')!, 'rascunho');
+  await tela.whenStable();
+  tela.componentInstance.aplicarAlteracaoDeRegra((root) => {
+    root.allOf[0].then.required = ['detalhe'];
+  });
+  await tela.whenStable();
+  assert.equal(
+    (elemento.querySelector('.condition-grid input') as HTMLInputElement).value,
+    'rascunho',
+  );
+  assert.equal(tela.componentInstance.schema.allOf[0].if.properties.nome.const, 'A');
+  (elemento.querySelector('.discard-when') as HTMLButtonElement).click();
+  await tela.whenStable();
+  assert.equal((elemento.querySelector('.condition-grid input') as HTMLInputElement).value, 'A');
+  assert.deepEqual(tela.componentInstance.schema.allOf[0].then.required, ['detalhe']);
+  tela.destroy();
+});
+
+test('adicionar, excluir e trocar E/OU ficam em rascunho e não modificam os ramos', async () => {
+  const original = {
+    type: 'object',
+    properties: { a: { type: 'string' }, b: { type: 'string' } },
+    allOf: [
+      { if: { allOf: [{ required: ['a'] }, { required: ['b'] }] }, then: { title: 'preservar' } },
+    ],
+  };
+  const tela = await abrirEtapaDeRegras(original);
+  const elemento = tela.nativeElement as HTMLElement;
+  (elemento.querySelector('.condition-toolbar button') as HTMLButtonElement).click();
+  await tela.whenStable();
+  assert.equal(elemento.querySelectorAll('.expression-child').length, 3);
+  (elemento.querySelector('.remove-condition') as HTMLButtonElement).click();
+  editar(elemento.querySelector('[aria-label="Atender"]') as HTMLSelectElement, 'anyOf', 'change');
+  await tela.whenStable();
+  assert.deepEqual(tela.componentInstance.schema, original);
+  assert.equal(elemento.querySelectorAll('.expression-child').length, 2);
+  await aplicarQuando(tela);
+  assert.deepEqual(tela.componentInstance.schema.allOf[0].if.anyOf, [
+    { required: ['b'] },
+    { required: ['a'] },
+  ]);
+  assert.deepEqual(tela.componentInstance.schema.allOf[0].then, original.allOf[0].then);
+  tela.destroy();
+});
+
+test('IF atualizado externamente substitui o rascunho anterior, sem permitir aplicação obsoleta', async () => {
+  const original = {
+    type: 'object',
+    properties: { nome: { type: 'string' } },
+    allOf: [{ if: { properties: { nome: { const: 'A' } } }, then: {} }],
+  };
+  const tela = await abrirEtapaDeRegras(original);
+  const elemento = tela.nativeElement as HTMLElement;
+  editar(elemento.querySelector('.condition-grid input')!, 'antigo');
+  await tela.whenStable();
+  tela.componentInstance.aplicarAlteracaoDeRegra((root) => {
+    root.allOf[0].if.properties.nome.const = 'novo';
+  });
+  tela.changeDetectorRef.markForCheck();
+  await tela.whenStable();
+  assert.equal((elemento.querySelector('.condition-grid input') as HTMLInputElement).value, 'novo');
+  await aplicarQuando(tela);
+  assert.equal(tela.componentInstance.schema.allOf[0].if.properties.nome.const, 'novo');
+  tela.destroy();
+});
+
+test('excluir uma regra não transfere seu rascunho para outra regra com o mesmo IF', async () => {
+  const original = {
+    type: 'object',
+    properties: { nome: { type: 'string' } },
+    allOf: [
+      { if: { properties: { nome: { const: 'A' } } }, then: { title: 'primeira' } },
+      { if: { properties: { nome: { const: 'A' } } }, then: { title: 'segunda' } },
+    ],
+  };
+  const tela = await abrirEtapaDeRegras(original);
+  const elemento = tela.nativeElement as HTMLElement;
+  editar(elemento.querySelector('.condition-grid input')!, 'descartar com a primeira');
+  await tela.whenStable();
+  (elemento.querySelector('.condition-title button') as HTMLButtonElement).click();
+  await tela.whenStable();
+  assert.equal((elemento.querySelector('.condition-grid input') as HTMLInputElement).value, 'A');
+  await aplicarQuando(tela);
+  assert.equal(tela.componentInstance.schema.allOf[0].if.properties.nome.const, 'A');
+  assert.equal(tela.componentInstance.schema.allOf[0].then.title, 'segunda');
+  tela.destroy();
+});
+
+test('ocultar exige null na origem, mostra tooltip e gera ramo nulo sem comparações', async () => {
+  for (const anulavel of [false, true]) {
+    const campo: Schema = { type: anulavel ? ['string', 'null'] : 'string', minLength: 10 };
+    const schema: Schema = {
+      type: 'object',
+      properties: { ativo: { type: 'boolean' }, detalhe: campo },
+      allOf: [
+        {
+          if: { properties: { ativo: { const: true } }, required: ['ativo'] },
+          then: { properties: { detalhe: { 'x-ui': { visible: true } } } },
+          else: { properties: { detalhe: { 'x-ui': { visible: true } } } },
+        },
+      ],
+    };
+    const tela = await abrirEtapaDeRegras(schema);
+    const elemento = tela.nativeElement as HTMLElement;
+    const campoRamo = elemento.querySelector('.condition-branch.false .condition-branch-field')!;
+    const controle = campoRamo.querySelector('.condition-required input') as HTMLInputElement;
+    assert.equal(controle.checked, true);
+    assert.equal(controle.disabled, !anulavel);
+    if (!anulavel) {
+      assert.match(controle.closest('label')?.title || '', /permita valor nulo/);
+      controle.click();
+      await tela.whenStable();
+      assert.deepEqual(tela.componentInstance.schema, schema);
+    } else {
+      controle.click();
+      await tela.whenStable();
+      assert.equal(tela.componentInstance.schema.allOf[0].else.properties.detalhe.type, 'null');
+      assert.equal(campoRamo.querySelector('app-editor-restricao'), null);
+      assert.match(campoRamo.textContent || '', /valor enviado será null/);
+      controle.click();
+      await tela.whenStable();
+      assert.equal(tela.componentInstance.schema.allOf[0].else.properties.detalhe.type, 'string');
+      assert.ok(campoRamo.querySelector('app-editor-restricao'));
+    }
+    assert.deepEqual(tela.componentInstance.schema.properties.detalhe, campo);
+    tela.destroy();
+  }
+});
+
+test('campo visível segue o tipo do ramo e não oferece null permitido apenas na origem', async () => {
+  const schema: Schema = {
+    type: 'object',
+    properties: {
+      ativo: { type: 'boolean' },
+      detalhe: { type: ['string', 'null'], minLength: 10 },
+    },
+    allOf: [
+      {
+        if: { properties: { ativo: { const: true } }, required: ['ativo'] },
+        then: {
+          required: ['detalhe'],
+          properties: { detalhe: { type: 'string', 'x-ui': { visible: true } } },
+        },
+        else: { properties: { detalhe: { type: 'null', 'x-ui': { visible: false } } } },
+      },
+    ],
+  };
+  const { tela, elemento } = await renderizarCampo(schema, {
+    ativo: true,
+    detalhe: 'Justificativa válida',
+  });
+  const texto = elemento.querySelector('app-campo-texto')!;
+  assert.ok(texto);
+  assert.equal(texto.querySelector('option[value="nulo"]'), null);
+  tela.destroy();
 });

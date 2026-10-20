@@ -264,3 +264,49 @@
 :where(.builder) .condition-required input:disabled + .required-switch-track {
   opacity: 0.55;
 }
+
+.condition-match {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 340px;
+  margin: 12px 0;
+}
+.condition-match select {
+  width: 100%;
+}
+.condition-advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+:where(.builder) .condition-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin: 12px 0;
+}
+:where(.builder) .condition-toolbar .condition-match {
+  flex: 1 1 240px;
+  max-width: 340px;
+  margin: 0;
+}
+:where(.builder) .condition-toolbar > button {
+  margin: 0;
+}
+
+:where(.builder) .condition-toolbar > button {
+  background: #fff;
+  color: #2455b5;
+  border: 1px solid #b8c9df;
+}
+:where(.builder) .condition-toolbar > button:hover:not(:disabled) {
+  background: #edf4ff;
+  border-color: #2455b5;
+}
+:where(.builder) .condition-toolbar > button:focus-visible {
+  outline: 2px solid #2455b5;
+  outline-offset: 2px;
+  box-shadow: none;
+}

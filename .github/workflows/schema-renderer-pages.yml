@@ -33,21 +33,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: '10'
-          run_install: false
-      - name: Install dependencies
+      - name: Install Schema Studio dependencies (lockfile)
         working-directory: poc/schema-renderer
-        run: pnpm install --no-frozen-lockfile
-      - name: Test (known schema-engine regressions)
-        continue-on-error: true
+        run: npm ci
+      - name: Install browsers for Schema Studio checks
         working-directory: poc/schema-renderer
-        run: pnpm test
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Check Schema Studio before publishing
+        working-directory: poc/schema-renderer
+        run: npm run check:all
       - name: Build for GitHub Pages
         working-directory: poc/schema-renderer
-        run: pnpm exec ng build --base-href /guideline-java/
+        run: npm run build -- --base-href /guideline-java/
       # Portal Manager uses Angular 22 with TypeScript 6.0.x; publish the latest Workspace navigation POC.
       - name: Install Portal Manager dependencies
         working-directory: portal-source/workspace-mfe

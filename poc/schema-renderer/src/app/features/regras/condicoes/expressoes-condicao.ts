@@ -80,3 +80,18 @@ export function lerFolhaDaExpressao(
     ? { segmentos: [campo, ...interna.segmentos], comparacao: interna.comparacao }
     : undefined;
 }
+
+/** Autoria de negócio: uma comparação ou uma lista plana combinada por E/OU. */
+export function expressaoEhSimplesParaNegocio(schema: Schema): boolean {
+  if (!expressaoEhGuiada(schema)) return false;
+  const folhaSimples = (node: Schema): boolean => {
+    if (lerFolhaDaExpressao(node)) return true;
+    // Está ausente é uma comparação simples, embora use not no JSON Schema.
+    return (
+      !!node.not && !!lerFolhaDaExpressao(node.not) && !lerFolhaDaExpressao(node.not)!.comparacao
+    );
+  };
+  if (folhaSimples(schema)) return true;
+  const grupo = schema.allOf || schema.anyOf;
+  return Array.isArray(grupo) && grupo.length > 0 && grupo.every(folhaSimples);
+}

@@ -1,5 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output, forwardRef, OnChanges } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  forwardRef,
+  OnChanges,
+  ViewChildren,
+  QueryList,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { obterTipos, type Schema } from '../../../core/schema/schema-engine';
 import { EditorValorCondicaoComponent } from './editor-valor-condicao.component';
@@ -19,7 +28,7 @@ import {
 import { OPCOES_COMPARACAO_TEXTO } from './restricoes-texto-condicional';
 import {
   criarCondicaoNoCaminho,
-  expressaoEhGuiada,
+  expressaoEhSimplesParaNegocio,
   listarCamposDaExpressao,
   lerFolhaDaExpressao,
 } from './expressoes-condicao';
@@ -40,6 +49,8 @@ export class EditorExpressaoComponent implements OnChanges {
   @Input() objeto: Schema = {};
   @Input() raiz: Schema = {};
   @Output() alteracao = new EventEmitter<Schema>();
+  @ViewChildren(EditorExpressaoComponent) filhos?: QueryList<EditorExpressaoComponent>;
+  private assinaturaInicial = '';
   caminho = '';
   operador = 'equals';
   valor = '';
@@ -51,7 +62,11 @@ export class EditorExpressaoComponent implements OnChanges {
   ngOnChanges() {
     if (this.ultimaExpressao && valoresJsonIguais(this.ultimaExpressao, this.schema)) return;
     this.ultimaExpressao = structuredClone(this.schema);
-    const folha = lerFolhaDaExpressao(this.schema);
+    const ausente =
+      !!this.schema.not &&
+      !!lerFolhaDaExpressao(this.schema.not) &&
+      !lerFolhaDaExpressao(this.schema.not)!.comparacao;
+    const folha = lerFolhaDaExpressao(ausente ? this.schema.not : this.schema);
     if (!folha) return;
     const campo = this.campos.find(
       (item) => JSON.stringify(item.segmentos) === JSON.stringify(folha.segmentos),
@@ -59,8 +74,9 @@ export class EditorExpressaoComponent implements OnChanges {
     if (!campo) return;
     this.caminho = campo.caminho;
     const comparacao = folha.comparacao ? lerComparacaoDaCondicao(folha.comparacao) : undefined;
-    this.operador = comparacao?.operador || 'present';
+    this.operador = ausente ? 'absent' : comparacao?.operador || 'present';
     this.carregarValor(comparacao?.valor, campo.schema);
+    this.assinaturaInicial = this.assinaturaDaFolha();
   }
   private carregarValor(valor: unknown, campo: Schema) {
     this.valorOriginal = valor;
@@ -152,7 +168,7 @@ export class EditorExpressaoComponent implements OnChanges {
     return this.cacheCampos;
   }
   get guiada() {
-    return expressaoEhGuiada(this.schema);
+    return expressaoEhSimplesParaNegocio(this.schema);
   }
   get grupo(): string {
     return this.schema.allOf ? 'allOf' : this.schema.anyOf ? 'anyOf' : '';
@@ -181,6 +197,7 @@ export class EditorExpressaoComponent implements OnChanges {
       filhos = copia[this.grupo];
     delete copia[this.grupo];
     copia[chave] = filhos;
+    this.schema = copia;
     this.alteracao.emit(copia);
   }
   adicionarSubgrupo(chave: string) {
@@ -189,6 +206,7 @@ export class EditorExpressaoComponent implements OnChanges {
     this.chavesFilhos.push(this.proximaChave++);
     const copia = structuredClone(this.schema);
     copia[this.grupo].push({ [chave]: [structuredClone(copia[this.grupo][0])] });
+    this.schema = copia;
     this.alteracao.emit(copia);
   }
   agrupar(chave: string) {
@@ -212,6 +230,7 @@ export class EditorExpressaoComponent implements OnChanges {
   alterarFilho(chave: string, indice: number, valor: Schema) {
     const copia = structuredClone(this.schema);
     copia[chave][indice] = valor;
+    this.schema = copia;
     this.alteracao.emit(copia);
   }
   removerFilho(chave: string, indice: number) {
@@ -220,6 +239,7 @@ export class EditorExpressaoComponent implements OnChanges {
     this.chavesFilhos.splice(indice, 1);
     const copia = structuredClone(this.schema);
     copia[chave].splice(indice, 1);
+    this.schema = copia;
     this.alteracao.emit(copia);
   }
   adicionarFilho(chave: string) {
@@ -227,12 +247,38 @@ export class EditorExpressaoComponent implements OnChanges {
     this.chavesFilhos.push(this.proximaChave++);
     const copia = structuredClone(this.schema);
     copia[chave].push(structuredClone(copia[chave][0]));
+    this.schema = copia;
     this.alteracao.emit(copia);
   }
-  aplicarFolha() {
+  private assinaturaDaFolha(): string {
+    return JSON.stringify([
+      this.caminho,
+      this.operador,
+      this.valor,
+      this.tipoEscolhido,
+      this.usaValorTipado,
+      this.valorOriginal,
+    ]);
+  }
+  obterExpressaoEditada(): Schema {
     try {
-      const campo = this.campos.find((c) => c.caminho === this.caminho);
-      if (!campo) throw new Error('Selecione o campo.');
+      if (this.grupo) {
+        const filhos = this.filhos?.toArray() || [];
+        if (filhos.length !== this.schema[this.grupo].length)
+          throw new Error('Aguarde a atualização das condições.');
+        const expressao = {
+          ...structuredClone(this.schema),
+          [this.grupo]: filhos.map((filho) => filho.obterExpressaoEditada()),
+        };
+        this.erro = '';
+        return expressao;
+      }
+      const campo = this.campos.find((campo) => campo.caminho === this.caminho);
+      if (!campo) throw new Error('Selecione um campo existente.');
+      if (this.assinaturaInicial && this.assinaturaDaFolha() === this.assinaturaInicial) {
+        this.erro = '';
+        return structuredClone(this.schema);
+      }
       const presenca = ['present', 'absent'].includes(this.operador);
       const tipos = obterTipos(campo.schema);
       const valor = presenca
@@ -247,17 +293,26 @@ export class EditorExpressaoComponent implements OnChanges {
       const comparacao = presenca
         ? undefined
         : criarComparacaoDaCondicao(this.operador, valor, tipos);
-      this.alteracao.emit({
+      const expressao = {
         ...Object.fromEntries(
           Object.entries(this.schema).filter(([key]) =>
             ['title', 'description', '$comment'].includes(key),
           ),
         ),
         ...criarCondicaoNoCaminho(campo.segmentos, comparacao, this.operador === 'absent'),
-      });
+      };
       this.erro = '';
+      return expressao;
     } catch (erro) {
       this.erro = (erro as Error).message;
+      throw erro;
+    }
+  }
+  aplicarFolha() {
+    try {
+      this.alteracao.emit(this.obterExpressaoEditada());
+    } catch {
+      /* O erro fica junto à comparação. */
     }
   }
 }

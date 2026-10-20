@@ -73,6 +73,7 @@ for (const valor of [
         'x-desconhecido': { required: ['observacao'], const: { properties: { valor: false } } },
       };
       const builder = new SchemaBuilderComponent();
+      builder.mode = 'dev';
       builder.schema = lerDocumentoSchema(JSON.stringify(original));
       builder.ngOnChanges({});
       builder.abrirEditorDoCampo('/properties/observacao');
@@ -244,6 +245,7 @@ test('exclusão de posição em tupla referenciada não desloca ponteiros silenc
 for (const [nome, original] of Object.entries(allSchemas))
   test(`catálogo ${nome}: importação → edição → exportação preserva todas as regras`, () => {
     const builder = new SchemaBuilderComponent();
+    builder.mode = 'dev';
     builder.schema = lerDocumentoSchema(JSON.stringify(original));
     builder.ngOnChanges({});
     builder.abrirEditorDoFormulario();

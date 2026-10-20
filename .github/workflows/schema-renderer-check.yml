@@ -1,0 +1,48 @@
+name: Schema Renderer - Checks
+
+on:
+  pull_request:
+    paths:
+      - 'poc/schema-renderer/**'
+      - '.github/workflows/schema-renderer-check.yml'
+  push:
+    branches: [feature/poc-schema-renderer]
+    paths:
+      - 'poc/schema-renderer/**'
+      - '.github/workflows/schema-renderer-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: schema-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: poc/schema-renderer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: poc/schema-renderer/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run check:all
+      - name: Relatórios de navegador
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-renderer-playwright
+          path: |
+            poc/schema-renderer/playwright-report/
+            poc/schema-renderer/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

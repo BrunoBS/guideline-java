@@ -19,5 +19,7 @@ export function obterTipoDoItemDaLista(node: Schema): string {
   const item = node.items;
   if (item === true || item === undefined) return 'string';
   if (item === false) return 'null';
-  return Array.isArray(item.type) ? item.type[0] || 'string' : item.type || 'string';
+  return Array.isArray(item.type)
+    ? item.type.find((tipo: string) => tipo !== 'null') || 'string'
+    : item.type || 'string';
 }

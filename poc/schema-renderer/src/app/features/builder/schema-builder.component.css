@@ -1,16 +1,3 @@
-.builder.simplified:not(.developer-mode) {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  align-items: start;
-}
-.builder.simplified:not(.developer-mode) .palette.desktop-palette {
-  display: block;
-  grid-column: 1/-1;
-  grid-row: 1;
-  order: unset;
-  position: static;
-}
 .builder.simplified:not(.developer-mode) .palette .palette-item {
   display: inline-flex;
   width: auto;
@@ -29,54 +16,13 @@
   flex: 0 0 100%;
   margin: 0;
 }
-.builder.simplified:not(.developer-mode) .canvas {
-  grid-column: 1;
-  grid-row: 2;
-  order: unset;
-}
-.builder.simplified:not(.developer-mode) .inspector {
-  grid-column: 2;
-  grid-row: 2;
-  order: unset;
-  position: static;
-  transform: none;
-  width: 100%;
-  max-height: none;
-  overflow: visible;
-  box-shadow: none;
-}
-.builder.simplified:not(.developer-mode):not(:has(.inspector)) .canvas {
-  grid-column: 1;
-}
 @media (max-width: 760px) {
   .builder.simplified:not(.developer-mode) .palette.desktop-palette {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .builder.simplified:not(.developer-mode) {
-    grid-template-columns: 1fr;
-  }
-  .builder.simplified:not(.developer-mode) .palette.desktop-palette {
-    grid-column: 1;
-    grid-row: 1;
-    display: flex;
-  }
-  .builder.simplified:not(.developer-mode) .canvas {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .builder.simplified:not(.developer-mode) .inspector {
-    grid-column: 1;
-    grid-row: 3;
-  }
 }
 .builder.simplified:has(.canvas):has(.inspector) {
   grid-template-columns: minmax(330px, 1fr) minmax(320px, 1fr);
-}
-.builder.simplified:not(.developer-mode) {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(240px, 0.7fr);
-  gap: 16px;
-  align-items: start;
 }
 .builder.simplified {
   display: flex;
@@ -155,15 +101,40 @@
   flex-shrink: 0;
 }
 :where(.builder) .workflow-navigation {
-  display: flex;
-  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'back progress next';
   align-items: center;
-  flex-wrap: wrap;
   gap: 14px;
   padding: 16px 4px;
   border-top: 1px solid #e2e8f0;
 }
+:where(.builder) .workflow-progress {
+  grid-area: progress;
+  text-align: center;
+}
+:where(.builder) .workflow-back {
+  grid-area: back;
+  justify-self: start;
+}
+:where(.builder) .workflow-next {
+  grid-area: next;
+  justify-self: end;
+}
+:where(.builder) .workflow-navigation button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+:where(.builder) .construction-heading {
+  margin-bottom: 0;
+}
+:where(.builder) .construction-heading h4 {
+  margin: 0 0 5px;
+}
 :where(.builder) .workflow-navigation button {
+  margin: 0;
   border: 1px solid #2455b5;
   border-radius: 9px;
   padding: 12px 18px;
@@ -204,8 +175,9 @@
     width: 28px;
     height: 28px;
   }
-  :where(.builder) .workflow-navigation button {
-    width: 100%;
+  :where(.builder) .workflow-navigation {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: 'progress progress' 'back next';
   }
 }
 :where(.builder) .rules-canvas {
@@ -224,7 +196,7 @@
   border-radius: 7px;
   max-width: 100%;
 }
-:where(.builder) .inline-object-picker > label {
+:where(.builder) .object-property-form > label {
   font-weight: 600;
   font-size: 13px;
   color: #344860;
@@ -248,10 +220,6 @@
   min-height: 0;
   width: 100%;
   box-sizing: border-box;
-}
-.builder.simplified:not(.developer-mode) .canvas {
-  grid-column: 1;
-  grid-row: 1;
 }
 .builder.simplified .inspector {
   order: 3;
@@ -287,9 +255,7 @@
     display: none;
   }
   .builder.simplified .canvas-header {
-    position: sticky;
-    top: 0;
-    z-index: 8;
+    position: static;
     padding: 8px;
     background: #fbfcff;
     border-bottom: 1px solid #e3e9f2;
@@ -493,9 +459,6 @@
   }
 }
 @media (max-width: 760px) {
-  .builder {
-    grid-template-columns: 1fr;
-  }
   :where(.builder) .palette {
     position: static;
   }
@@ -763,8 +726,8 @@
   overflow: hidden;
 }
 :where(.builder) .canvas-field-card.active {
-  border: 2px solid #2455b5;
-  background: #eff4ff;
+  border: 1px solid #2455b5;
+  background: #fff;
 }
 :where(.builder) .canvas-field-card .canvas-field {
   display: block;
@@ -773,32 +736,14 @@
   border-radius: 0 !important;
   background: transparent !important;
   text-align: left;
-  padding-right: 50px;
   box-shadow: none !important;
 }
 :where(.builder) .canvas-field-card .canvas-field.active {
   border: 0 !important;
 }
 :where(.builder) .canvas-field-card .canvas-field-delete {
-  position: absolute;
   right: 12px;
   top: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: #94a3b8;
-  font-size: 22px;
-  cursor: pointer;
-}
-:where(.builder) .canvas-field-card .canvas-field-delete:hover,
-:where(.builder) .canvas-field-card .canvas-field-delete:focus-visible {
-  background: #fff0ef;
-  color: #b42318;
 }
 
 :where(.builder) .canvas-field-card .canvas-field {
@@ -847,7 +792,7 @@
   border: 1px solid #cbd8ea;
   border-radius: 12px;
   padding: 12px;
-  background: #f8fbff;
+  background: #fff;
   margin-bottom: 12px;
 }
 :where(.builder) .schema-group.active {
@@ -905,7 +850,7 @@
   padding: 12px;
   border: 1px solid #dce4ef;
   border-radius: 10px;
-  background: #f8fbff;
+  background: #fff;
 }
 :where(.builder) .inline-object-heading {
   display: flex;
@@ -919,7 +864,6 @@
 }
 .builder.simplified:not(.developer-mode) .schema-group-fields {
   display: block;
-  padding: 4px 8px 0;
 }
 .builder.simplified:not(.developer-mode) .group-field-row {
   border-bottom: 1px solid #dfe6f0;
@@ -1197,9 +1141,7 @@
 }
 /* Construction layout: component palette full width, fields and editor in equal columns. */
 .builder.simplified:not(.developer-mode) {
-  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
   align-items: start;
 }
 .builder.simplified:not(.developer-mode) .palette.desktop-palette {
@@ -1464,16 +1406,11 @@
   border: 0 !important;
   box-shadow: none !important;
   border-radius: 8px !important;
-  min-height: 44px !important;
-  padding: 8px 10px !important;
   text-align: left !important;
   font-weight: 650 !important;
 }
 .builder.simplified .schema-group .schema-group-select small {
   color: #64748b !important;
-}
-.builder.simplified .schema-group .schema-group-select:hover {
-  background: #eaf1fb !important;
 }
 /* Group header follows the same name/type/description hierarchy as object cards. */
 .builder.simplified .schema-group .schema-group-header {
@@ -1484,7 +1421,6 @@
 .builder.simplified .schema-group .schema-group-select {
   display: flex !important;
   align-items: flex-start !important;
-  justify-content: space-between !important;
   gap: 12px;
   min-height: 68px !important;
   padding: 8px 10px !important;
@@ -1522,7 +1458,7 @@
 }
 .builder.simplified .canvas-field-card:has(> .inline-object) {
   padding: 12px;
-  background: #f8fbff;
+  background: #fff;
   border-color: #cbd8ea;
   overflow: visible;
 }
@@ -1536,7 +1472,7 @@
 .builder.simplified .canvas-field-card:has(> .inline-object) > .inline-object {
   margin: 16px 0 0;
   padding: 12px 14px;
-  background: #f8fbff;
+  background: #fff;
 }
 .builder.simplified .canvas-field-card:has(> .inline-object) > .field-card-tools {
   display: flex;
@@ -1556,14 +1492,11 @@
 }
 .builder.simplified .canvas-field-card.schema-group.active {
   border: 1px solid #2455b5;
-  background: #f8fbff;
+  background: #fff;
 }
 .builder.simplified .canvas-field-card.schema-group:not(.active) {
   border: 1px solid #cbd8ea;
-  background: #f8fbff;
-}
-.builder.simplified .canvas-field-card.schema-group > .group-inner-panel {
-  background: #f8fbff;
+  background: #fff;
 }
 
 .builder.simplified .canvas-field-card.schema-group > .schema-group-header {
@@ -1613,7 +1546,7 @@
   padding: 12px 14px !important;
   border: 1px solid #dce4ef !important;
   border-radius: 10px !important;
-  background: #f8fbff !important;
+  background: #fff !important;
 }
 .builder.simplified .canvas-field-card.schema-group > .group-inner-panel .inline-object-heading {
   display: flex;
@@ -1853,7 +1786,6 @@
   border: 1px solid #d4ddeb;
   background: #fff;
   border-radius: 8px;
-  padding: 7px 11px;
   cursor: pointer;
 }
 :where(.builder) .order-actions {
@@ -1874,16 +1806,10 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
-:where(.builder) .field-card-tools button:last-child {
-  color: #a52332;
-}
 :where(.builder) .field-card-tools button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
   line-height: 1;
 }
 :where(.builder) .field-card-tools button {
@@ -1903,4 +1829,108 @@
 }
 :where(.builder) .field-card-tools button:last-child {
   color: #a52332;
+}
+
+.builder.simplified .rules-canvas .canvas-header {
+  position: static;
+}
+
+:where(.builder) .inline-object-actions.inline-object-picker {
+  display: block;
+}
+:where(.builder) .object-property-toggle {
+  width: fit-content;
+  padding: 6px 0;
+  color: #2455b5;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+:where(.builder) .object-property-toggle::-webkit-details-marker {
+  display: none;
+}
+:where(.builder) .object-property-toggle:focus-visible {
+  outline: 2px solid #2455b5;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+:where(.builder) .object-property-form {
+  display: grid;
+  gap: 6px;
+  max-width: 340px;
+  padding-top: 8px;
+}
+
+:where(.builder) .object-property-form > label {
+  margin: 0;
+  line-height: 1.4;
+}
+:where(.builder) .object-property-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+:where(.builder) .object-property-control select {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #bacbdf;
+  border-radius: 8px;
+  background: #fff;
+  color: #344860;
+  font: inherit;
+}
+:where(.builder) .object-property-control .object-property-add {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid #b8c9df;
+  border-radius: 8px;
+  background: #eaf1ff;
+  color: #2455b5;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Os estados dos atributos seguem o mesmo padrão, independentemente do tipo. */
+.builder.simplified .inline-object-child {
+  border: 1px solid transparent;
+  border-bottom-color: #e3e9f2;
+  border-radius: 6px;
+  background: #fff;
+}
+.builder.simplified .inline-object-child.active,
+.builder.simplified .canvas-field-card.active {
+  border-color: #2455b5;
+  box-shadow: inset 0 0 0 1px #2455b5;
+}
+.builder.simplified .inline-object-child .inline-object-child-main {
+  background: transparent;
+  color: #243b59;
+  border-color: transparent;
+  margin-right: 0;
+}
+.builder.simplified .inline-object-child .inline-object-child-main:hover:not(:disabled) {
+  background: #f8faff;
+  color: #243b59;
+  border-color: transparent;
+}
+.builder.simplified
+  :is(.canvas-field, .inline-object-child-main, .schema-group-select):focus-visible {
+  outline: 2px solid #2455b5;
+  outline-offset: -2px;
+  box-shadow: none;
+}
+.builder.simplified
+  :is(.canvas-field, .inline-object-child-main, .schema-group-select):active:not(:disabled) {
+  transform: none;
 }

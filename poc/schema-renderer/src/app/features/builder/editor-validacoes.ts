@@ -171,7 +171,9 @@ export class EditorValidacoes {
   }
   adicionarValorPermitido() {
     const node = this.campoSelecionado!;
-    const type = Array.isArray(node.type) ? node.type[0] : node.type;
+    const type = Array.isArray(node.type)
+      ? node.type.find((tipo: string) => tipo !== 'null')
+      : node.type;
     const entries = this.listarValoresPermitidos(node);
     let value: any = type === 'integer' || type === 'number' ? 0 : '';
     if (type === 'integer' || type === 'number') {
@@ -300,7 +302,11 @@ export class EditorValidacoes {
   }
   definirPermissaoDeTextoVazio(allowed: boolean) {
     const current = this.campoSelecionado;
-    if (!current || current.type !== 'string') return;
+    if (
+      !current ||
+      !(Array.isArray(current.type) ? current.type.includes('string') : current.type === 'string')
+    )
+      return;
     if (allowed && current.minLength !== undefined && current.minLength > 1) {
       this.error =
         'Para permitir texto vazio, remova ou ajuste primeiro o tamanho mínimo. O JSON Schema não pode exigir ambos sem uma regra alternativa.';
@@ -347,7 +353,7 @@ export class EditorValidacoes {
         required.add(name);
         const campo = parent.properties?.[name];
         if (
-          campo?.type === 'string' &&
+          (Array.isArray(campo?.type) ? campo.type.includes('string') : campo?.type === 'string') &&
           campo['x-ui']?.allowEmpty !== true &&
           campo.minLength === undefined
         )

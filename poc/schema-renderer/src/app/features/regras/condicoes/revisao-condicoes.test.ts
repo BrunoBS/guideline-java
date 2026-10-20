@@ -112,7 +112,8 @@ test('trocar operador do grupo altera E/OU, preservando filhos, anotações e n�
   assert.equal(editor.grupo, 'anyOf');
   assert.equal(editor.schema.anyOf.length, 3);
   assert.deepEqual(editor.schema.anyOf[2], { allOf: [a] });
+  const avancada = structuredClone(editor.schema);
   editor.trocarOperadorDoGrupo('allOf');
-  assert.equal(editor.grupo, 'allOf');
-  assert.equal(editor.schema.allOf.length, 3);
+  assert.deepEqual(editor.schema, avancada);
+  assert.equal(editor.guiada, false);
 });

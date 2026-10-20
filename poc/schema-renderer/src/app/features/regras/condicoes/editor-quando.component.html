@@ -1,0 +1,108 @@
+<ng-container *ngFor="let sessao of [sessaoAtual]">
+  <ng-container *ngIf="regra as regraAtual">
+    <p class="builder-error" *ngIf="!edicao.camposDisponiveis.length">
+      Adicione um campo ao formulário para configurar esta condição.
+    </p>
+    <p
+      class="builder-error"
+      *ngIf="
+        edicao.camposDisponiveis.length &&
+        !edicao.obterCampoDaCondicao(regraAtual) &&
+        !edicao.expressaoCompostaEhGuiada(regraAtual)
+      "
+    >
+      Selecione o campo que controla a condição.
+    </p>
+    <ng-container *ngIf="!edicao.condicaoEhAvancada(regraAtual)">
+      <div class="condition-toolbar">
+        <label class="condition-match"
+          >Atender
+          <select
+            aria-label="Atender"
+            [disabled]="!!edicao.mensagemErro"
+            [ngModel]="'allOf'"
+            (ngModelChange)="edicao.agruparExpressao(indice, $event)"
+          >
+            <option value="allOf">Todas as condições (E)</option>
+            <option value="anyOf">Pelo menos uma condição (OU)</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          [disabled]="!!edicao.mensagemErro"
+          (click)="edicao.adicionarComparacao(indice)"
+        >
+          + Adicionar condição
+        </button>
+      </div>
+      <p class="builder-help">
+        Todas: cada condição precisa ser verdadeira. Pelo menos uma: basta uma ser verdadeira.
+      </p>
+    </ng-container>
+    <app-editor-expressao
+      #expressao
+      *ngIf="edicao.expressaoCompostaEhGuiada(regraAtual)"
+      [schema]="regraAtual.if"
+      [objeto]="edicao.objetoAtual || {}"
+      [raiz]="documentoEmEdicao"
+      (alteracao)="edicao.definirExpressao(indice, $event)"
+    ></app-editor-expressao>
+    <p
+      class="builder-help"
+      *ngIf="edicao.condicaoEhAvancada(regraAtual) && !edicao.expressaoCompostaEhGuiada(regraAtual)"
+    >
+      Condição avançada preservada. Edite o SE pela aba Para Dev.
+    </p>
+    <fieldset
+      *ngIf="!edicao.expressaoCompostaEhGuiada(regraAtual)"
+      class="condition-grid"
+      [disabled]="edicao.condicaoEhAvancada(regraAtual)"
+    >
+      <label
+        >Campo<select
+          [ngModel]="edicao.obterCampoDaCondicao(regraAtual)"
+          (ngModelChange)="edicao.definirCampoDaCondicao(indice, $event)"
+        >
+          <option value="" disabled>Selecione um campo</option>
+          <option *ngFor="let field of edicao.camposDisponiveis" [value]="field">
+            {{ field }}
+          </option>
+        </select></label
+      >
+      <label
+        >Operador<select
+          [ngModel]="edicao.obterOperadorDaCondicao(regraAtual)"
+          (ngModelChange)="edicao.definirOperadorDaCondicao(indice, $event)"
+        >
+          <option value="equals">É igual a</option>
+          <option value="different">É diferente de</option>
+          <option value="present">Está presente</option>
+          <option value="absent">Está ausente</option>
+          <option *ngFor="let opcao of edicao.opcoesDeComparacao(regraAtual)" [value]="opcao.valor">
+            {{ opcao.rotulo }}
+          </option>
+        </select></label
+      >
+      <app-valor-condicao
+        *ngIf="!edicao.comparacaoEhPresenca(regraAtual)"
+        [definicao]="edicao.obterDefinicaoDaCondicao(regraAtual)"
+        [tipo]="edicao.obterTipoEsperado(regraAtual)"
+        [texto]="edicao.obterValorEsperado(regraAtual)"
+        [valor]="edicao.obterValorTipado(regraAtual)"
+        (tipoAlterado)="edicao.definirTipoEsperado(indice, $event)"
+        (textoAlterado)="edicao.definirValorEsperado(indice, $event)"
+        (rascunhoAlterado)="edicao.definirValorEsperado(indice, $event)"
+        (valorAlterado)="edicao.definirValorTipadoEsperado(indice, $event)"
+      >
+      </app-valor-condicao>
+    </fieldset>
+    <p role="alert" class="builder-error" *ngIf="erroDeEdicao">{{ erroDeEdicao }}</p>
+    <div class="when-actions" *ngIf="editavel">
+      <span class="builder-help">As alterações deste bloco só entram em vigor ao aplicar.</span>
+      <button type="button" class="discard-when" (click)="descartar()">Descartar alterações</button>
+      <button type="button" class="apply-condition apply-when" (click)="aplicarCondicao()">
+        Aplicar condição
+      </button>
+    </div>
+  </ng-container>
+</ng-container>

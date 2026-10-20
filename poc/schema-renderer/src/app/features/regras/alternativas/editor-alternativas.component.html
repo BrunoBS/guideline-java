@@ -2,7 +2,7 @@
   <button
     type="button"
     class="canvas-add-top"
-    (click)="alternativas.abrirSeletorDeModo()"
+    (click)="alternativas.adicionarRegra('fields')"
     [disabled]="!camposDisponiveis.length"
   >
     + Alternativas exclusivas (oneOf)
@@ -11,22 +11,6 @@
 <p class="builder-error" role="alert" *ngIf="alternativas.mensagemErro">
   {{ alternativas.mensagemErro }}
 </p>
-<section class="condition-card oneof-mode-picker" *ngIf="alternativas.oneOfModePickerOpen">
-  <div class="condition-title">
-    <strong>Como deseja definir as alternativas?</strong
-    ><button type="button" (click)="alternativas.oneOfModePickerOpen = false">Cancelar</button>
-  </div>
-  <div class="condition-branches">
-    <button type="button" class="oneof-mode-choice" (click)="alternativas.adicionarRegra('fields')">
-      <strong>Por conjunto de campos</strong
-      ><span>Ex.: Cartão ou Pix — defina campos obrigatórios e proibidos</span>
-    </button>
-    <button type="button" class="oneof-mode-choice" (click)="alternativas.adicionarRegra('value')">
-      <strong>Por valor de um campo</strong
-      ><span>Ex.: EMAIL ou SMS — selecione um campo e seus valores</span>
-    </button>
-  </div>
-</section>
 <section
   class="condition-card"
   *ngFor="let alternative of alternativas.regrasVisiveis; trackBy: alternativas.identificarRegra"

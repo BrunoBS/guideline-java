@@ -1,104 +1,95 @@
-<fieldset class="expression-editor">
-  <legend>{{ grupo ? 'Grupo de condições' : schema.not ? 'Negação' : 'Condição' }}</legend>
+<div
+  class="expression-editor"
+  role="group"
+  [attr.aria-label]="grupo ? 'Lista de condições' : 'Comparação do campo'"
+>
   <p *ngIf="!guiada">Expressão avançada preservada. Edite em Para Dev.</p>
   <ng-container *ngIf="guiada">
-    <div class="builder-actions">
-      <ng-container *ngIf="!grupo">
-        <button type="button" (click)="agrupar('allOf')">Envolver em grupo E</button>
-        <button type="button" (click)="agrupar('anyOf')">Envolver em grupo OU</button>
-      </ng-container>
-      <button type="button" (click)="negar()">
-        {{ schema.not ? 'Retirar negação' : 'Negar expressão' }}
-      </button>
-    </div>
-    <ng-container *ngIf="grupo as chave; else semGrupo">
-      <label class="group-operator"
-        >Operador do grupo
-        <select
-          aria-label="Operador do grupo"
-          [ngModel]="grupo"
-          (ngModelChange)="trocarOperadorDoGrupo($event)"
-        >
-          <option value="allOf">Todas (E)</option>
-          <option value="anyOf">Qualquer uma (OU)</option>
-        </select>
-      </label>
+    <ng-container *ngIf="grupo as chave; else folha">
+      <div class="condition-toolbar">
+        <label class="group-operator"
+          >Atender
+          <select
+            aria-label="Atender"
+            [ngModel]="grupo"
+            (ngModelChange)="trocarOperadorDoGrupo($event)"
+          >
+            <option value="allOf">Todas as condições (E)</option>
+            <option value="anyOf">Pelo menos uma condição (OU)</option>
+          </select>
+        </label>
+        <button type="button" (click)="adicionarFilho(chave)">+ Adicionar condição</button>
+      </div>
+      <p class="match-help">
+        {{
+          grupo === 'allOf'
+            ? 'Todas as condições abaixo precisam ser verdadeiras.'
+            : 'Basta uma das condições abaixo ser verdadeira.'
+        }}
+      </p>
       <div
         class="expression-child"
         *ngFor="let filho of schema[chave]; index as i; trackBy: identificarFilho"
       >
+        <button
+          type="button"
+          class="remove-condition"
+          (click)="removerFilho(chave, i)"
+          [disabled]="schema[chave].length <= 1"
+          [attr.aria-label]="'Excluir condição ' + (i + 1)"
+          title="Excluir condição"
+        >
+          Excluir
+        </button>
+        <span
+          class="condition-connector"
+          [attr.aria-label]="i === 0 ? 'Primeira condição' : grupo === 'allOf' ? 'E' : 'OU'"
+          >{{ i === 0 ? 'SE' : grupo === 'allOf' ? 'E' : 'OU' }}</span
+        >
         <app-editor-expressao
           [schema]="filho"
           [objeto]="objeto"
           [raiz]="raiz"
           (alteracao)="alterarFilho(chave, i, $event)"
         ></app-editor-expressao>
-        <button
-          type="button"
-          (click)="removerFilho(chave, i)"
-          [disabled]="schema[chave].length <= 1"
-        >
-          Remover condição
-        </button>
-      </div>
-      <div class="builder-actions">
-        <button type="button" (click)="adicionarFilho(chave)">+ Condição no grupo</button>
-        <button type="button" (click)="adicionarSubgrupo('allOf')">+ Subgrupo E</button>
-        <button type="button" (click)="adicionarSubgrupo('anyOf')">+ Subgrupo OU</button>
       </div>
     </ng-container>
-    <ng-template #semGrupo>
-      <ng-container *ngIf="schema.not; else folha">
-        <strong>NÃO</strong>
-        <app-editor-expressao
-          [schema]="schema.not"
-          [objeto]="objeto"
-          [raiz]="raiz"
-          (alteracao)="alterarNegacao($event)"
-        ></app-editor-expressao>
-      </ng-container>
-    </ng-template>
     <ng-template #folha>
-      <div class="expression-fields">
-        <label
-          >Campo<select [ngModel]="caminho" (ngModelChange)="definirCampo($event)">
-            <option value="" disabled>Selecione</option>
-            <option *ngFor="let campo of campos" [value]="campo.caminho">
-              {{ campo.caminho }}
-            </option>
-          </select></label
-        >
-        <label
-          >Operador<select [(ngModel)]="operador">
-            <option value="equals">É igual a</option>
-            <option value="different">É diferente de</option>
-            <option value="present">Está presente</option>
-            <option value="absent">Está ausente</option>
-            <option *ngFor="let opcao of operadores" [value]="opcao.valor">
-              {{ opcao.rotulo }}
-            </option>
-          </select></label
-        >
-        <app-valor-condicao
-          *ngIf="!['present', 'absent'].includes(operador)"
-          [definicao]="definicao"
-          [tipo]="tipoAtivo"
-          [texto]="valor"
-          [valor]="valorAtual"
-          (textoAlterado)="definirTexto($event)"
-          (rascunhoAlterado)="definirTexto($event)"
-          (valorAlterado)="definirValor($event)"
-          (tipoAlterado)="definirTipo($event)"
-        ></app-valor-condicao>
+      <div class="expression-comparison">
+        <div class="expression-fields">
+          <label
+            >Campo<select [ngModel]="caminho" (ngModelChange)="definirCampo($event)">
+              <option value="" disabled>Selecione</option>
+              <option *ngFor="let campo of campos" [value]="campo.caminho">
+                {{ campo.schema.title || campo.segmentos.join(' › ') }}
+              </option>
+            </select></label
+          >
+          <label
+            >Operador<select [(ngModel)]="operador">
+              <option value="equals">É igual a</option>
+              <option value="different">É diferente de</option>
+              <option value="present">Está presente</option>
+              <option value="absent">Está ausente</option>
+              <option *ngFor="let opcao of operadores" [value]="opcao.valor">
+                {{ opcao.rotulo }}
+              </option>
+            </select></label
+          >
+          <app-valor-condicao
+            *ngIf="!['present', 'absent'].includes(operador)"
+            [definicao]="definicao"
+            [tipo]="tipoAtivo"
+            [texto]="valor"
+            [valor]="valorAtual"
+            (textoAlterado)="definirTexto($event)"
+            (rascunhoAlterado)="definirTexto($event)"
+            (valorAlterado)="definirValor($event)"
+            (tipoAlterado)="definirTipo($event)"
+          ></app-valor-condicao>
+        </div>
       </div>
-      <button type="button" class="apply-condition" (click)="aplicarFolha()">
-        Aplicar condição
-      </button>
-      <details>
-        <summary>Ver condição atual</summary>
-        <pre>{{ schema | json }}</pre>
-      </details>
     </ng-template>
   </ng-container>
   <p role="alert" class="builder-error" *ngIf="erro">{{ erro }}</p>
-</fieldset>
+</div>

@@ -10,6 +10,23 @@ Estado atual: 1.302 casos core oficiais + quatro opcionais de format-assertion,
 sem exclusões; testes próprios/DOM e E2E entre navegadores. Dispositivos físicos
 continuam dependentes de acesso a equipamento/serviço. Consulte o ciclo final abaixo.
 
+## Perfil de negócio — revisão da Construção
+
+Os itens P1–P5 abaixo registram a evolução técnica. Recursos avançados implementados
+não precisam estar expostos na Construção: agora são mantidos em **Para Dev**.
+
+- [x] Verificar compatibilidade por contexto e combinação antes de permitir autoria visual.
+- [x] Avisar motivos/caminhos, bloquear mutações e preservar JSON sem conversão.
+- [x] Manter preview/exportação/Para Dev e desbloquear após correção compatível.
+- [x] Remover dependências e padrões da Construção e dos modais de negócio.
+- [x] Explicar os limites da Construção e separá-los da capacidade do renderer.
+- [x] Validar regressões, build e fluxos nos seis perfis de navegador.
+
+Evidências: `npm run check` aprovado (1.609 testes, zero falhas/omissões,
+TypeScript/templates e build de produção); `npm run test:e2e` aprovado
+(36 cenários, seis perfis). Capturas do bloqueio conferidas em desktop e mobile.
+Escape do preview corrigido e coberto. A homologação em hardware físico segue pendente.
+
 ## P1 — Preservação e correções
 
 - [x] Proteger o SE importado complexo contra substituição pela edição simplificada.
@@ -333,3 +350,131 @@ Demais suites opcionais e certificação de dispositivos reais não são declara
 - [JSON Schema Core 2020-12](https://json-schema.org/draft/2020-12/json-schema-core)
 - [JSON Schema Validation 2020-12](https://json-schema.org/draft/2020-12/json-schema-validation)
 - [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite)
+
+## Ciclo — condições em linguagem de negócio
+
+- [x] Substituir botões Agrupar por Atender: Todas as condições / Pelo menos uma condição.
+- [x] Disponibilizar Adicionar condição no fluxo principal, preservando a comparação existente.
+- [x] Recolher grupos aninhados, inversão e consulta JSON em Condições avançadas.
+- [x] Identificar inversão ativa e apresentar os ramos Então / Caso contrário.
+- [x] Atualizar documentação e regressões de edição/troca de operador/preservação de ações.
+- [x] Conferir layout final em desktop/mobile e executar validação completa após corrigir sobreposição do cabeçalho.
+
+Evidência deste ciclo: `npm run check:all` aprovado, 1.610 testes sem falhas/omissões,
+build de produção e 36 E2E nos seis perfis. Capturas `condicoes-negocio.png`
+conferidas em desktop e mobile. Log: `/private/tmp/schema-condicoes-negocio-final.log`.
+
+## Ciclo — IF somente com E/OU na Construção
+
+Este ciclo substitui a proposta anterior de expor Condições avançadas recolhidas.
+
+- [x] Remover da interface os controles de grupos aninhados, inversão e consulta JSON.
+- [x] Manter comparação única ou lista plana: Todas as condições (E) / Pelo menos uma condição (OU).
+- [x] Manter Diferente de, Não contém e Está ausente como comparações simples.
+- [x] Preservar schemas avançados importados e bloquear sua edição na Construção, indicando Para Dev.
+- [x] Atualizar documentação e regressões para o perfil simplificado.
+- [x] Concluir check completo e conferência visual desktop/mobile.
+
+Validação deste ciclo: `npm run check:all` aprovado, 1.615 testes sem falhas/omissões,
+build de produção e 36 E2E em seis perfis. Capturas desktop/mobile conferidas.
+Log local: `/private/tmp/schema-if-simples-final.log`.
+
+## Ciclo — alinhamento das condições e propriedades
+
+- [x] Exibir condições uma abaixo da outra, sem cards individuais, com SE na primeira e E/OU nas seguintes.
+- [x] Atualizar os conectores ao trocar a combinação e preservar as ações dos ramos.
+- [x] Colocar Tipo da propriedade acima do seletor e alinhar o botão de adicionar à mesma altura.
+- [x] Dar estilos próprios ao seletor de propriedade, sem depender do carregamento do editor oneOf.
+- [x] Concluir verificação de geometria, capturas desktop/mobile e validação completa.
+
+Evidência do alinhamento: 1.616 testes, build de produção e 42 E2E aprovados;
+capturas e geometria conferidas para objetos/listas em desktop/mobile.
+Log local: `/private/tmp/schema-layout-propriedade.log`.
+
+## Ciclo — revisão do CSS e ajuda da Construção
+
+- [x] Remover 65 declarações CSS substituídas por declarações posteriores, preservando contexto e prioridade.
+- [x] Separar ajuda e estados de compatibilidade em `construcao-ajuda.css`.
+- [x] Reorganizar a ajuda em Campos e validações, Regras de negócio e Quando usar o Para Dev.
+- [x] Explicar lista plana E/OU, preservação, desbloqueio e limites de visualização.
+- [x] Concluir validação completa, interação da ajuda e conferência de capturas desktop/mobile.
+
+Evidência da revisão: `npm run check:all` aprovado, 1.616 testes sem falhas/omissões,
+build de produção e 48 E2E em seis perfis. Ajuda aberta/fechada, ausência de overflow,
+alinhamento do seletor e conectores E/OU verificados. Capturas desktop/mobile conferidas.
+Log local: `/private/tmp/schema-css-ajuda.log`.
+
+## Ciclo — atributos discretos e ações das condições
+
+- [x] Uniformizar superfície branca, seleção e foco azuis para atributos e objetos.
+- [x] Isolar hover dos atributos internos do estilo laranja global.
+- [x] Colocar Adicionar condição ao lado de Atender, Excluir à esquerda e Aplicar ao final da linha.
+- [x] Atualizar conectores E/OU ao trocar Atender, preservando comparações e ramos.
+- [x] Recolher a escolha do tipo em + Atributo e fechar após adicionar.
+- [x] Oferecer objetos e listas no seletor de atributos e conferir navegação em objetos aninhados.
+- [x] Concluir testes e capturas da versão final nos seis perfis.
+
+## Ajuste — objetos aninhados no próprio card
+
+- [x] Retirar Abrir atributos e manter a edição no contexto do objeto.
+- [x] Renderizar atributos de objetos/listas de objetos dentro do card, com + Atributos em cada nível.
+- [x] Reutilizar um componente recursivo de apresentação com limite de profundidade, preservando os comandos de edição do builder.
+- [x] Verificar inclusão de objeto interno e campo dentro dele por eventos reais no navegador.
+- [x] Concluir a rodada final de validação e conferência visual.
+
+Objetos aninhados validados com `npm run check:all`: 1.616 testes sem falhas/omissões,
+build e 54 E2E nos seis perfis. Capturas adicionais desktop/mobile conferidas.
+Na revisão visual, o cabeçalho da Construção passou a acompanhar o fluxo normal
+também em Componentes, evitando sobreposição durante edição de atributos no celular.
+
+Validação final após a correção do cabeçalho: `npm run check:all` aprovado,
+1.616 testes sem falhas/omissões, build e 54 E2E. Capturas de objetos aninhados
+conferidas em desktop/mobile. Log: `/private/tmp/schema-inline-final.log`.
+
+## Ciclo — aplicação única do Quando
+
+- [x] Retirar aplicação individual das linhas e oferecer um único Aplicar condição no rodapé do Quando.
+- [x] Manter campo/operador/valor, E/OU, inclusão e exclusão de linhas em rascunho até aplicar.
+- [x] Validar todas as comparações antes de publicar uma única alteração; preservar a regra anterior em caso de erro.
+- [x] Oferecer Descartar alterações sem reverter mudanças já salvas em Então/Caso contrário.
+- [x] Preservar metadados e comparações sem alterações, incluindo ausência de required no schema de origem.
+- [x] Evitar transferência de rascunhos ao excluir regras com IFs iguais e reiniciar a sessão ao receber outro IF.
+- [x] Cobrir erros numéricos/JSON, aplicação atômica, descarte e alterações externas com testes.
+- [x] Concluir check completo e conferência do rodapé em desktop/mobile.
+
+Aplicação única validada: `npm run check:all` aprovado com 1.621 testes sem
+falhas/omissões, build de produção e 54 E2E em seis perfis. Capturas desktop/mobile
+conferidas e schema original comparado antes de aplicar.
+Log local: `/private/tmp/schema-quando-atomico-check.log`.
+
+### Criação direta de alternativas exclusivas
+
+- [x] Remover a pergunta de modo: o botão adiciona conjuntos de campos diretamente.
+- [x] Preservar oneOf por valor importado e orientar sua edição no Para Dev.
+- [x] Atualizar a ajuda e a documentação do perfil Construção.
+
+### Ocultação com valor nulo — consistência de origem, ramos e payload
+
+- [x] Bloquear ocultação de campo obrigatório na origem ou no ramo.
+- [x] Exigir null permitido pela definição completa da origem e pela comparação do ramo.
+- [x] Gerar tipo não nulo no ramo visível e tipo null no oculto, preservando limites da origem.
+- [x] Desabilitar o controle com tooltip quando a ocultação não é permitida.
+- [x] Desabilitar comparações no ramo oculto e respeitar o tipo ativo no controle de preenchimento.
+- [x] Normalizar campos ocultos para null, incluindo objetos internos e itens de lista.
+- [x] Validar no atributo da condição sem bloquear cadastro, salvamento ou edição geral.
+- [x] Preservar schemas técnicos antigos sem migração automática e mostrar incompatibilidades no próprio atributo, permitindo corrigir sua visibilidade.
+- [x] Cobrir texto, inteiro, decimal, booleano, objeto e lista com testes de regressão e DOM.
+- [x] Concluir suíte E2E nos seis perfis de navegador: 66 cenários aprovados.
+
+Validação de ocultação: `npm run check:all` aprovado com 1.645 testes, tipos Angular,
+build de produção e 66 E2E nos seis perfis. Cadastro e edição geral permanecem disponíveis.
+
+### Navegação e cabeçalho da Construção
+
+- [x] Posicionar título e descrição abaixo do card de etapas.
+- [x] Manter Anterior à esquerda e Próximo à direita, ocupando toda a largura do rodapé.
+- [x] Mostrar os dois botões e desativar Anterior na primeira etapa e Próximo na segunda.
+- [x] Validar navegação, posição, largura e limites nos seis perfis; capturas desktop e mobile conferidas.
+
+Validação: 1.645 testes e 66 E2E aprovados; após o ajuste final de largura/margem,
+os seis cenários de navegação foram repetidos e aprovados. Build de produção aprovado.

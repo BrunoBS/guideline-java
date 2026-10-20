@@ -35,6 +35,51 @@ ocupando toda a largura disponível. Para testar os campos, use o botão
 **Visualizar formulário**, que abre o formulário em um modal. Não há prévia
 lateral em Para Dev nem formulário de importação separado na aba Construção.
 
+### Limites da Construção
+
+- Raiz do tipo objeto; campos de texto, inteiro, decimal, booleano, objeto e listas homogêneas. Campos podem aceitar também `null`.
+- Validações básicas e enums de texto/número. Listas de objetos permitem editar seus campos; restrições avançadas dos itens exigem Para Dev.
+- Condições SE / ENTÃO / SENÃO com operadores guiados, E/OU em uma lista plana e comparações nos ramos; oneOf por conjuntos de campos, adicionados diretamente. Para condicionar campos por valor, use Quando / Então / Caso contrário; oneOf por valor importado é preservado e editado no Para Dev.
+- Referências, dependências, propriedades por padrão, tuplas, uniões de vários tipos, interseções gerais e recursos sem controle visual bloqueiam a edição da Construção.
+
+O aviso **Edição visual indisponível** explica os motivos e seus caminhos no schema.
+Adicionar, remover, reordenar ou configurar campos/regras fica desabilitado para
+preservar o documento integral. Visualizar formulário, consultar/exportar schema e
+Para Dev permanecem disponíveis. A correção no Para Dev desbloqueia automaticamente
+a Construção. Um JSON inválido também bloqueia a edição visual do último documento válido.
+O perfil é verificado por contexto e combinação de regras, não apenas pelo nome da keyword.
+
+**Renderizar é uma capacidade separada de construir.** Um schema fora desse perfil
+pode continuar gerando controles e sendo validado pelo contrato original. Referências
+dinâmicas e limites de expansão têm fallback JSON com aviso. Não há garantia de
+converter qualquer schema complexo em controles convencionais; referências externas
+precisam estar incorporadas ou registradas offline. Consulte a
+[cobertura e os limites](docs/COMPATIBILIDADE-JSON-SCHEMA.md).
+
+Nos objetos e nas listas de objetos, **+ Atributos** abre um seletor compacto apenas
+quando necessário. Ele oferece os seis tipos, incluindo Objeto e Lista. Após
+adicionar, o seletor se recolhe. Os campos de objetos aninhados aparecem dentro
+do próprio card, com **+ Atributos** em cada nível, sem botão de navegação.
+Isso cria estruturas finitas; schemas autorreferentes por
+`$ref` continuam no Para Dev.
+
+Em condições compostas, **Adicionar condição** fica ao lado de **Atender**,
+**Excluir** à esquerda de cada linha e um único **Aplicar condição** no final do bloco
+**Quando**. Campo, operador, valor, E/OU e inclusão/exclusão de linhas ficam em rascunho.
+O formulário, a visualização e a exportação do schema continuam usando a última regra
+aplicada. Aplicar valida o bloco inteiro e salva todas as comparações de uma vez;
+um erro mantém a regra anterior. **Descartar alterações** restaura apenas o IF,
+preservando mudanças já salvas em Então/Caso contrário. A troca de Atender atualiza
+os conectores imediatamente, sem publicar o rascunho.
+Primitivos e objetos usam fundo branco, seleção com contorno azul e foco azul;
+o hover dos atributos internos não herda o fundo laranja dos botões globais.
+
+A seção **O que posso criar na Construção?** organiza a orientação em **Campos e
+validações**, **Regras de negócio** e **Quando usar o Para Dev**, com um exemplo de
+aprovação. Ela explica o bloqueio e a preservação do documento. Seus estilos e os
+dos avisos de compatibilidade ficam em `features/builder/construcao-ajuda.css`;
+os estilos do layout da Construção permanecem em `schema-builder.component.css`.
+
 Em **Para Dev**, **Validar JSON** verifica a sintaxe e o contrato com Ajv;
 **Formatar JSON** aplica indentação de dois espaços a um contrato válido.
 Esses botões preservam os valores preenchidos no formulário. Se o conteúdo for
@@ -132,6 +177,12 @@ está aberto, alterações ficam no rascunho; cancelar descarta o rascunho e sal
 emite o contrato uma vez. Título, descrição, obrigatoriedade e enum continuam
 compartilhados.
 
+`EditorQuandoComponent` mantém uma sessão de rascunho por regra. Ele reaproveita o
+editor de domínio sobre uma cópia do documento e coleta as comparações antes de emitir
+uma única alteração do IF. Identidades estáveis impedem que excluir uma regra transfira
+seu rascunho para a regra seguinte. Mudanças nos ramos preservam o rascunho; uma nova
+versão externa do IF reinicia a sessão.
+
 As regras têm componentes de configuração e lógica de edição separados em
 `regras/condicoes` e `regras/alternativas`. Seus componentes recebem `schema` e
 `caminhoObjeto`, emitem a intenção de alteração pelo evento `alteracao` e
@@ -195,25 +246,38 @@ No **SE (IF)**, um campo booleano apresenta um controle liga/desliga em
 tipos booleanos que também permitem `null`. Outros tipos mantêm seu controle de valor.
 
 Cada ramo tem um único seletor **Adicionar campo ao ramo**. O campo entra visível
-e opcional quando não há obrigatoriedade na origem, sem alterar o `required` global. Dentro do campo, **Visível neste ramo**
-e **Obrigatório neste ramo** são controles separados. Marcar obrigatório garante
-visibilidade para campos opcionais na origem; desmarcar obrigatório mantém o campo
-visível e opcional. Quando o campo é obrigatório na origem, os dois controles
-ficam marcados e desativados. A indicação **Obrigatório na origem ⓘ** e os controles
-possuem um tooltip explicativo; a indicação pode receber foco pelo teclado.
-Para permitir alterações no ramo, remova a obrigatoriedade na edição de origem. Para ocultá-lo, desmarque também
-visível. Campos obrigatórios não podem ser ocultados.
+e opcional quando não há obrigatoriedade na origem, sem alterar o `required` global.
+A inclusão mantém o campo visível também no outro ramo, até configurar explicitamente
+sua ocultação. **Visível neste ramo** e **Obrigatório neste ramo** são controles separados.
+Campos obrigatórios na origem ou no ramo precisam permanecer visíveis. Campos obrigatórios
+na origem têm os dois controles desativados, com tooltip explicativo.
 
-Para **SE categoria é igual a OUTRO → descricao obrigatória e visível**, adicione
-`descricao` em ENTÃO e marque **Obrigatório neste ramo**. SENÃO permite configurar
-o comportamento inverso. Campos com visibilidade condicional ficam ocultos fora
-dos ramos configurados. Múltiplas condições mostram o campo quando ao menos um
-ramo ativo permite a exibição. Campos obrigatórios na raiz permanecem visíveis.
-Valores preenchidos são preservados ao ocultar. A visibilidade é armazenada em
-`properties.<campo>.x-ui.visible` no ramo e é uma anotação de apresentação; o Ajv
-continua validando o contrato completo. Schemas antigos sem essa anotação mantêm
-a visibilidade baseada no `required` condicional. Restrições de valor ou texto
-isoladas em schemas importados não ocultam campos.
+Para ocultar um campo, a definição completa da origem precisa aceitar `null`: habilite
+**Permitir nulo**; quando houver enum, esse controle sincroniza também `null` nos valores permitidos, preservando os rótulos. Uma comparação
+que rejeite `null` precisa ser removida antes de ocultar. O controle fica desativado com
+tooltip quando a origem ou a obrigatoriedade impedem a ação. Comparações ficam indisponíveis
+no ramo oculto. Isso vale para texto, inteiro, decimal, booleano, objeto e lista.
+
+Para **SE precisa de aprovação → justificativa obrigatória e visível**, configure a origem
+como `type: ["string", "null"]`, mantendo `minLength` e `maxLength`. Adicione `justificativa`
+em Então e marque **Obrigatório neste ramo**. Em Caso contrário, desative **Visível neste ramo**.
+A Construção gera `type: "string"` no ramo visível e `type: "null"` no oculto, com
+`x-ui.visible` em ambos. Os limites continuam definidos na origem e valem para os valores
+do tipo correspondente. Objetos nulos não precisam preencher seus filhos; listas nulas
+não precisam cumprir `minItems`.
+
+O renderer substitui o valor por `null` ao ativar esse ramo oculto, inclusive em objetos
+internos e itens de listas. O valor anterior é descartado. Ao reaparecer, o campo precisa
+ser preenchido novamente; o controle não oferece `null` quando o ramo exige valor não nulo.
+A validação acontece no atributo da condição: ela não bloqueia o cadastro nem a edição geral da Construção.
+
+`x-ui.visible` continua sendo uma anotação visual: quem impõe o tipo é o JSON Schema gerado.
+Schemas técnicos antigos com apenas visibilidade preservam os valores e seguem a validação
+integral do contrato; não são migrados silenciosamente. Importações com ocultação incompatível permanecem editáveis na Construção: o aviso aparece
+no atributo, e o controle impede apenas uma nova ocultação incompatível. Um campo já oculto
+pode ser tornado visível para corrigir a configuração.
+Schemas antigos sem essa anotação mantêm a visibilidade baseada no `required` condicional.
+Restrições de valor ou texto isoladas em schemas importados não ocultam campos.
 
 As comparações de texto diferenciam maiúsculas e minúsculas e tratam os caracteres
 especiais como texto literal. O padrão é gerado em `pattern`. Uma nova comparação
@@ -244,14 +308,11 @@ Os campos obrigatórios na origem continuam obrigatórios em todas as alternativ
 e não podem ser proibidos nem ter sua obrigatoriedade removida pelo editor de regras.
 Também não é permitido exigir e proibir o mesmo campo em uma alternativa.
 
-**Por valor de um campo** cria alternativas com valores distintos em `const`.
-Enums preservam os tipos originais (inclusive números, booleanos, null e objetos).
-Sem enum, a criação procura valores compatíveis com o tipo e as validações da origem;
-se não houver dois valores válidos disponíveis, o editor solicita cadastrar valores
-permitidos. A edição usa seleção para enum, liga/desliga para booleanos e entrada
-numérica para números. Valores incompatíveis ou repetidos são recusados, sem alterar
-o contrato. Trocar o campo de escolha preserva outras propriedades e validações
-das alternativas e atribui valores válidos do novo campo.
+**Por valor de um campo** é um formato técnico de `oneOf`, disponível por JSON
+na aba Para Dev. Schemas importados nesse formato são preservados e bloqueiam a
+edição na Construção. Para mostrar ou exigir campos conforme um valor, como EMAIL
+ou SMS, use Quando / Então / Caso contrário na Construção. O renderizador e a
+validação continuam processando alternativas por valor.
 
 As operações de criar, editar, adicionar e remover alternativas usam o objeto
 selecionado, incluindo objetos internos e objetos em itens de listas, preservando
@@ -349,20 +410,20 @@ exigem ajuste explícito em Para Dev.
 Além de igualdade/diferença, o SE oferece comparações numéricas e comparações
 literais de texto. Está presente e Está ausente verificam a existência da
 propriedade e não exibem valor esperado: `false`, `null`, `0` e `""` contam como
-presença. Para compor o SE, use **Agrupar: Todas (E)**, **Qualquer uma (OU)** ou **Negar
-expressão**. O editor recursivo permite incluir/remover condições e escolher
+presença. Em **Quando**, escolha **Atender → Todas as condições (E)** ou
+**Pelo menos uma condição (OU)** e use **+ Adicionar condição**. Os ramos são
+apresentados como **Então** e **Caso contrário**. O editor recursivo permite incluir/remover condições e escolher
 campos internos por caminho, como `/endereco/pais`. Os pais precisam existir para
 a comparação ser atendida. Avisos destacam conflitos demonstráveis; sua ausência
 não prova que um schema arbitrário é satisfatível.
 
 ## Estruturas avançadas e fechamento de P1–P3
 
-Na etapa **Regras**, abra **Dependências e padrões do objeto selecionado** para
-configurar dependências e propriedades dinâmicas. Os objetos também oferecem
-esses controles no modal de validações. Listas oferecem posições de tupla,
-contains e limites de correspondências. Subschemas completos têm áreas JSON
-específicas, validadas antes de alterar o contrato. Entradas inválidas preservam
-a versão anterior.
+A Construção é voltada à autoria de negócio. Dependências, padrões de propriedades,
+tuplas, contains e outros recursos avançados são editados em JSON na aba **Para Dev**.
+O bloco “Dependências e padrões do objeto selecionado” foi retirado da Construção.
+Os componentes técnicos internos continuam preservados e testados, sem ampliar o
+perfil de autoria visual exposto ao usuário.
 
 A auditoria de preservação cobre os 45 exemplos do catálogo, além de fixtures com
 recursos internos, regras avançadas e anotações desconhecidas. Editar uma descrição
@@ -389,15 +450,20 @@ objetos/listas usam JSON. Entradas incompatíveis são recusadas antes de emitir
 comparação. Caminhos internos exigem que os pais sejam objetos, evitando que um
 pai nulo satisfaça a condição.
 
-Em grupos, **Operador do grupo** troca E/OU mantendo os filhos. **Subgrupo E/OU**
-acrescenta um grupo filho; **Envolver em grupo E/OU** cria um grupo ao redor da
-expressão. Os controles mantêm seus rascunhos durante alterações de outras regras.
+No seletor **Atender**, **Todas as condições** exige que cada condição seja verdadeira;
+**Pelo menos uma condição (OU)** exige apenas uma. A troca preserva as condições existentes.
+**+ Adicionar condição** inclui outra linha, com os valores da anterior para edição.
+As comparações ficam uma abaixo da outra, sem cards individuais: a primeira é
+identificada por **SE** e as seguintes por **E** ou **OU**, conforme a combinação escolhida.
 
-Dependências, nomes de propriedades, propriedades dinâmicas, tuplas e contains
-usam seções recolhíveis, com colunas adaptáveis à largura disponível. Os controles
-de estruturas também aparecem para objetos/listas que aceitam null. Rascunhos de
-JSON pertencem ao estado do editor e são preservados durante detecção de mudanças
-e aplicação de outras regras. A navegação para outro caminho limpa esses rascunhos.
+A Construção não oferece grupos aninhados, inversão da expressão nem consulta JSON
+dentro da condição. Esses recursos ficam no **Para Dev**. Contratos importados que
+precisam desses recursos são preservados e bloqueiam a edição visual, com aviso.
+As comparações **É diferente de**, **Não contém** e **Está ausente** continuam
+disponíveis. Um IF aceita uma comparação ou uma lista plana combinada por **E** ou **OU**.
+
+Os testes dos componentes técnicos continuam cobrindo rascunhos e preservação
+para uso interno. Na interface de negócio, esses recursos exigem **Para Dev**.
 
 ### Ausência e valor nulo no formulário
 
@@ -425,3 +491,7 @@ Prepare os navegadores com `npx playwright install chromium firefox webkit`.
 `npm run check:all` reúne as validações e é obrigatório no CI e antes da publicação.
 A [homologação](docs/HOMOLOGACAO.md) registra o que foi executado e o que ainda exige
 um dispositivo físico. Não há declaração de conformidade integral com JSON Schema.
+
+Na Construção, o título e a descrição ficam abaixo do indicador de etapas. O rodapé
+sempre mostra Anterior à esquerda e Próximo à direita: Anterior fica desativado na
+etapa Componentes e Próximo na etapa Regras e condições, inclusive em telas pequenas.

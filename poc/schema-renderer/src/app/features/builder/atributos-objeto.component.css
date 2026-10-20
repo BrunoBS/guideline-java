@@ -1,0 +1,47 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.attribute-item.inline-object-child {
+  display: block;
+  min-width: 0;
+  padding: 8px 0;
+}
+.attribute-item.attribute-object {
+  border: 1px solid #d6e1ee;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 8px 0;
+}
+.attribute-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.attribute-row .inline-object-child-main {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+.attribute-row .field-card-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+.attribute-item > app-atributos-objeto {
+  margin: 8px 0 0 10px;
+  padding-left: 10px;
+  border-left: 1px solid #e2e8f0;
+}
+@media (max-width: 600px) {
+  .attribute-item.attribute-object {
+    padding: 8px;
+  }
+  .attribute-item > app-atributos-objeto {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+}

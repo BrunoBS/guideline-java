@@ -13,6 +13,8 @@ export function descreverRestricoesDoCampo(schema: Schema | boolean): string {
   if (schema === false) return 'Nenhum valor é permitido neste ramo.';
   if (schema === true) return 'Qualquer valor é permitido neste ramo.';
   const mensagens: string[] = [];
+  if (schema.type === 'null' && schema['x-ui']?.visible === false)
+    mensagens.push('Campo oculto: o valor enviado será null.');
   if (Object.hasOwn(schema, 'const'))
     mensagens.push(`Deve ser igual a ${JSON.stringify(schema.const)}.`);
   if (

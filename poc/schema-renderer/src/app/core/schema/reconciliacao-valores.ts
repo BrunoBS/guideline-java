@@ -1,3 +1,5 @@
+import { campoVisivelNaCondicao } from './visibilidade-condicional';
+import { valorAtendeSchema } from './validacao-schema';
 import {
   Schema,
   obterTipoPrincipal,
@@ -116,6 +118,20 @@ export function ajustarValorAoSchema(
   if (obterTipoPrincipal(s) === 'object' && value !== null) {
     const next: Record<string, any> = { ...value };
     const required = new Set<string>(s.required || []);
+    // Somente a política explícita de ocultação nula transforma dados. Schemas
+    // técnicos antigos, que apenas ocultam visualmente, mantêm seus valores.
+    for (const key of Object.keys(s.properties || {})) {
+      const child = obterSchemaDaPropriedade(s, key, root);
+      if (
+        child.type === 'null' &&
+        child['x-ui']?.visible === false &&
+        !required.has(key) &&
+        !campoVisivelNaCondicao(schema, key, value, root) &&
+        valorAtendeSchema(child, null, root)
+      )
+        next[key] = null;
+    }
+
     for (const key of Object.keys(next)) {
       const path = `${currentPath}/${escaparSegmentoJson(key)}`;
       if (!Object.hasOwn(s.properties || {}, key) && branchPaths.has(path)) {

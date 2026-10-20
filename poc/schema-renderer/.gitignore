@@ -1,0 +1,10 @@
+node_modules/
+.angular/
+dist/
+out-tsc/
+coverage/
+*.log
+.DS_Store
+
+playwright-report/
+test-results/

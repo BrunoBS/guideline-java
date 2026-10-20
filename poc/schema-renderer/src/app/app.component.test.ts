@@ -118,3 +118,14 @@ test('catálogo carrega o exemplo de compatibilidade com as condições ajustada
   app.validarDocumentoSchema();
   assert.equal(app.parseError, '');
 });
+
+test('Escape fecha as visualizações e preserva o contrato', () => {
+  const app = new AppComponent();
+  const schema = app.schema;
+  app.previewOpen = true;
+  app.schemaPreviewOpen = true;
+  app.fecharVisualizacoes();
+  assert.equal(app.previewOpen, false);
+  assert.equal(app.schemaPreviewOpen, false);
+  assert.equal(app.schema, schema);
+});

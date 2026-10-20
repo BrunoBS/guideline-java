@@ -157,6 +157,8 @@ export abstract class CampoBase {
   }
 
   private obterSchemaDoControleDeNulo(s: Schema): Schema {
+    // A política explícita de visibilidade restringe o tipo no ramo ativo.
+    if (typeof s['x-ui']?.visible === 'boolean') return s;
     const base = this.obterSchemaOriginalDoCaminho();
     return base !== undefined ? resolverReferencia(base, this.root) : s;
   }
