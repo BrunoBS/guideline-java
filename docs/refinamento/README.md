@@ -1,5 +1,8 @@
 # Refinamentos
 
+> **Aviso de vigência (2026-10-20):** os refinamentos são propostas e registros de evolução. Não inferir implementação, versão de biblioteca ou endpoint atual a partir destes arquivos. Para código vigente consulte [Workspace Service](https://github.com/BrunoBS/account-service/blob/main/docs/IMPLEMENTATION-BASELINE.md) e [Platform Libraries](https://github.com/BrunoBS/platform-libraries/blob/main/docs/foundation/PLATFORM-LIBRARIES-MODULES.md).
+
+
 Esta pasta organiza os refinamentos funcionais e técnicos em sequência de desenvolvimento e preserva o histórico de evolução de cada feature.
 
 ## Sequência
