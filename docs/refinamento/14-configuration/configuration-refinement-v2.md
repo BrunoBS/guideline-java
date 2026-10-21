@@ -125,28 +125,57 @@ ParameterProvider parameterProvider(
 
 **Repositório:** `BrunoBS/platform-libraries` — módulo `platform-parameter-client`.
 
+### Decisão arquitetural: segregação definitiva de contratos
+
+O `ParameterProvider` **não está em uso** e deve ser **removido**, sem `@Deprecated`, alias, fachada de compatibilidade ou herança entre os novos contratos.
+
+Criar duas interfaces públicas, independentes:
+
+```java
+public interface ConfigurationProvider {
+    <T> T get(String key, T defaultValue);
+    <T> T get(String key, Class<T> type, T defaultValue);
+    <T> T get(String key, TypeReference<T> type, T defaultValue);
+}
+
+public interface ExpressionProvider {
+    boolean matches(String key, Object input);
+    boolean matches(String key, Object input, boolean defaultValue);
+}
+```
+
+Conferir o `TypeReference` real da biblioteca (Jackson 3) e preservar as assinaturas e semânticas atuais de `get` e `matches`. Não introduzir outros overloads sem necessidade.
+
+Implementar `RedisConfigurationProvider` e `RedisExpressionProvider` como componentes internos distintos. Extrair um leitor/decodificador interno compartilhado (por exemplo, `RedisParameterReader`) para buscar o envelope publicado via `RedisStore`, validar `type` e desserializar o conteúdo, evitando duplicação de acesso Redis. A avaliação da expressão permanece responsabilidade exclusiva de `RedisExpressionProvider`; o retorno tipado de configuração permanece exclusivo de `RedisConfigurationProvider`. Nenhuma interface deve herdar da outra.
+
 ### Implementação
 1. Atualizar dependência para versão/commit que contenha a Etapa 1, seguindo parent/BOM e política de versões vigentes.
-2. Alterar `ParameterClientAutoConfiguration` para injetar `RedisStore` anotado `@RedisNamespace(value="dynamic-parameter", mode=SHARED)`.
+2. Alterar `ParameterClientAutoConfiguration` para injetar `RedisStore` anotado `@RedisNamespace(value="dynamic-parameter", mode=SHARED)` e registrar **dois beans públicos distintos**, um `ConfigurationProvider` e um `ExpressionProvider`, reutilizando leitor interno/codec e a mesma conexão Redis.
 3. Remover validação de `PlatformRedisProperties.namespaceMode()/namespace()` global e mensagem de erro que obrigava a aplicação a configurar o namespace padrão como `dynamic-parameter`.
-4. Manter `ParameterProvider` como interface pública e `RedisParameterProvider` como implementação interna. Não expor `RedisStore` aos consumidores de parâmetros.
+4. Remover `ParameterProvider` e `RedisParameterProvider`, migrando código interno, auto-configuração, testes e exemplos para os dois novos contratos. Não manter API legada por compatibilidade, pois ainda não há consumidores em produção.
 5. Preservar `get`, `matches`, tipos, erros, fallback, envelope JSON, precisão numérica e leitura somente; não reintroduzir regex de formato da chave no cliente (regra de cadastro pertence ao produtor). Manter checagem nulo/vazio e validações genéricas da infraestrutura.
-6. Garantir coexistência de `ParameterProvider` e `RedisStore` padrão de outra feature no mesmo processo.
+6. Garantir coexistência dos dois providers com `RedisStore` padrão de outra feature no mesmo processo; ambos devem usar o mesmo namespace físico `dynamic-parameter`.
+7. Confirmar que `get` rejeita ou trata corretamente envelopes `EXPRESSION` e `matches` rejeita ou trata corretamente envelopes `CONFIGURATION`, preservando os erros/fallbacks existentes; não transformar incompatibilidade de tipo em resultado silencioso.
 
 ### Testes obrigatórios
-- `ParameterProvider` resolve `dynamic-parameter:<chave>` mesmo com `platform.redis.namespace` global diferente e `ISOLATED`.
-- Aplicação com Parameter Client + store padrão + outro store anotado.
-- Todos os testes de `get`, `matches`, ausência, TTL, erros, payload inválido e precisão numérica.
-- Teste de auto-configuração real do argumento `@RedisNamespace`; verificar ausência de prefixo duplo.
+- `ConfigurationProvider` resolve `dynamic-parameter:<chave>` mesmo com `platform.redis.namespace` global diferente e `ISOLATED`.
+- `ExpressionProvider` resolve o mesmo namespace e avalia expressões reais, retornando `boolean` conforme operador e entrada.
+- Aplicação com os **dois providers** + store padrão + outro store anotado, sem colisões.
+- Todos os testes de `get`, `matches`, ausência, TTL, erros, payload inválido, fallback e precisão numérica.
+- Testar incompatibilidade de envelope `CONFIGURATION` versus `EXPRESSION`, sem avaliação indevida.
+- Teste de auto-configuração real do argumento `@RedisNamespace`; verificar ausência de prefixo duplo e beans injetáveis individualmente.
 - Ajustar testes antigos que exigiam namespace global e testes de regex de chave do cliente.
+- Confirmar por teste de compilação/arquitetura que `ParameterProvider` e `RedisParameterProvider` não permanecem na API ou na implementação.
 
 ### Documentação
-- Atualizar README do módulo, exemplos de configuração e guia da Golden.
-- Explicar que consumidor injeta somente `ParameterProvider`; namespace interno é fixo e transparente.
+- Atualizar README do módulo, exemplos de configuração, Javadocs e guia da Golden.
+- Documentar separadamente `ConfigurationProvider.get()` e `ExpressionProvider.matches()`, com exemplos de injeção em serviços diferentes.
+- Explicar que consumidores injetam **somente o provider específico à sua necessidade**; namespace interno é fixo e transparente, sem exposição de `RedisStore`.
+- Remover todas as referências públicas a `ParameterProvider` e `RedisParameterProvider` em documentação de uso; menções históricas podem permanecer apenas como histórico explicitamente marcado.
 - Remover exemplos exigindo `platform.redis.namespace=dynamic-parameter` global.
 - Corrigir links de documentação e atualizar índices quando necessário; verificar arquivos/branches reais antes de criar links.
 
-**Gate de conclusão:** testes e build verdes; nenhum ajuste exigido nos serviços que já injetam `ParameterProvider`; PR/commit isolado.
+**Gate de conclusão:** testes e build verdes; `ConfigurationProvider` e `ExpressionProvider` independentes, sem API legada; PR/commit isolado.
 
 ## 6. Etapa 3 — Workspace Service / produtor Parameter (após gate da Etapa 2)
 
