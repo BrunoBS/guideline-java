@@ -46,6 +46,7 @@ jobs:
         working-directory: poc/schema-renderer
         run: npm run build -- --base-href /guideline-java/
       # Portal Manager uses Angular 22 with TypeScript 6.0.x; publish the latest Workspace navigation POC.
+      # Refresh Pages with onboarding UI from feat/workspace-mfe-prototype (c05613ad).
       - name: Install Portal Manager dependencies
         working-directory: portal-source/workspace-mfe
         run: npm install --no-audit --no-fund
