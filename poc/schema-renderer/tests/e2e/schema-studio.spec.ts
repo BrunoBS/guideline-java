@@ -32,6 +32,9 @@ test('Para Dev formata, recusa JSON inválido e mantém o último contrato', asy
   await page.getByRole('button', { name: 'Formatar JSON', exact: true }).click();
   expect(JSON.parse(await editor.inputValue())).toEqual(schema);
   await editor.fill('{');
+  // Wait for the editor's input binding to settle before submitting the invalid draft.
+  await expect(editor).toHaveValue('{');
+  await editor.blur();
   await page.getByRole('button', { name: 'Validar JSON', exact: true }).click();
   await expect(editor).toHaveValue('{');
   await page.getByRole('button', { name: 'Construção', exact: true }).click();
