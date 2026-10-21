@@ -95,7 +95,7 @@ export class App {
  metricPages=()=>Math.ceil(this.metrics.length/4);
  visibleMetrics=computed(()=>this.allMetrics()?this.metrics:this.metrics.slice(this.metricPage()*4,this.metricPage()*4+4));
  modalTitle=computed(()=>this.modal()==='app'?(this.editingAppId?'Editar aplicação':'Nova aplicação'):this.modal()==='env'?'Configurar ambiente':'Configurar aplicação no ambiente');
- isAdmin=()=>this.accountType()==='ADMIN'||this.account()==='Conta Varejo';
+ isAdmin=()=>this.accountType()==='ADMIN'||['Conta Varejo','Conta Financeiro','Conta Demonstração'].includes(this.account());
  go(s:Screen){this.screen.set(s);if(s==='account'||s==='access'||s==='manage'||s==='configure'){this.selectedEnv.set(null);this.selectedApp.set(null)}if(s==='environment'||s==='applications')this.selectedApp.set(null);window.scrollTo(0,0)}
  login(){this.logged.set(true);this.go('types')}
  logout(){this.logged.set(false);this.account.set('');this.selectedEnv.set(null);this.selectedApp.set(null);this.go('home')}
