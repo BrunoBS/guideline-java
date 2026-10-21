@@ -62,10 +62,32 @@ export class App {
  });
  onboardingCount=computed(()=>this.onboardingSteps().filter(s=>s.done).length);
  dismissedOnboarding=new Set<string>();
+ // Cada conta da demonstração tem seu próprio estado, preservado ao alternar entre contas.
+ accountStates=new Map<string,{environments:Env[];apps:WorkspaceApplication[]}>();
+ cloneEnvironments(items:Env[]):Env[]{return items.map(e=>({...e}))}
+ cloneApps(items:WorkspaceApplication[]):WorkspaceApplication[]{return items.map(a=>({...a,environments:{...a.environments}}))}
+ saveCurrentAccountState(){if(this.account())this.accountStates.set(this.account(),{environments:this.cloneEnvironments(this.environments()),apps:this.cloneApps(this.apps())})}
+ loadAccountState(name:string){
+   let state=this.accountStates.get(name);
+   if(!state){
+     if(name==='Conta Financeiro'){
+       state={environments:[{id:'dev',name:'Desenvolvimento',type:'DEFAULT',configured:true,url:'https://dev.api.exemplo.com',publisher:'APPCONFIG'},{id:'prd',name:'Produção',type:'DEFAULT',configured:false}],apps:[{id:'payments',name:'API de Pagamentos',description:'Integração financeira',active:true,environments:{}}]};
+     }else if(name==='Conta Demonstração'){
+       state={environments:[],apps:[]};
+     }else if(name==='Conta Varejo'){
+       state={environments:this.cloneEnvironments(this.environments()),apps:this.cloneApps(this.apps())};
+     }else{
+       state={environments:[],apps:[]};
+     }
+     this.accountStates.set(name,state);
+   }
+   this.environments.set(this.cloneEnvironments(state.environments));
+   this.apps.set(this.cloneApps(state.apps));
+ }
  dismissOnboarding(){this.onboardingCelebration.set(false);if(this.account())this.dismissedOnboarding.add(this.account())}
  exploreOnboarding(){this.dismissOnboarding();this.go('access')}
  email='colaborador@empresa.com';accountNameEdit='';accountDescriptionEdit='';formName='';formDescription='';formType='CUSTOM';formUrl='';formPublisher='';editingEnvId='';editingAppId='';editingAppName='';copyFromAccount=false;
- accounts=signal([{name:'Conta Varejo',description:'Plataforma de canais digitais',restricted:false},{name:'Conta Financeiro',description:'Serviços e integrações',restricted:false},{name:'Minha Nova Conta',description:'Aguardando aprovação corporativa',restricted:true}]);
+ accounts=signal([{name:'Conta Varejo',description:'Plataforma de canais digitais · configuração concluída',restricted:false},{name:'Conta Financeiro',description:'Serviços e integrações · configuração parcial',restricted:false},{name:'Conta Demonstração',description:'Primeiros passos · nenhuma configuração concluída',restricted:false},{name:'Minha Nova Conta',description:'Aguardando aprovação corporativa',restricted:true}]);
  environments=signal<Env[]>([{id:'dev',name:'Desenvolvimento',type:'DEFAULT',configured:true,url:'https://dev.api.exemplo.com',publisher:'APPCONFIG'},{id:'hml',name:'Homologação',type:'DEFAULT',configured:true,url:'https://hml.api.exemplo.com',publisher:'CACHE'},{id:'prd',name:'Produção',type:'DEFAULT',configured:false}]);
  apps=signal<WorkspaceApplication[]>([{id:'portal',name:'Portal Web',description:'Aplicação web corporativa',active:true,environments:{dev:true,hml:true}},{id:'payments',name:'API de Pagamentos',description:'Integração financeira',active:true,environments:{}},{id:'backoffice',name:'Backoffice',description:'Sistema administrativo',active:true,environments:{dev:true}}]);
  features=[{name:'Chaves',icon:'⚿',description:'Parâmetros e configurações'},{name:'Toggles',icon:'◉',description:'Ativação de funcionalidades'},{name:'Menus',icon:'▤',description:'Estrutura de navegação'},{name:'Rotas',icon:'⇢',description:'Caminhos e destinos'},{name:'Regras',icon:'◇',description:'Regras de negócio'}];
@@ -78,10 +100,10 @@ export class App {
  login(){this.logged.set(true);this.go('types')}
  logout(){this.logged.set(false);this.account.set('');this.selectedEnv.set(null);this.selectedApp.set(null);this.go('home')}
  chooseType(t:string){this.accountType.set(t);this.go('accounts')}
- selectAccount(name:string,restricted:boolean){this.account.set(name);this.accountNameEdit=name;this.accountDescriptionEdit='Conta corporativa da plataforma';this.onboardingCelebration.set(false);this.go(restricted?'welcome':'account')}
+ selectAccount(name:string,restricted:boolean){this.saveCurrentAccountState();this.account.set(name);this.loadAccountState(name);this.accountNameEdit=name;this.accountDescriptionEdit='Conta corporativa da plataforma';this.onboardingCelebration.set(false);this.go(restricted?'welcome':'account')}
  createAccount(){const name='Conta Nova '+(this.accounts().length+1);this.accounts.update(a=>[...a,{name,description:'Aguardando aprovação corporativa',restricted:true}]);this.selectAccount(name,true)}
  copyGroup(){navigator.clipboard?.writeText('PORTAL-'+this.accountType()+'-ADMIN');this.toast.set('Grupo copiado')}
- saveAccount(){if(!this.accountNameEdit.trim())return this.toast.set('Informe o nome da conta');const old=this.account();this.accounts.update(a=>a.map(x=>x.name===old?{...x,name:this.accountNameEdit,description:this.accountDescriptionEdit}:x));this.account.set(this.accountNameEdit);this.toast.set('Conta atualizada');this.go('account')}
+ saveAccount(){if(!this.accountNameEdit.trim())return this.toast.set('Informe o nome da conta');const old=this.account();this.accounts.update(a=>a.map(x=>x.name===old?{...x,name:this.accountNameEdit,description:this.accountDescriptionEdit}:x));const state=this.accountStates.get(old);if(state){this.accountStates.delete(old);this.accountStates.set(this.accountNameEdit,state)}if(this.dismissedOnboarding.delete(old))this.dismissedOnboarding.add(this.accountNameEdit);this.account.set(this.accountNameEdit);this.toast.set('Conta atualizada');this.go('account')}
  prevMetrics(){this.metricPage.set((this.metricPage()+this.metricPages()-1)%this.metricPages())}
  nextMetrics(){this.metricPage.set((this.metricPage()+1)%this.metricPages())}
  enterEnvironment(e:Env){if(!e.configured)return;this.selectedEnv.set(e);this.go('environment')}
@@ -93,6 +115,6 @@ export class App {
  editEnvironment(e:Env){this.editingEnvId=e.id;this.formName=e.name;this.formType=e.type;this.formUrl=e.url??'';this.formPublisher=e.publisher??'';this.modal.set('env')}
  configureApp(a: WorkspaceApplication){this.editingAppId=a.id;this.editingAppName=a.name;this.copyFromAccount=false;this.formUrl='';this.formPublisher='';this.modal.set('app-env')}
  toggleCopy(){if(this.copyFromAccount){this.formUrl=this.selectedEnv()?.url??'';this.formPublisher=this.selectedEnv()?.publisher??''}else{this.formUrl='';this.formPublisher=''}}
- saveModal(){if(this.modal()==='app'){if(!this.formName.trim())return this.toast.set('Nome da aplicação é obrigatório');if(this.editingAppId){this.apps.update(a=>a.map(x=>x.id===this.editingAppId?{...x,name:this.formName,description:this.formDescription}:x))}else{this.apps.update(a=>[...a,{id:'app-'+Date.now(),name:this.formName,description:this.formDescription,active:true,environments:{}}])}}else if(this.modal()==='env'){if(!this.formName.trim()||!this.formUrl.trim()||!this.formPublisher)return this.toast.set('Preencha todos os campos obrigatórios');if(this.editingEnvId){this.environments.update(a=>a.map(x=>x.id===this.editingEnvId?{...x,configured:true,url:this.formUrl,publisher:this.formPublisher}:x))}else{this.environments.update(a=>[...a,{id:'env-'+Date.now(),name:this.formName,type:this.formType,configured:true,url:this.formUrl,publisher:this.formPublisher}])}}else if(this.modal()==='app-env'){if(!this.formUrl.trim()||!this.formPublisher)return this.toast.set('Preencha todos os campos obrigatórios');const envId=this.selectedEnv()?.id;if(!envId)return;this.apps.update(a=>a.map(x=>x.id===this.editingAppId?{...x,environments:{...x.environments,[envId]:true}}:x))}this.modal.set('');this.toast.set('Dados salvos com sucesso');if(this.onboardingCount()===4 && !this.dismissedOnboarding.has(this.account())){this.onboardingCelebration.set(true)}}
+ saveModal(){const wasComplete=this.onboardingCount()===4;if(this.modal()==='app'){if(!this.formName.trim())return this.toast.set('Nome da aplicação é obrigatório');if(this.editingAppId){this.apps.update(a=>a.map(x=>x.id===this.editingAppId?{...x,name:this.formName,description:this.formDescription}:x))}else{this.apps.update(a=>[...a,{id:'app-'+Date.now(),name:this.formName,description:this.formDescription,active:true,environments:{}}])}}else if(this.modal()==='env'){if(!this.formName.trim()||!this.formUrl.trim()||!this.formPublisher)return this.toast.set('Preencha todos os campos obrigatórios');if(this.editingEnvId){this.environments.update(a=>a.map(x=>x.id===this.editingEnvId?{...x,configured:true,url:this.formUrl,publisher:this.formPublisher}:x))}else{this.environments.update(a=>[...a,{id:'env-'+Date.now(),name:this.formName,type:this.formType,configured:true,url:this.formUrl,publisher:this.formPublisher}])}}else if(this.modal()==='app-env'){if(!this.formUrl.trim()||!this.formPublisher)return this.toast.set('Preencha todos os campos obrigatórios');const envId=this.selectedEnv()?.id;if(!envId)return;this.apps.update(a=>a.map(x=>x.id===this.editingAppId?{...x,environments:{...x.environments,[envId]:true}}:x))}this.modal.set('');this.saveCurrentAccountState();this.toast.set('Dados salvos com sucesso');if(!wasComplete && this.onboardingCount()===4 && !this.dismissedOnboarding.has(this.account())){this.onboardingCelebration.set(true)}}
 }
 bootstrapApplication(App).catch(console.error);
