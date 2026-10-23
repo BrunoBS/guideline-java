@@ -45,7 +45,7 @@ flowchart TB
 ## Jornada da pessoa usuária
 
 ~~~mermaid
-flowchart LR
+flowchart TB
   ENTRY["Acessa o Shell"] --> SESSION["BFF verifica a sessão"]
   SESSION --> CONTEXT["Workspace MFE seleciona workspace, ambiente e aplicação"]
   CONTEXT --> MENU["Navigation MFE apresenta menus e rotas"]
