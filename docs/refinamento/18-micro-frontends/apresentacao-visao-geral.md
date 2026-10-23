@@ -1,23 +1,23 @@
 # Visão geral da arquitetura do Portal Manager
 
-> Proposta greenfield para apresentação e alinhamento. O Shell/chassi e os MFEs ainda serão construídos. A capacidade não foi validada.
+> Proposta greenfield para discussão e alinhamento. O Shell/chassi, os MFEs e os serviços ainda serão construídos. Escala e alta disponibilidade são requisitos a validar, não capacidades já comprovadas.
 
-A plataforma combina quatro micro frontends, hospedados pelo Shell, com um BFF compartilhado e quatro microserviços de domínio correspondentes. O navegador mantém somente um cookie opaco. O BFF mantém a sessão e os tokens no Redis e encaminha as chamadas às APIs.
+A plataforma reúne quatro micro frontends hospedados pelo Shell, um BFF compartilhado e quatro microserviços de domínio. O navegador mantém apenas um cookie opaco. O BFF mantém sessão e tokens no Redis e encaminha as chamadas aos serviços.
 
-## Arquitetura em execução
+## Visão da arquitetura
 
 ~~~mermaid
 flowchart TB
-  subgraph FRONTEND["Frontend"]
+  subgraph FRONTEND["Frontend no navegador"]
     direction TB
     subgraph MFES["Micro frontends"]
       direction LR
-      WS["Workspace MFE<br/>contas, ambientes e aplicações"]
+      WS["Workspace MFE<br/>workspace, ambiente e aplicação"]
       CFG["Configuration MFE<br/>chaves e toggles"]
-      NAV["Navigation MFE<br/>menus e rotas"]
+      NAV["Navigation MFE<br/>menus e rotas funcionais"]
       RULES["Rules MFE<br/>regras de negócio"]
     end
-    SHELL["Shell<br/>chassi, base e composição dos MFEs"]
+    SHELL["Shell<br/>chassi, layout e composição dos MFEs"]
   end
 
   WS -. "hospedado pelo Shell" .-> SHELL
@@ -25,102 +25,131 @@ flowchart TB
   NAV -. "hospedado pelo Shell" .-> SHELL
   RULES -. "hospedado pelo Shell" .-> SHELL
 
-  WS --> BFF["BFF único da plataforma<br/>sessão web e acesso às APIs"]
-  CFG --> BFF
-  NAV --> BFF
-  RULES --> BFF
+  SHELL -. "consulta de sessão e bootstrap" .-> BFF["BFF único da plataforma"]
+  WS -->|"chamadas de domínio"| BFF
+  CFG -->|"chamadas de domínio"| BFF
+  NAV -->|"chamadas de domínio"| BFF
+  RULES -->|"chamadas de domínio"| BFF
 
-  BFF <--> ENTRA["Microsoft Entra ID<br/>identidade e autenticação"]
-  BFF <--> REDIS[("Redis em alta disponibilidade<br/>sessão e tokens")]
+  BFF <--> ENTRA["Microsoft Entra ID<br/>autenticação"]
+  BFF <--> REDIS[("Redis<br/>sessão e tokens")]
 
   BFF --> WSAPI["Workspace Service"]
   BFF --> CFGAPI["Configuration Service"]
   BFF --> NAVAPI["Navigation Service"]
   BFF --> RULESAPI["Rules Service"]
-
-  WSAPI --> WS
-  CFGAPI --> CFG
-  NAVAPI --> NAV
-  RULESAPI --> RULES
 ~~~
 
-**Leitura rápida:** o Shell forma a base visual e hospeda os MFEs. Cada MFE conversa com o BFF da plataforma. O BFF compartilha a sessão no Redis e direciona as operações aos serviços de domínio correspondentes.
+**Como ler:** o Shell hospeda os MFEs e inicia a consulta de sessão. Cada MFE chama o BFF para acessar seu domínio. O BFF mantém a sessão no Redis e encaminha as operações aos serviços. Os serviços aplicam as regras de negócio e a autorização efetiva.
 
-## Comunicação entre Shell, BFF e serviços
+## Jornada de navegação
 
-O Shell roda no navegador. Ele não chama diretamente os microserviços de domínio nem guarda tokens. Sua comunicação com o backend serve para iniciar a experiência autenticada e consultar o estado da sessão. Depois, cada MFE inicia as chamadas de negócio do seu domínio para o mesmo BFF.
+~~~mermaid
+flowchart TB
+  START["Pessoa acessa a plataforma"] --> SHELL["Shell carrega e consulta a sessão"]
+  SHELL --> AUTH{"Sessão válida?"}
+  AUTH -->|"Não"| LOGIN["BFF conduz login pelo Entra ID"]
+  AUTH -->|"Sim"| WS["Workspace MFE"]
+  LOGIN --> WS
+  WS --> CONTEXT["Seleciona workspace, ambiente e aplicação"]
+  CONTEXT --> NAV["Navigation MFE apresenta menus e rotas funcionais"]
+  NAV --> ROUTE["Pessoa seleciona uma opção"]
+  ROUTE --> LOAD["Shell resolve a rota técnica e carrega o MFE de destino"]
+  LOAD --> REQUEST["MFE chama o BFF"]
+  REQUEST --> API["Serviço de domínio valida acesso e executa a operação"]
+  API --> RESULT["BFF devolve a resposta ao MFE"]
+~~~
+
+O Shell mantém o roteador técnico e monta o MFE correspondente à rota escolhida. O Navigation MFE mantém os menus e as rotas funcionais. Workspace MFE conduz a seleção de workspace, ambiente e aplicação. A presença de um item no menu ajuda a navegação, mas não concede acesso: os serviços de domínio validam a autorização em cada operação.
+
+## Comunicação com o backend
+
+O Shell e os MFEs executam no navegador. O Shell consulta o BFF para inicializar a experiência e conhecer o estado da sessão. Cada MFE envia as chamadas de negócio do seu domínio ao mesmo BFF. O frontend não chama os microserviços diretamente e não recebe tokens de acesso.
+
+### Login e sessão
 
 ~~~mermaid
 sequenceDiagram
   participant Browser as Navegador
-  participant Shell as Shell e MFEs
+  participant Shell as Shell
   participant BFF as BFF da plataforma
   participant Redis as Redis
   participant Entra as Microsoft Entra ID
-  participant API as Serviço de domínio
 
-  Browser->>Shell: Baixa e inicia o Shell
-  Shell->>BFF: GET /bff/session, enviando cookie se existir
-  BFF->>Redis: Busca a sessão
-  Redis-->>BFF: Sessão ou ausência de sessão
-  BFF-->>Shell: Estado autenticado e contexto permitido, sem tokens
+  Browser->>Shell: Carrega arquivos estáticos
+  Shell->>BFF: Consulta sessão, enviando cookie se existir
+  BFF->>Redis: Busca sessão
+  Redis-->>BFF: Sessão ou sessão ausente
+  BFF-->>Shell: Estado da sessão e contexto permitido, sem tokens
 
-  opt Usuário ainda não autenticado
-    Shell->>BFF: Inicia login
-    BFF-->>Browser: Redireciona para autenticação
-    Browser->>Entra: Usuário autentica
-    Entra-->>Browser: Retorna ao callback do BFF
-    Browser->>BFF: Envia o código de autorização
-    BFF->>Entra: Troca o código por tokens
-    Entra-->>BFF: Tokens
-    BFF->>Redis: Salva sessão e tokens
+  opt Não há sessão válida
+    Shell->>Browser: Inicia navegação para login
+    Browser->>BFF: Abre endpoint de login
+    BFF-->>Browser: Redireciona ao Entra ID
+    Browser->>Entra: Pessoa autentica
+    Entra-->>Browser: Redireciona ao callback do BFF
+    Browser->>BFF: Entrega código de autorização
+    BFF->>Entra: Troca código por tokens
+    Entra-->>BFF: Retorna tokens
+    BFF->>Redis: Persiste sessão e tokens
     BFF-->>Browser: Define cookie opaco
   end
-
-  Shell->>BFF: MFE chama endpoint do domínio com cookie
-  BFF->>Redis: Recupera sessão e token
-  BFF->>API: Chamada autenticada
-  API-->>BFF: Resultado
-  BFF-->>Shell: Resposta do endpoint
 ~~~
 
-### Fluxo em poucas etapas
+### Chamada de negócio
 
-1. O navegador carrega os arquivos estáticos do Shell.
-2. Na inicialização, o Shell consulta o BFF para saber se existe uma sessão e obter apenas os dados de usuário e contexto necessários à interface.
-3. Se não houver sessão, o Shell inicia o login. O BFF conduz o fluxo com o Entra ID, guarda sessão e tokens no Redis e entrega ao navegador um cookie opaco.
-4. Depois do login, o Shell apresenta a navegação e carrega os MFEs. Cada MFE envia suas requisições ao BFF com o cookie. O BFF recupera os tokens no Redis e chama o serviço de domínio correspondente.
-5. O BFF devolve ao MFE somente a resposta da operação. Tokens de acesso não são expostos ao JavaScript do Shell nem dos MFEs.
+~~~mermaid
+sequenceDiagram
+  participant MFE as MFE no navegador
+  participant BFF as BFF da plataforma
+  participant Redis as Redis
+  participant API as Serviço de domínio
 
-Como proposta, o BFF pode ser publicado sob o mesmo domínio da aplicação, por exemplo em caminhos /bff/*, para simplificar o uso do cookie e reduzir a necessidade de CORS. O caminho e os endpoints mostrados são ilustrativos; os contratos serão definidos no detalhamento. As chamadas com cookie também precisam de proteção contra CSRF, e o cookie deve usar atributos seguros compatíveis com o fluxo de login.
+  MFE->>BFF: Requisição com cookie e contexto selecionado
+  BFF->>Redis: Recupera sessão e token
+  BFF->>API: Encaminha chamada autenticada
+  API->>API: Valida autorização e regras de domínio
+  API-->>BFF: Resultado
+  BFF-->>MFE: Resposta da operação
+~~~
 
-## Responsabilidades principais
+Os caminhos e nomes de endpoint ainda são ilustrativos. Como proposta, o BFF pode ficar sob o mesmo domínio web, por exemplo em /bff/*, para simplificar cookies e reduzir a necessidade de CORS. O uso de cookies exige proteção contra CSRF e atributos seguros compatíveis com o fluxo de login.
 
-- **Shell:** hospeda e compõe os MFEs. Mantém layout, navegação global, contexto, mensagens, idioma, acessibilidade e observabilidade do frontend. Inicia e apresenta os estados de login e expiração da sessão.
-- **Workspace MFE e Workspace Service:** experiência e regras de contas, ambientes e aplicações.
-- **Configuration MFE e Configuration Service:** experiência e regras de chaves e toggles.
-- **Navigation MFE e Navigation Service:** experiência e regras de menus e rotas.
-- **Rules MFE e Rules Service:** experiência e regras de negócio.
-- **BFF da plataforma:** ponto de entrada backend compartilhado. Integra autenticação com o Microsoft Entra ID, administra sessão e encaminha chamadas às APIs.
-- **Redis:** armazena sessão e tokens no backend, fora das instâncias do BFF.
-- **Serviços de domínio:** aplicam regras de negócio e autorização efetiva.
+## Responsabilidades e fronteiras
 
-## Sessão e segurança
+| Componente | Responsabilidade | Limite |
+|---|---|---|
+| **Shell** | Chassi, layout global, carregamento dos MFEs, roteador técnico, contexto comum, experiência de login/expiração, acessibilidade e observabilidade do frontend | Não implementa regras de domínio nem guarda tokens no navegador |
+| **Workspace MFE** | Seleção e experiência de workspace, ambiente e aplicação | Não concede autorização por si só |
+| **Navigation MFE** | Menus e catálogo de rotas funcionais | Não substitui o roteador técnico do Shell nem a autorização dos serviços |
+| **Configuration MFE** | Experiência de chaves e toggles | Não é dono das regras de autorização |
+| **Rules MFE** | Experiência de regras de negócio | Não substitui a validação no serviço |
+| **BFF da plataforma** | Login web, sessão, integração com Entra ID e encaminhamento das chamadas aos serviços | Não concentra regras de negócio dos domínios |
+| **Redis** | Persistência compartilhada de sessão e tokens para as instâncias do BFF | Não é fonte de regras de negócio |
+| **Serviços de domínio** | Donos dos dados, regras de negócio e autorização efetiva | Não dependem de o menu esconder uma opção para proteger uma operação |
+| **Microsoft Entra ID** | Autenticação da pessoa usuária | Não decide autorização de domínio no Portal Manager |
 
-O navegador recebe e envia um cookie opaco. O frontend não lê nem armazena tokens de acesso. O BFF mantém dados de sessão e tokens no Redis e encaminha as chamadas autenticadas. A autorização efetiva permanece nos serviços de domínio. O fluxo com cookies deve incluir proteção contra CSRF.
+## Contexto e autorização das requisições
 
-## Fronteiras de manutenção
+Após selecionar um workspace, ambiente e aplicação, o frontend envia o contexto necessário junto à chamada ao BFF. O contexto pode incluir os identificadores de workspace, ambiente e aplicação, além do correlation-id para rastrear a operação. Os nomes e o formato exato do contrato serão definidos posteriormente.
 
-Os quatro MFEs e os serviços de domínio devem permitir ciclos próprios de manutenção e publicação, respeitando contratos compatíveis. Uma mudança isolada em um serviço não deve exigir a republicação dos demais.
+O BFF valida a sessão e encaminha a chamada autenticada. O serviço de domínio valida se a pessoa pode executar aquela operação naquele contexto. Selecionar um contexto na interface ou receber uma rota não basta para autorizar acesso.
 
-Shell, BFF e Redis são componentes compartilhados. Mudanças no Shell e no BFF têm alcance maior e exigem compatibilidade, testes de contrato e integração, monitoramento e opção de rollback. O Shell também deve isolar falhas de um MFE para preservar as outras áreas.
+## Manutenção, falhas e impacto compartilhado
 
-## Risco compartilhado e mitigação
+Os quatro MFEs e os serviços de domínio devem ter ciclos próprios de manutenção e publicação, com contratos compatíveis. A forma de publicar e localizar as versões dos MFEs será definida no desenho de implantação.
 
-Como os MFEs usam o mesmo BFF, sua indisponibilidade ou sobrecarga pode afetar toda a plataforma. A proposta prevê réplicas horizontais do BFF, sessão fora das instâncias, Redis em alta disponibilidade, limites de tempo e isolamento nas chamadas às APIs, além de monitoramento e rollback.
+O Shell, o BFF e o Redis são compartilhados. Mudanças no Shell e no BFF podem alcançar todas as áreas e precisam de testes integrados, compatibilidade, monitoramento e rollback. O Shell deve conter a falha de carregamento de um MFE e manter as outras áreas utilizáveis. O BFF deve isolar falhas e lentidão dos serviços. Indisponibilidade do BFF ou do Redis pode afetar toda a plataforma, por isso réplicas, alta disponibilidade, limites de tempo e recuperação devem ser testados.
 
-Essas medidas são requisitos a validar, não evidência de capacidade já comprovada. A validação deve começar por uma fatia vertical com Shell, um MFE, BFF, Redis e um serviço de domínio, incluindo testes de carga, falha e recuperação.
+## Decisões para o detalhamento
+
+- Como os MFEs serão registrados, carregados e versionados em produção.
+- Contratos de sessão, login, logout, expiração e renovação de tokens.
+- Domínio do BFF, atributos do cookie e proteção CSRF.
+- Formato e validação do contexto de workspace, ambiente e aplicação.
+- Contratos e compatibilidade entre os MFEs, o BFF e os serviços.
+- Metas de disponibilidade, latência e carga, com planos de teste e recuperação.
 
 ## Enquadramento
 
-Esta é uma visão macro de uma arquitetura greenfield para discussão e aprovação. Contratos, topologia de implantação, metas de disponibilidade e detalhes de implementação ficam para o detalhamento das próximas etapas.
+Esta é uma visão macro de uma arquitetura greenfield para discussão e aprovação. A primeira validação deve cobrir uma fatia vertical com Shell, um MFE, BFF, Redis e um serviço de domínio, incluindo navegação, autenticação, chamadas de negócio, falha e recuperação.
