@@ -4,7 +4,7 @@
 
 A experiência web é organizada em um **Shell**, a base da plataforma, que hospeda quatro micro frontends. O **Navigation MFE** reúne menus e rotas. Os MFEs acessam as APIs por **um BFF da plataforma**, compartilhado e escalável horizontalmente. O BFF mantém sessões e tokens no Redis.
 
-## Visão macro
+## 1. Arquitetura em execução
 
 ```mermaid
 flowchart TB
@@ -30,6 +30,41 @@ flowchart TB
   DS -.-> NAV
   DS -.-> RULES
 ```
+
+**Leitura rápida:** o Shell compõe a experiência; os MFEs representam áreas funcionais; o BFF é a entrada backend compartilhada; Redis sustenta a sessão; as APIs de domínio mantêm as regras e a autorização.
+
+## 2. Fronteiras de manutenção
+
+```mermaid
+flowchart TB
+  subgraph PLATFORM["Plataforma — componentes compartilhados"]
+    SHELL["Shell / chassi"]
+    BFF["BFF da plataforma<br/>réplicas horizontais"]
+    REDIS[("Redis<br/>alta disponibilidade")]
+    SHELL --> BFF
+    BFF <--> REDIS
+  end
+
+  subgraph INDEPENDENT["Componentes com ciclo de evolução próprio"]
+    WS["Workspace MFE"]
+    CFG["Configuration MFE"]
+    NAV["Navigation MFE"]
+    RULES["Rules MFE"]
+    API["APIs de domínio"]
+  end
+
+  SHELL -. "hospeda" .-> WS
+  SHELL -. "hospeda" .-> CFG
+  SHELL -. "hospeda" .-> NAV
+  SHELL -. "hospeda" .-> RULES
+  WS --> BFF
+  CFG --> BFF
+  NAV --> BFF
+  RULES --> BFF
+  BFF --> API
+```
+
+**Leitura rápida:** MFEs e APIs podem ter ciclos de manutenção e publicação próprios, respeitando contratos compatíveis. Shell e BFF são compartilhados e têm alcance de impacto maior; mudanças neles exigem validação integrada e rollback.
 
 ## Papéis principais
 
