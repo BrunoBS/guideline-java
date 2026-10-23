@@ -62,6 +62,24 @@ flowchart TB
 
 O Shell mantém o roteador técnico e monta o MFE correspondente à rota escolhida. O Navigation MFE mantém os menus e as rotas funcionais. Workspace MFE conduz a seleção de workspace, ambiente e aplicação. A presença de um item no menu ajuda a navegação, mas não concede acesso: os serviços de domínio validam a autorização em cada operação.
 
+## Componentes que compõem o Shell
+
+O Shell combina capacidades compartilhadas para que todos os MFEs tenham uma experiência consistente. Cada capacidade deve ser consumida por contratos públicos, sem criar dependência direta entre um MFE e outro.
+
+| Componente do Shell | O que é e para que serve |
+|---|---|
+| **Host dos MFEs** | O mecanismo que inicia o frontend e carrega o MFE escolhido. Permite que cada área tenha seu próprio ciclo de evolução e publicação. A tecnologia de carregamento será decidida no desenho de implantação. |
+| **Inicialização da aplicação** | Prepara configurações comuns, idioma, sessão, tema e serviços compartilhados antes de mostrar a área selecionada. |
+| **Layout global** | A estrutura visual comum, como cabeçalho, área de navegação, indicação do contexto atual e espaço onde o MFE aparece. |
+| **Roteador técnico** | Interpreta o endereço da página e monta o MFE correspondente. O Shell cuida da rota que carrega a aplicação; o Navigation MFE fornece menus e rotas funcionais. |
+| **Experiência de sessão** | Consulta o BFF, inicia login e apresenta estados de sessão expirada ou encerrada. O Shell nunca lê nem armazena tokens. |
+| **Contexto compartilhado** | Mantém na interface o workspace, ambiente e aplicação selecionados e os disponibiliza aos MFEs por uma interface comum. Esse contexto ajuda a montar a experiência, mas não concede acesso. |
+| **Cliente comum para o BFF** | Padroniza como os MFEs enviam requisições, incluindo cookie, proteção CSRF, correlation-id e tratamento de erros. O MFE continua responsável pelas operações do seu domínio. |
+| **Design System, acessibilidade e idioma** | Reúne componentes visuais e padrões de interação para manter aparência, uso por teclado/leitor de tela e textos consistentes entre áreas. |
+| **Observabilidade e isolamento de falhas** | Registra erros e desempenho do frontend com correlação entre Shell e MFE. Se um MFE não carregar, o Shell mostra uma falha localizada e preserva as outras áreas. |
+
+O Shell oferece essas capacidades de forma transversal. Ele não deve incorporar regras de negócio dos domínios, substituir a autorização dos serviços ou expor tokens de acesso ao código executado no navegador.
+
 ## Comunicação com o backend
 
 O Shell e os MFEs executam no navegador. O Shell consulta o BFF para inicializar a experiência e conhecer o estado da sessão. Cada MFE envia as chamadas de negócio do seu domínio ao mesmo BFF. O frontend não chama os microserviços diretamente e não recebe tokens de acesso.
