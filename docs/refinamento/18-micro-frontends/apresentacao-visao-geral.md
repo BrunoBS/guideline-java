@@ -12,9 +12,9 @@ flowchart TB
     direction TB
     subgraph MFES["Micro frontends"]
       direction LR
-      WS["Workspace MFE<br/>workspace, ambiente e aplicação"]
+      WS["Workspace MFE<br/>contexto e cards de features"]
       CFG["Configuration MFE<br/>chaves e toggles"]
-      NAV["Navigation MFE<br/>menus e rotas funcionais"]
+      NAV["Navigation MFE<br/>feature de gestão de menus e rotas"]
       RULES["Rules MFE<br/>regras de negócio"]
     end
     SHELL["Shell<br/>chassi, layout e composição dos MFEs"]
@@ -52,15 +52,15 @@ flowchart TB
   AUTH -->|"Sim"| WS["Workspace MFE"]
   LOGIN --> WS
   WS --> CONTEXT["Seleciona workspace, ambiente e aplicação"]
-  CONTEXT --> NAV["Navigation MFE apresenta menus e rotas funcionais"]
-  NAV --> ROUTE["Pessoa seleciona uma opção"]
-  ROUTE --> LOAD["Shell resolve a rota técnica e carrega o MFE de destino"]
-  LOAD --> REQUEST["MFE chama o BFF"]
+  CONTEXT --> CARDS["Workspace MFE apresenta os cards de features disponíveis"]
+  CARDS --> SELECT["Pessoa escolhe uma feature"]
+  SELECT --> LOAD["Shell carrega o MFE associado à feature"]
+  LOAD --> REQUEST["MFE selecionado chama o BFF"]
   REQUEST --> API["Serviço de domínio valida acesso e executa a operação"]
   API --> RESULT["BFF devolve a resposta ao MFE"]
 ~~~
 
-O Shell mantém o roteador técnico e monta o MFE correspondente à rota escolhida. O Navigation MFE mantém os menus e as rotas funcionais. Workspace MFE conduz a seleção de workspace, ambiente e aplicação. A presença de um item no menu ajuda a navegação, mas não concede acesso: os serviços de domínio validam a autorização em cada operação.
+Workspace MFE conduz a seleção de workspace, ambiente e aplicação e apresenta cards das features disponíveis. Cada feature cadastrada representa um MFE, e o Shell carrega o MFE associado ao card escolhido. Os cards podem representar, por exemplo, Navegação, Configuração/Chaves e Regras; outros, como Motor de Promoção, podem ser adicionados quando definidos. O Navigation MFE é uma dessas features e cuida da configuração de menus e rotas da aplicação. Ele não conduz a navegação entre os MFEs da plataforma. A seleção do card não concede acesso: os serviços de domínio validam a autorização em cada operação.
 
 ## Componentes que compõem o Shell
 
@@ -71,7 +71,7 @@ O Shell combina capacidades compartilhadas para que todos os MFEs tenham uma exp
 | **Host dos MFEs** | O mecanismo que inicia o frontend e carrega o MFE escolhido. Permite que cada área tenha seu próprio ciclo de evolução e publicação. A tecnologia de carregamento será decidida no desenho de implantação. |
 | **Inicialização da aplicação** | Prepara configurações comuns, idioma, sessão, tema e serviços compartilhados antes de mostrar a área selecionada. |
 | **Layout global** | A estrutura visual comum, como cabeçalho, área de navegação, indicação do contexto atual e espaço onde o MFE aparece. |
-| **Roteador técnico** | Interpreta o endereço da página e monta o MFE correspondente. O Shell cuida da rota que carrega a aplicação; o Navigation MFE fornece menus e rotas funcionais. |
+| **Roteador técnico** | Interpreta o endereço da página e carrega o MFE associado à feature escolhida. |
 | **Experiência de sessão** | Consulta o BFF, inicia login e apresenta estados de sessão expirada ou encerrada. O Shell nunca lê nem armazena tokens. |
 | **Contexto compartilhado** | Mantém na interface o workspace, ambiente e aplicação selecionados e os disponibiliza aos MFEs por uma interface comum. Esse contexto ajuda a montar a experiência, mas não concede acesso. |
 | **Cliente comum para o BFF** | Padroniza como os MFEs enviam requisições, incluindo cookie, proteção CSRF, correlation-id e tratamento de erros. O MFE continua responsável pelas operações do seu domínio. |
@@ -138,8 +138,8 @@ Os caminhos e nomes de endpoint ainda são ilustrativos. Como proposta, o BFF po
 | Componente | Responsabilidade | Limite |
 |---|---|---|
 | **Shell** | Chassi, layout global, carregamento dos MFEs, roteador técnico, contexto comum, experiência de login/expiração, acessibilidade e observabilidade do frontend | Não implementa regras de domínio nem guarda tokens no navegador |
-| **Workspace MFE** | Seleção e experiência de workspace, ambiente e aplicação | Não concede autorização por si só |
-| **Navigation MFE** | Menus e catálogo de rotas funcionais | Não substitui o roteador técnico do Shell nem a autorização dos serviços |
+| **Workspace MFE** | Seleção de workspace, ambiente e aplicação; cadastro e apresentação dos cards de features que representam MFEs | Não concede autorização por si só |
+| **Navigation MFE** | Feature para configurar menus e rotas da aplicação | Não conduz a navegação entre os MFEs da plataforma nem substitui a autorização dos serviços |
 | **Configuration MFE** | Experiência de chaves e toggles | Não é dono das regras de autorização |
 | **Rules MFE** | Experiência de regras de negócio | Não substitui a validação no serviço |
 | **BFF da plataforma** | Login web, sessão, integração com Entra ID e encaminhamento das chamadas aos serviços | Não concentra regras de negócio dos domínios |
