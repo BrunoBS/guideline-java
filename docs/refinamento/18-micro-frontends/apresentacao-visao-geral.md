@@ -1,6 +1,6 @@
 # Visão geral da arquitetura do Portal Manager
 
-> Proposta greenfield para discussão e alinhamento. O Shell/chassi, os MFEs e os serviços ainda serão construídos. Escala e alta disponibilidade são requisitos a validar, não capacidades já comprovadas.
+> Proposta para discussão e alinhamento. O Shell/chassi, os MFEs e os serviços ainda serão construídos. Escala e alta disponibilidade são requisitos a validar, não capacidades já comprovadas.
 
 A plataforma reúne quatro micro frontends hospedados pelo Shell, um BFF compartilhado e quatro microserviços de domínio. O navegador mantém apenas um cookie opaco. O BFF mantém sessão e tokens no Redis e encaminha as chamadas aos serviços.
 
@@ -170,4 +170,4 @@ O Shell, o BFF e o Redis são compartilhados. Mudanças no Shell e no BFF podem 
 
 ## Enquadramento
 
-Esta é uma visão macro de uma arquitetura greenfield para discussão e aprovação. A primeira validação deve cobrir uma fatia vertical com Shell, um MFE, BFF, Redis e um serviço de domínio, incluindo navegação, autenticação, chamadas de negócio, falha e recuperação.
+Esta é uma visão macro da arquitetura para discussão e alinhamento. A primeira validação deve cobrir uma fatia vertical com Shell, um MFE, BFF, Redis e um serviço de domínio, incluindo navegação, autenticação, chamadas de negócio, falha e recuperação.
