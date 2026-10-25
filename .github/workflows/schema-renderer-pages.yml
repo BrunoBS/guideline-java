@@ -4,6 +4,7 @@ on:
     branches: [feature/poc-schema-renderer]
     paths:
       - 'poc/schema-renderer/**'
+      - 'tse/**'
       - '.github/workflows/schema-renderer-pages.yml'
   workflow_dispatch:
 
@@ -61,6 +62,10 @@ jobs:
           cp -a portal-source/workspace-mfe/dist/workspace-mfe/browser/. _site/portal-manager/
           cp _site/portal-manager/index.html _site/portal-manager/404.html
           cp _site/index.html _site/404.html
+      - name: Publish TSE dashboard
+        run: |
+          mkdir -p _site/tse
+          cp -a tse/. _site/tse/
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
