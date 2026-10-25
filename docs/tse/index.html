@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#7b1220">
+  <meta name="description" content="Acompanhe a apuração presidencial do TSE e a evolução dos percentuais dos candidatos.">
+  <title>Resultados — Eleições 2026</title>
+  <style>
+    :root{color-scheme:light;--red:#8b1725;--red-dark:#64101b;--ink:#202124;--muted:#5f6368;--line:#dadce0;--surface:#fff;--bg:#f3f4f6;--blue:#2864dc;--orange:#e97724;--green:#16823b}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
+    a{color:inherit}
+    .top{background:var(--red);color:#fff;box-shadow:0 2px 5px #0002}
+    .top-inner{max-width:1180px;margin:auto;padding:0 24px}
+    .brand-row{height:76px;display:flex;align-items:center;gap:16px}
+    .seal{width:42px;height:42px;border:2px solid #ffffffb8;border-radius:50%;display:grid;place-items:center;font-size:19px;font-weight:700}
+    .brand{font-size:13px;line-height:1.4;letter-spacing:.04em;text-transform:uppercase}
+    .brand strong{display:block;font-size:18px;letter-spacing:0}
+    .top-link{margin-left:auto;font-size:13px;text-decoration:none;border:1px solid #ffffff75;border-radius:4px;padding:9px 12px}
+    .nav{display:flex;gap:30px;min-height:43px;align-items:stretch;font-size:13px}
+    .nav span{padding:14px 0 12px;color:#ffffffc9}
+    .nav .selected{color:white;font-weight:700;border-bottom:3px solid white}
+    main{max-width:1180px;margin:26px auto 42px;padding:0 24px}
+    .crumb{font-size:13px;color:var(--muted);margin:0 0 18px}
+    h1{font-size:27px;margin:0 0 6px;font-weight:600}
+    .subtitle{color:var(--muted);font-size:14px;margin:0 0 22px}
+    .context{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+    .select-like{background:white;border:1px solid var(--line);border-radius:4px;padding:11px 14px;min-width:185px;font-size:14px}
+    .select-like small{color:var(--muted);display:block;font-size:11px;margin-bottom:4px}
+    .pill{border-radius:999px;background:#e9f3eb;color:#246b35;font-size:12px;font-weight:700;padding:7px 10px}
+    .updated{margin-left:auto;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:8px}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
+    .grid{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:16px}
+    .card{background:var(--surface);border:1px solid #e1e3e6;border-radius:6px;box-shadow:0 1px 2px #0000000a}
+    .card-head{padding:17px 20px;border-bottom:1px solid #eceff1;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    .card-head h2{font-size:17px;margin:0;font-weight:600}
+    .card-head p{font-size:12px;color:var(--muted);margin:5px 0 0}
+    .card-body{padding:18px 20px}
+    .candidate{padding:14px 0;border-bottom:1px solid #eceff1}
+    .candidate:last-child{border-bottom:0}
+    .cand-top{display:flex;align-items:flex-start;gap:12px}
+    .number{width:36px;height:36px;border-radius:4px;background:#f1f3f4;display:grid;place-items:center;font-weight:700;font-size:14px;flex:none}
+    .cand-info{flex:1;min-width:0}
+    .cand-name{font-size:14px;line-height:1.4;font-weight:700}
+    .cand-party{font-size:12px;color:var(--muted);margin-top:3px}
+    .cand-percent{font-size:23px;font-weight:700;white-space:nowrap}
+    .bar{height:6px;background:#edf0f2;border-radius:99px;margin:12px 0 0 48px;overflow:hidden}
+    .bar>span{display:block;height:100%;border-radius:inherit;transition:width .45s}
+    .votes{font-size:12px;color:var(--muted);margin:7px 0 0 48px}
+    .chart-wrap{padding:6px 10px 0}
+    #chart{display:block;width:100%;height:300px;overflow:visible}
+    .legend{display:flex;gap:18px;flex-wrap:wrap;padding:8px 12px 16px;font-size:12px;color:#3c4043}
+    .legend-item{display:flex;align-items:center;gap:7px}
+    .legend-line{width:20px;height:3px;border-radius:4px}
+    .export-button{border:1px solid #dadce0;background:#fff;border-radius:4px;padding:8px 11px;color:#3c4043;font-size:12px;font-weight:600;cursor:pointer}.export-button:hover{background:#f8f9fa}\n    .chart-note{border-top:1px solid #eceff1;padding:12px 20px;color:var(--muted);font-size:12px;line-height:1.5}
+    .stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .stat{border:1px solid #e8eaed;border-radius:5px;padding:12px}
+    .stat-label{color:var(--muted);font-size:11px;margin-bottom:8px}
+    .stat-value{font-size:18px;font-weight:700}
+    .stat-sub{color:var(--muted);font-size:11px;margin-top:4px}
+    .progress{height:7px;background:#eceff1;border-radius:9px;margin-top:12px;overflow:hidden}
+    .progress span{display:block;height:100%;background:var(--red);transition:width .5s}
+    .side-section{margin-top:15px;border-top:1px solid #eceff1;padding-top:14px}
+    .side-section h3{font-size:13px;margin:0 0 10px}
+    .status-row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;color:#4b4e52}
+    .source{margin-top:16px;background:#fff8e8;border:1px solid #f2e2b7;border-radius:5px;padding:12px 14px;color:#5e4a1e;font-size:12px;line-height:1.5}
+    .source a{font-weight:700}
+    .footer{max-width:1180px;margin:0 auto;padding:0 24px 24px;color:#73777c;font-size:11px}
+    .error{display:none;margin:0 0 14px;padding:11px 14px;border:1px solid #efc0c0;background:#fff1f1;color:#8b1a1a;border-radius:5px;font-size:13px}
+    .error.visible{display:block}
+    .chart-empty{fill:#777;font-size:13px}
+    @media(max-width:800px){.grid{grid-template-columns:1fr}.updated{width:100%;margin-left:0}.brand-row{height:68px}.nav{gap:20px;overflow:auto}.side{order:-1}}
+    @media(max-width:520px){.top-inner,main,.footer{padding-left:15px;padding-right:15px}main{margin-top:20px}h1{font-size:23px}.top-link{font-size:0;padding:10px}.top-link:after{content:"TSE";font-size:12px}.select-like{min-width:145px;flex:1}.card-head,.card-body{padding-left:15px;padding-right:15px}#chart{height:250px}.cand-percent{font-size:20px}}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand-row">
+        <div class="seal" aria-hidden="true">✦</div>
+        <div class="brand"><strong>Resultados</strong>Justiça Eleitoral · Eleições 2026</div>
+        <a class="top-link" href="https://resultados.tse.jus.br/oficial/app/index.html#/eleicao/6258/uf/br/cargo/1/vis/nominal/resultados" target="_blank" rel="noreferrer">Portal oficial do TSE ↗</a>
+      </div>
+      <nav class="nav" aria-label="Navegação">
+        <span class="selected">Apuração</span><span>Presidente</span><span>Brasil</span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <p class="crumb">Eleições 2026　›　2º turno　›　Presidente　›　Brasil</p>
+    <h1>Presidente — Brasil</h1>
+    <p class="subtitle">Acompanhe os resultados oficiais da apuração do segundo turno.</p>
+    <div class="context">
+      <div class="select-like"><small>ELEIÇÃO</small>2º turno · 25/10/2026</div>
+      <div class="select-like"><small>CARGO</small>Presidente</div>
+      <div class="select-like"><small>ABRANGÊNCIA</small>Brasil</div>
+      <span class="pill">● Dados oficiais do TSE</span>
+      <div class="updated"><span id="status-dot" class="dot"></span><span id="last-update">Conectando ao TSE…</span></div>
+    </div>
+    <div id="error" class="error" role="status"></div>
+
+    <div class="grid">
+      <section class="card">
+        <div class="card-head">
+          <div><h2>Votação por candidato</h2><p>Percentual dos votos válidos</p></div>
+          <span id="valid-votes" style="font-size:12px;color:#5f6368"></span>
+        </div>
+        <div class="card-body" id="candidates">
+          <div style="color:#666;font-size:13px">Carregando resultado oficial…</div>
+        </div>
+      </section>
+
+      <aside class="card side">
+        <div class="card-head"><div><h2>Apuração</h2><p>Brasil · 2º turno</p></div></div>
+        <div class="card-body">
+          <div class="stats">
+            <div class="stat"><div class="stat-label">Seções totalizadas</div><div class="stat-value" id="sections">—</div><div class="stat-sub" id="sections-total">de — seções</div></div>
+            <div class="stat"><div class="stat-label">Urnas apuradas</div><div class="stat-value" id="progress-value">—</div><div class="stat-sub">do total de seções</div></div>
+          </div>
+          <div class="progress"><span id="progress-bar" style="width:0%"></span></div>
+          <div class="side-section">
+            <h3>Situação das seções</h3>
+            <div class="status-row"><span>Apuradas</span><strong id="totalized">—</strong></div>
+            <div class="status-row"><span>Ainda não totalizadas</span><strong id="not-totalized">—</strong></div>
+          </div>
+          <div class="side-section">
+            <h3>Votos contabilizados</h3>
+            <div class="status-row"><span>Votos válidos</span><strong id="valid-total">—</strong></div>
+            <div class="status-row"><span>Brancos</span><strong id="blank-votes">—</strong></div>
+            <div class="status-row"><span>Nulos</span><strong id="null-votes">—</strong></div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="card" style="grid-column:1/-1">
+        <div class="card-head">
+          <div><h2>Evolução dos percentuais</h2><p>Acompanhe como a votação de cada candidato muda durante a apuração.</p></div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span style="font-size:12px;color:#5f6368">Atualização automática: 30 s</span><button class="export-button" id="export-history" type="button">Baixar histórico CSV</button></div>
+        </div>
+        <div class="chart-wrap"><svg id="chart" viewBox="0 0 900 300" role="img" aria-label="Gráfico de linha da evolução dos percentuais"></svg></div>
+        <div class="legend" id="legend"></div>
+        <div class="chart-note">Cada consulta (a cada 30 segundos) é salva neste navegador, mesmo quando os números não mudam. O histórico mantém até 24 horas de amostras e continua disponível após recarregar a página. Use “Baixar histórico CSV” para guardar uma cópia.</div>
+      </section>
+    </div>
+
+    <div class="source">
+      Fonte: arquivos públicos de resultados do <a href="https://resultados.tse.jus.br/oficial/app/index.html#/eleicao/6258/uf/br/cargo/1/vis/nominal/resultados" target="_blank" rel="noreferrer">Tribunal Superior Eleitoral (TSE)</a>. Esta página é independente e apenas apresenta os dados publicados pelo TSE.
+    </div>
+  </main>
+  <footer class="footer">Monitor independente · Dados consultados diretamente no TSE a cada 30 segundos.</footer>
+
+  <script>
+    (function(){
+      "use strict";
+      var ENDPOINT = "https://resultados.tse.jus.br/oficial/ele2026/6258/dados/br/br-c0001-e006258-u.json";
+      var POLL_MS = 30000;
+      var HISTORY_KEY = "tse-6258-presidente-brasil-history-v1";
+      var COLORS = ["#2864dc", "#e97724", "#16823b", "#8a45a8"];
+      
+      var candidates = [];
+      var history = loadHistory();
+
+      function loadHistory(){
+        try {
+          var stored = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+          return Array.isArray(stored) ? stored.slice(-2880) : [];
+        } catch (_) { return []; }
+      }
+      function saveHistory(){
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-2880))); } catch (_) {}
+      }
+      function number(value){ return Number(String(value || "0").replace(",", ".")) || 0; }
+      function integer(value){ return Number(String(value || "0").replace(/\D/g, "")) || 0; }
+      function fmtInt(value){ return new Intl.NumberFormat("pt-BR").format(integer(value)); }
+      function fmtPct(value){ return number(value).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2}) + "%"; }
+      function properName(value){
+        return String(value || "").toLocaleLowerCase("pt-BR").replace(/(^|[\s-])([a-zà-ú])/g, function(_,sep,letter){ return sep + letter.toLocaleUpperCase("pt-BR"); });
+      }
+      function getCandidates(data){
+        var cargo = (data.carg || []).filter(function(c){ return String(c.cd) === "1"; })[0] || (data.carg || [])[0];
+        var found = [];
+        (cargo && cargo.agr || []).forEach(function(agr){
+          (agr.par || []).forEach(function(par){
+            (par.cand || []).forEach(function(c){
+              if (c.dvt === "Válido" || c.pvap !== undefined) {
+                found.push({number:c.n, name:c.nmu || c.nm, party:par.sg || agr.com || "", votes:c.vap, percent:number(c.pvapn || c.pvap), seq:c.seq});
+              }
+            });
+          });
+        });
+        return found.sort(function(a,b){ return number(a.seq)-number(b.seq); });
+      }
+      function showError(message){
+        var box = document.getElementById("error");
+        box.textContent = message;
+        box.classList.add("visible");
+        document.getElementById("status-dot").style.background = "#c5221f";
+      }
+      function clearError(){
+        document.getElementById("error").classList.remove("visible");
+        document.getElementById("status-dot").style.background = "#16823b";
+      }
+      function renderCandidates(items){
+        var root = document.getElementById("candidates");
+        root.textContent = "";
+        var legend = document.getElementById("legend");
+        legend.textContent = "";
+        if (!items.length) {
+          root.textContent = "O TSE ainda não publicou candidaturas para esta abrangência.";
+          return;
+        }
+        items.forEach(function(c,index){
+          var color = COLORS[index % COLORS.length];
+          var row = document.createElement("div");
+          row.className = "candidate";
+          var top = document.createElement("div");
+          top.className = "cand-top";
+          var num = document.createElement("span");
+          num.className = "number";
+          num.textContent = c.number;
+          var info = document.createElement("div");
+          info.className = "cand-info";
+          var name = document.createElement("div");
+          name.className = "cand-name";
+          name.textContent = properName(c.name);
+          var party = document.createElement("div");
+          party.className = "cand-party";
+          party.textContent = c.party;
+          info.appendChild(name);
+          info.appendChild(party);
+          var percent = document.createElement("strong");
+          percent.className = "cand-percent";
+          percent.style.color = color;
+          percent.textContent = fmtPct(c.percent);
+          top.appendChild(num);
+          top.appendChild(info);
+          top.appendChild(percent);
+          var bar = document.createElement("div");
+          bar.className = "bar";
+          var fill = document.createElement("span");
+          fill.style.width = Math.max(0, Math.min(100, c.percent)) + "%";
+          fill.style.background = color;
+          bar.appendChild(fill);
+          var votes = document.createElement("div");
+          votes.className = "votes";
+          votes.textContent = fmtInt(c.votes) + " votos";
+          row.appendChild(top);
+          row.appendChild(bar);
+          row.appendChild(votes);
+          root.appendChild(row);
+          var legendItem = document.createElement("span");
+          legendItem.className = "legend-item";
+          var line = document.createElement("span");
+          line.className = "legend-line";
+          line.style.background = color;
+          var label = document.createElement("span");
+          label.textContent = properName(c.name);
+          legendItem.appendChild(line);
+          legendItem.appendChild(label);
+          legend.appendChild(legendItem);
+        });
+      }
+      function appendSample(data, items, timestamp){
+        var point = {at:timestamp, values:{}, candidates:[], sections:{}, totals:{}};
+        items.forEach(function(c){
+          point.values[String(c.number)] = c.percent;
+          point.candidates.push({number:c.number, name:c.name, party:c.party, votes:integer(c.votes), percent:c.percent});
+        });
+        var section = data.s || {};
+        var votes = data.v || {};
+        point.sections = {totalized:integer(section.st), total:integer(section.ts), percent:number(section.pst), notTotalized:integer(section.snt)};
+        point.totals = {valid:integer(votes.vvc), blank:integer(votes.vb), null:integer(votes.vn)};
+        point.idg = data.idg || "";
+        history.push(point);
+        history = history.slice(-2880);
+        saveHistory();
+      }
+      function csvCell(value){
+        return '"' + String(value == null ? "" : value).replace(/"/g, '""') + '"';
+      }
+      function downloadHistory(){
+        var rows = [["data_hora","numero_candidato","nome","partido","votos","percentual","secoes_totalizadas","secoes_total","percentual_apurado","votos_validos","votos_brancos","votos_nulos","idg_tse"]];
+        history.forEach(function(point){
+          (point.candidates || []).forEach(function(c){
+            rows.push([
+              new Date(point.at).toISOString(), c.number, c.name, c.party, c.votes,
+              Number(c.percent).toFixed(2), point.sections && point.sections.totalized,
+              point.sections && point.sections.total, point.sections && Number(point.sections.percent).toFixed(2),
+              point.totals && point.totals.valid, point.totals && point.totals.blank,
+              point.totals && point.totals.null, point.idg
+            ]);
+          });
+        });
+        var csv = "\uFEFF" + rows.map(function(row){ return row.map(csvCell).join(";"); }).join("\r\n");
+        var url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = "historico-eleicao-6258.csv";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+      function svgEl(name, attrs, parent){
+        var el = document.createElementNS("http://www.w3.org/2000/svg", name);
+        Object.keys(attrs).forEach(function(k){ el.setAttribute(k, attrs[k]); });
+        parent.appendChild(el);
+        return el;
+      }
+      function renderChart(items){
+        var svg = document.getElementById("chart");
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        var width = 900, height = 300;
+        var left = 58, right = 22, top = 18, bottom = 44;
+        var plotW = width-left-right, plotH = height-top-bottom;
+        var points = history.filter(function(p){ return p && p.values; });
+        if (!points.length) {
+          svgEl("text",{x:width/2,y:height/2,"text-anchor":"middle",class:"chart-empty"},svg).textContent = "Aguardando a primeira amostra do TSE…";
+          return;
+        }
+        var vals = [];
+        points.forEach(function(p){ items.forEach(function(c){ var v=p.values[String(c.number)]; if (Number.isFinite(v)) vals.push(v); }); });
+        var min = Math.max(0, Math.floor(Math.min.apply(null,vals)-1));
+        var max = Math.min(100, Math.ceil(Math.max.apply(null,vals)+1));
+        if (max-min < 2) { min=Math.max(0,min-1); max=Math.min(100,max+1); }
+        var ticks = 4;
+        for (var i=0;i<=ticks;i++){
+          var y=top+plotH*i/ticks;
+          var val=max-(max-min)*i/ticks;
+          svgEl("line",{x1:left,y1:y,x2:width-right,y2:y,stroke:"#e8eaed","stroke-width":"1"},svg);
+          svgEl("text",{x:left-10,y:y+4,"text-anchor":"end",fill:"#70757a","font-size":"11"},svg).textContent=val.toLocaleString("pt-BR",{maximumFractionDigits:1})+"%";
+        }
+        var stride=Math.max(1,Math.ceil(points.length/6));
+        points.forEach(function(p,i){
+          if(i%stride===0 || i===points.length-1){
+            var x=points.length===1?left+plotW:(left+plotW*i/(points.length-1));
+            svgEl("text",{x:x,y:height-15,"text-anchor":i===0?"start":(i===points.length-1?"end":"middle"),fill:"#70757a","font-size":"10"},svg).textContent=new Date(p.at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+          }
+        });
+        items.forEach(function(c,index){
+          var color=COLORS[index%COLORS.length], key=String(c.number), d="";
+          points.forEach(function(p,i){
+            var val=p.values[key];
+            if(!Number.isFinite(val)) return;
+            var x=points.length===1?left+plotW:(left+plotW*i/(points.length-1));
+            var y=top+plotH*(max-val)/(max-min);
+            d+=(d?" L ":"M ")+x.toFixed(1)+" "+y.toFixed(1);
+          });
+          if(d){
+            svgEl("path",{d:d,fill:"none",stroke:color,"stroke-width":"3","stroke-linecap":"round","stroke-linejoin":"round"},svg);
+            var latest=points[points.length-1].values[key];
+            if(Number.isFinite(latest)){
+              var lx=points.length===1?left+plotW:(left+plotW*(points.length-1)/(points.length-1));
+              var ly=top+plotH*(max-latest)/(max-min);
+              svgEl("circle",{cx:lx,cy:ly,r:"4.5",fill:color,stroke:"#fff","stroke-width":"2"},svg);
+            }
+          }
+        });
+      }
+      function update(data){
+        var items = getCandidates(data);
+        if (!items.length) throw new Error("O arquivo do TSE foi recebido, mas não trouxe os candidatos esperados.");
+        candidates = items;
+        appendSample(data, items, Date.now());
+        renderCandidates(items);
+        renderChart(items);
+        var section = data.s || {};
+        var votes = data.v || {};
+        var progress = number(section.pst);
+        document.getElementById("sections").textContent = fmtInt(section.st);
+        document.getElementById("sections-total").textContent = "de " + fmtInt(section.ts) + " seções";
+        document.getElementById("progress-value").textContent = fmtPct(progress);
+        document.getElementById("progress-bar").style.width = Math.max(0,Math.min(100,progress)) + "%";
+        document.getElementById("totalized").textContent = fmtInt(section.st) + " (" + fmtPct(progress) + ")";
+        document.getElementById("not-totalized").textContent = fmtInt(section.snt);
+        document.getElementById("valid-total").textContent = fmtInt(votes.vvc);
+        document.getElementById("valid-votes").textContent = fmtInt(votes.vvc) + " votos válidos";
+        document.getElementById("blank-votes").textContent = fmtInt(votes.vb);
+        document.getElementById("null-votes").textContent = fmtInt(votes.vn);
+        var fetched = new Date();
+        document.getElementById("last-update").textContent = "Atualizado às " + fetched.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " · próxima consulta em 30 s";
+        clearError();
+      }
+      async function poll(){
+        try{
+          var response = await fetch(ENDPOINT, {cache:"no-store", headers:{"Accept":"application/json"}});
+          if(!response.ok) throw new Error("O TSE respondeu com HTTP " + response.status + ".");
+          var data = await response.json();
+          update(data);
+        }catch(error){
+          showError("Não foi possível atualizar agora. " + (error && error.message ? error.message : "Verifique sua conexão.") + " Tentaremos novamente em 30 segundos.");
+        }
+      }
+      document.getElementById("export-history").addEventListener("click", downloadHistory);
+      poll();
+      window.setInterval(poll, POLL_MS);
+    })();
+  </script>
+</body>
+</html>
