@@ -38,9 +38,11 @@ jobs:
         working-directory: poc/schema-renderer
         run: npm ci
       - name: Install browsers for Schema Studio checks
+        if: ${{ github.event_name == 'workflow_dispatch' || contains(toJSON(github.event.commits), 'poc/schema-renderer/') }}
         working-directory: poc/schema-renderer
         run: npx playwright install --with-deps chromium firefox webkit
       - name: Check Schema Studio before publishing
+        if: ${{ github.event_name == 'workflow_dispatch' || contains(toJSON(github.event.commits), 'poc/schema-renderer/') }}
         working-directory: poc/schema-renderer
         run: npm run check:all
       - name: Build for GitHub Pages
