@@ -240,6 +240,20 @@
       var mapResults = {};
       var mapPending = false;
       var selectedMapState = "SP";
+      var dashboardLastUpdate = null, dashboardFailed = false, mapLastUpdate = null, mapFailed = false;
+      var nextDashboardPollAt = Date.now()+POLL_MS, nextMapPollAt = Date.now()+POLL_MS;
+      function formatCountdown(deadline){
+        var seconds=Math.max(0,Math.ceil((deadline-Date.now())/1000));
+        return String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
+      }
+      function updateCountdownLabels(){
+        var dashboardBase=dashboardFailed?"Falha na atualização":dashboardLastUpdate?"Atualizado às "+dashboardLastUpdate.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"Conectando ao TSE";
+        var dashboardNext=dashboardFailed?"nova tentativa":"próxima consulta";
+        document.getElementById("last-update").textContent=dashboardBase+" · "+dashboardNext+" em "+formatCountdown(nextDashboardPollAt);
+        var mapBase=mapFailed?"Falha ao atualizar o mapa":mapLastUpdate?"Atualizado às "+mapLastUpdate.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"Carregando os estados";
+        var mapNext=mapFailed?"nova tentativa":"próxima consulta";
+        document.getElementById("map-updated").textContent=mapBase+" · "+mapNext+" em "+formatCountdown(nextMapPollAt);
+      }
       function activeHistoryKey(){return HISTORY_KEY+":"+currentScope;}
       function loadHistory(){
         try{var stored=JSON.parse(localStorage.getItem(activeHistoryKey())||(currentScope==="br"?localStorage.getItem(LEGACY_BRAZIL_HISTORY_KEY):"[]")||"[]");return Array.isArray(stored)?stored.slice(-2880):[];}catch(_){return [];}
@@ -338,10 +352,11 @@
           }
           mapResults=results;
           renderMap();
-          status.textContent="Atualizado às "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" · próxima consulta em 30 s";
+          mapLastUpdate=new Date();mapFailed=false;updateCountdownLabels();
           document.getElementById("map-status-dot").style.background="#16823b";
         }catch(error){
           errorBox.textContent="Não foi possível atualizar o mapa agora. "+(error&&error.message?error.message:"Verifique sua conexão.")+" Tentaremos novamente em 30 segundos.";
+          mapFailed=true;mapLastUpdate=new Date();updateCountdownLabels();
           document.getElementById("map-status-dot").style.background="#c5221f";
         }finally{mapPending=false;}
       }
@@ -692,7 +707,7 @@
         document.getElementById("blank-votes").textContent = fmtInt(votes.vb);
         document.getElementById("null-votes").textContent = fmtInt(votes.vn);
         var fetched = new Date();
-        document.getElementById("last-update").textContent = "Atualizado às " + fetched.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}) + " · próxima consulta em 30 s";
+        dashboardLastUpdate=fetched;dashboardFailed=false;updateCountdownLabels();
         clearError();
       }
       async function poll(){
@@ -700,6 +715,7 @@
           var data = await fetchScopeData();
           update(data);
         }catch(error){
+          dashboardFailed=true;dashboardLastUpdate=new Date();updateCountdownLabels();
           showError("Não foi possível atualizar agora. " + (error && error.message ? error.message : "Verifique sua conexão.") + " Tentaremos novamente em 30 segundos.");
         }
       }
@@ -710,8 +726,10 @@
       updateScopeLabels();
       document.querySelectorAll("[data-chart-type]").forEach(function(button){button.addEventListener("click",function(){setChartType(button.getAttribute("data-chart-type"));});});
       setChartType(chartType);
+      updateCountdownLabels();
       poll();
-      window.setInterval(function(){poll();if(!document.getElementById("map-view").hidden)refreshMapData();}, POLL_MS);
+      window.setInterval(function(){nextDashboardPollAt=Date.now()+POLL_MS;nextMapPollAt=Date.now()+POLL_MS;updateCountdownLabels();poll();if(!document.getElementById("map-view").hidden)refreshMapData();}, POLL_MS);
+      window.setInterval(updateCountdownLabels,1000);
     })();
   </script>
 </body>
