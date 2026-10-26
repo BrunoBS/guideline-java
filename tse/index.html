@@ -53,6 +53,19 @@
     .state-pick:hover{text-decoration:underline;color:#1a73e8}
     .state-table td:not(:first-child),.state-table th:not(:first-child){text-align:right}
     .map-error{color:#c5221f;font-size:13px;margin:8px 0}
+
+    .comparison-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}
+    .comparison-toolbar .updated{margin-left:auto}
+    .comparison-table-scroll{overflow:auto;max-height:72vh}
+    .comparison-table{width:100%;border-collapse:collapse;font-size:12px}
+    .comparison-table th{position:sticky;top:0;background:#f8f9fa;color:#5f6368;text-align:left;z-index:1}
+    .comparison-table th,.comparison-table td{padding:9px 10px;border-bottom:1px solid #eceff1;white-space:nowrap}
+    .comparison-table td.num,.comparison-table th.num{text-align:right;font-variant-numeric:tabular-nums}
+    .comparison-table tr.comparison-region-total{background:#e9f3eb;font-weight:700}
+    .comparison-table tr.comparison-country-total{background:#dff0df;font-weight:700}
+    .comparison-table .comparison-candidate{font-weight:700}
+    .comparison-table .comparison-positive{color:#188038;font-weight:700}
+    .comparison-table .comparison-negative{color:#c5221f;font-weight:700}
     @media(max-width:760px){.map-layout{grid-template-columns:1fr}.map-toolbar .updated{margin-left:0}#brazil-map{max-height:none}.map-detail{order:-1}}
     main{max-width:1180px;margin:26px auto 42px;padding:0 24px}
     .crumb{font-size:13px;color:var(--muted);margin:0 0 18px}
@@ -119,7 +132,7 @@
         <a class="top-link" href="https://resultados.tse.jus.br/oficial/app/index.html#/eleicao/6258/uf/br/cargo/1/vis/nominal/resultados" target="_blank" rel="noreferrer">Portal oficial do TSE ↗</a>
       </div>
       <nav class="nav" aria-label="Navegação">
-        <button class="selected" type="button" data-view="dashboard">Apuração</button><button type="button" data-view="map">Mapa por estado</button><span>Presidente</span><span id="scope-nav">Brasil</span>
+        <button class="selected" type="button" data-view="dashboard">Apuração</button><button type="button" data-view="map">Mapa por estado</button><button type="button" data-view="comparison">Comparativo de turnos</button><span>Presidente</span><span id="scope-nav">Brasil</span>
       </nav>
     </div>
   </header>
@@ -214,6 +227,24 @@
         <div class="state-table-scroll"><table class="state-table" id="state-results-table"></table></div>
       </section>
       <div class="source">Malha estadual simplificada baseada no <a href="https://gist.github.com/ppKrauss/0c33364240e841fa23e78b21005f792c" target="_blank" rel="noreferrer">TopoJSON Brasil</a> (licença MIT). Resultados consultados diretamente nos arquivos públicos do <a href="https://resultados.tse.jus.br/oficial/app/index.html#/eleicao/6258/uf/br/cargo/1/vis/nominal/resultados" target="_blank" rel="noreferrer">TSE</a>.</div>
+
+    <section id="comparison-view" hidden>
+      <p class="crumb">Eleições 2026　›　Presidente　›　Comparativo entre turnos</p>
+      <h1>Comparativo entre turnos</h1>
+      <p class="subtitle">Compare votos e participação de Lula e Flávio Bolsonaro no 1º e no 2º turno, por estado, região e Brasil.</p>
+      <div class="comparison-toolbar">
+        <span class="pill">● Dados oficiais do TSE</span>
+        <div class="updated"><span id="comparison-status-dot" class="dot"></span><span id="comparison-updated">Carregando o comparativo…</span></div>
+        <button class="export-button" id="refresh-comparison" type="button">Atualizar agora</button>
+      </div>
+      <div id="comparison-error" class="map-error" role="status"></div>
+      <section class="card">
+        <div class="card-head"><div><h2>Variação de votos e participação</h2><p>As linhas regionais somam os estados. O total do Brasil vem do arquivo nacional do TSE.</p></div></div>
+        <div class="comparison-table-scroll"><table class="comparison-table" id="comparison-table"></table></div>
+        <div class="chart-note">Variação de votos (%) = (votos do 2º turno − votos do 1º turno) ÷ votos do 1º turno. A variação de participação compara o percentual dos votos válidos e é mostrada em pontos percentuais. No 1º turno, os votos válidos incluem todos os candidatos.</div>
+      </section>
+      <div class="source">Fonte: resultados presidenciais publicados pelo <a href="https://resultados.tse.jus.br/oficial/app/index.html#/eleicao/6258/uf/br/cargo/1/vis/nominal/resultados" target="_blank" rel="noreferrer">TSE</a>. A cobertura das seções do 2º turno é exibida por área.</div>
+    </section>
     </section>
   </main>
   <footer class="footer">Monitor independente · Dados consultados diretamente no TSE a cada 30 segundos.</footer>
@@ -223,6 +254,8 @@
       "use strict";
       var BRAZIL_ENDPOINT = "https://resultados.tse.jus.br/oficial/ele2026/6258/dados/br/br-c0001-e006258-u.json";
       var STATE_ENDPOINT = "https://resultados.tse.jus.br/oficial/ele2026/6258/dados/{uf}/{uf}-c0001-e006258-u.json";
+      var FIRST_BRAZIL_ENDPOINT = "https://resultados.tse.jus.br/oficial/ele2026/6257/dados/br/br-c0001-e006257-u.json";
+      var FIRST_STATE_ENDPOINT = "https://resultados.tse.jus.br/oficial/ele2026/6257/dados/{uf}/{uf}-c0001-e006257-u.json";
       var POLL_MS = 30000;
       var HISTORY_KEY = "tse-6258-presidente-history-v1";
       var LEGACY_BRAZIL_HISTORY_KEY = "tse-6258-presidente-brasil-history-v1";
@@ -240,8 +273,10 @@
       var mapResults = {};
       var mapPending = false;
       var selectedMapState = "SP";
+      var comparisonRows = [], comparisonPending = false;
+      var comparisonLastUpdate = null, comparisonFailed = false;
       var dashboardLastUpdate = null, dashboardFailed = false, mapLastUpdate = null, mapFailed = false;
-      var nextDashboardPollAt = Date.now()+POLL_MS, nextMapPollAt = Date.now()+POLL_MS;
+      var nextDashboardPollAt = Date.now()+POLL_MS, nextMapPollAt = Date.now()+POLL_MS, nextComparisonPollAt = Date.now()+POLL_MS;
       function formatCountdown(deadline){
         var seconds=Math.max(0,Math.ceil((deadline-Date.now())/1000));
         return String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
@@ -253,6 +288,9 @@
         var mapBase=mapFailed?"Falha ao atualizar o mapa":mapLastUpdate?"Atualizado às "+mapLastUpdate.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"Carregando os estados";
         var mapNext=mapFailed?"nova tentativa":"próxima consulta";
         document.getElementById("map-updated").textContent=mapBase+" · "+mapNext+" em "+formatCountdown(nextMapPollAt);
+        var comparisonBase=comparisonFailed?"Falha ao atualizar o comparativo":comparisonLastUpdate?"Atualizado às "+comparisonLastUpdate.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"Carregando o comparativo";
+        var comparisonNext=comparisonFailed?"nova tentativa":"próxima consulta";
+        document.getElementById("comparison-updated").textContent=comparisonBase+" · "+comparisonNext+" em "+formatCountdown(nextComparisonPollAt);
       }
       function activeHistoryKey(){return HISTORY_KEY+":"+currentScope;}
       function loadHistory(){
@@ -360,12 +398,113 @@
           document.getElementById("map-status-dot").style.background="#c5221f";
         }finally{mapPending=false;}
       }
+
+      async function fetchComparisonStateSet(endpointTemplate){
+        var ufs=Object.keys(STATE_NAMES),results={};
+        for(var offset=0;offset<ufs.length;offset+=6){
+          var batch=ufs.slice(offset,offset+6);
+          var batchData=await Promise.all(batch.map(function(uf){
+            var url=endpointTemplate.replace(/\{uf\}/g,uf);
+            return fetchJson(url).then(function(data){return {uf:uf,data:data};});
+          }));
+          batchData.forEach(function(result){results[result.uf.toUpperCase()]=result.data;});
+        }
+        return results;
+      }
+      function comparisonAreaRows(level,region,area,firstData,secondData){
+        var rows=[];
+        ["13","22"].forEach(function(candidateNumber){
+          var firstCandidate=getCandidates(firstData).find(function(candidate){return String(candidate.number)===candidateNumber;});
+          var secondCandidate=getCandidates(secondData).find(function(candidate){return String(candidate.number)===candidateNumber;});
+          if(!firstCandidate||!secondCandidate)return;
+          var firstVotes=integer(firstCandidate.votes),secondVotes=integer(secondCandidate.votes);
+          var firstValid=integer((firstData.v||{}).vvc),secondValid=integer((secondData.v||{}).vvc);
+          var firstShare=firstValid?firstVotes/firstValid*100:0,secondShare=secondValid?secondVotes/secondValid*100:0;
+          var delta=secondVotes-firstVotes;
+          rows.push({level:level,region:region,area:area,number:candidateNumber,name:candidateNumber==="13"?"Lula":"Flávio Bolsonaro",
+            firstVotes:firstVotes,secondVotes:secondVotes,delta:delta,deltaPercent:firstVotes?delta/firstVotes*100:0,
+            firstShare:firstShare,secondShare:secondShare,shareDelta:secondShare-firstShare,
+            coverage:number((secondData.s||{}).pstn||(secondData.s||{}).pst)});
+        });
+        return rows;
+      }
+      function signedInt(value){
+        var magnitude=fmtInt(Math.abs(value));
+        return value>0?"+"+magnitude:value<0?"−"+magnitude:magnitude;
+      }
+      function signedPercent(value){
+        var magnitude=fmtPct(Math.abs(value));
+        return value>0?"+"+magnitude:value<0?"−"+magnitude:magnitude;
+      }
+      function signedPoints(value){
+        var magnitude=Math.abs(value).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+" p.p.";
+        return value>0?"+"+magnitude:value<0?"−"+magnitude:magnitude;
+      }
+      function renderComparisonTable(rows){
+        var table=document.getElementById("comparison-table");table.textContent="";
+        var headings=["Abrangência","Região","Estado/área","Candidato","Votos 1º turno","Votos 2º turno","Variação de votos","Variação de votos (%)","Válidos 1º (%)","Válidos 2º (%)","Variação da participação (p.p.)","Seções apuradas 2º (%)"];
+        var thead=document.createElement("thead"),headRow=document.createElement("tr");
+        headings.forEach(function(label,index){var th=document.createElement("th");th.textContent=label;if(index>=4)th.className="num";headRow.appendChild(th);});
+        thead.appendChild(headRow);table.appendChild(thead);
+        var tbody=document.createElement("tbody");
+        rows.forEach(function(item){
+          var row=document.createElement("tr");
+          if(item.level==="Região")row.className="comparison-region-total";
+          if(item.level==="País")row.className="comparison-country-total";
+          var cells=[item.level,item.region,item.area,item.name,signedInt(item.firstVotes),signedInt(item.secondVotes),signedInt(item.delta),signedPercent(item.deltaPercent),fmtPct(item.firstShare),fmtPct(item.secondShare),signedPoints(item.shareDelta),fmtPct(item.coverage)];
+          cells.forEach(function(value,index){
+            var td=document.createElement("td");td.textContent=value;
+            if(index>=4)td.classList.add("num");
+            if(index===3){td.classList.add("comparison-candidate");td.style.color=candidateColor({name:item.name},0);}
+            if(index===6||index===7){if(item.delta>0)td.classList.add("comparison-positive");else if(item.delta<0)td.classList.add("comparison-negative");}
+            if(index===10){if(item.shareDelta>0)td.classList.add("comparison-positive");else if(item.shareDelta<0)td.classList.add("comparison-negative");}
+            row.appendChild(td);
+          });
+          tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+      }
+      async function refreshComparisonData(){
+        if(comparisonPending)return;
+        comparisonPending=true;
+        nextComparisonPollAt=Date.now()+POLL_MS;updateCountdownLabels();
+        var errorBox=document.getElementById("comparison-error");errorBox.textContent="";
+        try{
+          var loaded=await Promise.all([
+            fetchJson(FIRST_BRAZIL_ENDPOINT),fetchJson(BRAZIL_ENDPOINT),
+            fetchComparisonStateSet(FIRST_STATE_ENDPOINT),fetchComparisonStateSet(STATE_ENDPOINT)
+          ]);
+          var firstBrazil=loaded[0],secondBrazil=loaded[1],firstStates=loaded[2],secondStates=loaded[3],rows=[];
+          var regionNames=[["norte","Norte"],["nordeste","Nordeste"],["centro-oeste","Centro-Oeste"],["sudeste","Sudeste"],["sul","Sul"]];
+          regionNames.forEach(function(pair){
+            var regionKey=pair[0],regionName=pair[1],members=REGION_STATES[regionKey].map(function(uf){return uf.toUpperCase();});
+            var firstRegion=aggregateRegion(members.map(function(uf){return firstStates[uf];}));
+            var secondRegion=aggregateRegion(members.map(function(uf){return secondStates[uf];}));
+            rows=rows.concat(comparisonAreaRows("Região",regionName,"Total "+regionName,firstRegion,secondRegion));
+            members.map(function(uf){return {uf:uf,name:STATE_NAMES[uf.toLowerCase()]};}).sort(function(a,b){return a.name.localeCompare(b.name,"pt-BR");}).forEach(function(state){
+              rows=rows.concat(comparisonAreaRows("Estado",regionName,state.name,firstStates[state.uf],secondStates[state.uf]));
+            });
+          });
+          rows=rows.concat(comparisonAreaRows("País","Brasil","Brasil",firstBrazil,secondBrazil));
+          comparisonRows=rows;renderComparisonTable(comparisonRows);
+          comparisonLastUpdate=new Date();comparisonFailed=false;
+          document.getElementById("comparison-status-dot").style.background="#16823b";
+          updateCountdownLabels();
+        }catch(error){
+          comparisonFailed=true;comparisonLastUpdate=new Date();
+          document.getElementById("comparison-status-dot").style.background="#c5221f";
+          errorBox.textContent="Não foi possível atualizar o comparativo. "+(error&&error.message?error.message:"Verifique sua conexão.")+" Tentaremos novamente em 30 segundos.";
+          updateCountdownLabels();
+        }finally{comparisonPending=false;}
+      }
       function showView(view){
-        var isMap=view==="map";
-        document.getElementById("dashboard-view").hidden=isMap;
+        var isMap=view==="map",isComparison=view==="comparison";
+        document.getElementById("dashboard-view").hidden=isMap||isComparison;
         document.getElementById("map-view").hidden=!isMap;
+        document.getElementById("comparison-view").hidden=!isComparison;
         document.querySelectorAll("[data-view]").forEach(function(button){button.classList.toggle("selected",button.getAttribute("data-view")===view);});
         if(isMap)refreshMapData();
+        if(isComparison)refreshComparisonData();
       }
       function candidateColor(candidate,index){
         var name=String(candidate&&candidate.name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
@@ -722,13 +861,14 @@
       document.getElementById("export-history").addEventListener("click", downloadHistory);
       document.querySelectorAll("[data-view]").forEach(function(button){button.addEventListener("click",function(){showView(button.getAttribute("data-view"));});});
       document.getElementById("refresh-map").addEventListener("click",refreshMapData);
+      document.getElementById("refresh-comparison").addEventListener("click",refreshComparisonData);
       document.getElementById("scope-select").addEventListener("change",function(event){currentScope=event.target.value;try{localStorage.setItem(SCOPE_KEY,currentScope);}catch(_){}history=loadHistory();candidates=[];updateScopeLabels();poll();});
       updateScopeLabels();
       document.querySelectorAll("[data-chart-type]").forEach(function(button){button.addEventListener("click",function(){setChartType(button.getAttribute("data-chart-type"));});});
       setChartType(chartType);
       updateCountdownLabels();
       poll();
-      window.setInterval(function(){nextDashboardPollAt=Date.now()+POLL_MS;nextMapPollAt=Date.now()+POLL_MS;updateCountdownLabels();poll();if(!document.getElementById("map-view").hidden)refreshMapData();}, POLL_MS);
+      window.setInterval(function(){nextDashboardPollAt=Date.now()+POLL_MS;nextMapPollAt=Date.now()+POLL_MS;nextComparisonPollAt=Date.now()+POLL_MS;updateCountdownLabels();poll();if(!document.getElementById("map-view").hidden)refreshMapData();if(!document.getElementById("comparison-view").hidden)refreshComparisonData();}, POLL_MS);
       window.setInterval(updateCountdownLabels,1000);
     })();
   </script>
