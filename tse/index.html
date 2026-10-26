@@ -66,6 +66,23 @@
     .comparison-table .comparison-candidate{font-weight:700}
     .comparison-table .comparison-positive{color:#188038;font-weight:700}
     .comparison-table .comparison-negative{color:#c5221f;font-weight:700}
+    .comparison-filters{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0;padding:14px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:8px}
+    .comparison-filters label{font-size:13px;font-weight:700}
+    .comparison-filters select{min-width:220px;padding:9px 11px;border:1px solid #c7cdd3;border-radius:5px;background:#fff;color:#202124;font:inherit}
+    .comparison-scope-description{margin:0 0 0 auto;color:#5f6368;font-size:12px}
+    .comparison-charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:16px 0}
+    .comparison-chart-card{min-width:0}
+    .comparison-chart{display:grid;gap:16px;padding:4px 16px 18px}
+    .comparison-chart-empty{padding:24px 16px;color:#5f6368;font-size:13px}
+    .comparison-candidate-block{display:grid;gap:7px}
+    .comparison-chart-candidate{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+    .comparison-chart-dot{width:10px;height:10px;border-radius:50%;flex:none}
+    .comparison-bar-row{display:grid;grid-template-columns:60px minmax(60px,1fr) minmax(68px,auto);align-items:center;gap:9px;font-size:12px}
+    .comparison-bar-turn{color:#5f6368}
+    .comparison-bar-track{height:12px;background:#eef0f2;border-radius:8px;overflow:hidden}
+    .comparison-bar-fill{height:100%;min-width:2px;border-radius:8px;transition:width .25s ease}
+    .comparison-bar-value{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+    @media(max-width:760px){.comparison-charts{grid-template-columns:1fr}.comparison-scope-description{margin:0;width:100%}}
     @media(max-width:760px){.map-layout{grid-template-columns:1fr}.map-toolbar .updated{margin-left:0}#brazil-map{max-height:none}.map-detail{order:-1}}
     main{max-width:1180px;margin:26px auto 42px;padding:0 24px}
     .crumb{font-size:13px;color:var(--muted);margin:0 0 18px}
@@ -239,6 +256,29 @@
         <button class="export-button" id="refresh-comparison" type="button">Atualizar agora</button>
       </div>
       <div id="comparison-error" class="map-error" role="status"></div>
+      <div class="comparison-filters">
+        <label for="comparison-scope-select">Filtrar por abrangência</label>
+        <select id="comparison-scope-select">
+          <optgroup label="País"><option value="br">Brasil</option></optgroup>
+          <optgroup label="Regiões">
+            <option value="region:norte">Norte</option><option value="region:nordeste">Nordeste</option><option value="region:centro-oeste">Centro-Oeste</option><option value="region:sudeste">Sudeste</option><option value="region:sul">Sul</option>
+          </optgroup>
+          <optgroup label="Estados">
+            <option value="state:AC">Acre</option><option value="state:AL">Alagoas</option><option value="state:AP">Amapá</option><option value="state:AM">Amazonas</option><option value="state:BA">Bahia</option><option value="state:CE">Ceará</option><option value="state:DF">Distrito Federal</option><option value="state:ES">Espírito Santo</option><option value="state:GO">Goiás</option><option value="state:MA">Maranhão</option><option value="state:MT">Mato Grosso</option><option value="state:MS">Mato Grosso do Sul</option><option value="state:MG">Minas Gerais</option><option value="state:PA">Pará</option><option value="state:PB">Paraíba</option><option value="state:PR">Paraná</option><option value="state:PE">Pernambuco</option><option value="state:PI">Piauí</option><option value="state:RJ">Rio de Janeiro</option><option value="state:RN">Rio Grande do Norte</option><option value="state:RS">Rio Grande do Sul</option><option value="state:RO">Rondônia</option><option value="state:RR">Roraima</option><option value="state:SC">Santa Catarina</option><option value="state:SP">São Paulo</option><option value="state:SE">Sergipe</option><option value="state:TO">Tocantins</option>
+          </optgroup>
+        </select>
+        <p class="comparison-scope-description" id="comparison-scope-description">Comparando o total nacional.</p>
+      </div>
+      <div class="comparison-charts">
+        <section class="card comparison-chart-card">
+          <div class="card-head"><div><h2>Votos por turno</h2><p>Compare a quantidade de votos recebida por candidato.</p></div></div>
+          <div class="comparison-chart" id="comparison-votes-chart" role="img" aria-label="Gráfico comparativo de votos por turno"></div>
+        </section>
+        <section class="card comparison-chart-card">
+          <div class="card-head"><div><h2>Participação nos votos válidos</h2><p>Compare o percentual de cada candidato nos dois turnos.</p></div></div>
+          <div class="comparison-chart" id="comparison-share-chart" role="img" aria-label="Gráfico comparativo da participação nos votos válidos"></div>
+        </section>
+      </div>
       <section class="card">
         <div class="card-head"><div><h2>Variação de votos e participação</h2><p>As linhas regionais somam os estados. O total do Brasil vem do arquivo nacional do TSE.</p></div></div>
         <div class="comparison-table-scroll"><table class="comparison-table" id="comparison-table"></table></div>
@@ -261,6 +301,7 @@
       var LEGACY_BRAZIL_HISTORY_KEY = "tse-6258-presidente-brasil-history-v1";
       var CHART_TYPE_KEY = "tse-6258-chart-type-v1";
       var SCOPE_KEY = "tse-6258-scope-v1";
+      var COMPARISON_SCOPE_KEY = "tse-6258-comparison-scope-v1";
       var chartType = localStorage.getItem(CHART_TYPE_KEY) || "line";
       var COLORS = ["#2864dc", "#e97724", "#16823b", "#8a45a8"];
       var REGION_STATES = {norte:["ac","ap","am","pa","ro","rr","to"],nordeste:["al","ba","ce","ma","pb","pe","pi","rn","se"],"centro-oeste":["df","go","mt","ms"],sudeste:["es","mg","rj","sp"],sul:["pr","rs","sc"]};
@@ -274,6 +315,7 @@
       var mapPending = false;
       var selectedMapState = "SP";
       var comparisonRows = [], comparisonPending = false;
+      var comparisonScope = localStorage.getItem(COMPARISON_SCOPE_KEY) || "br";
       var comparisonLastUpdate = null, comparisonFailed = false;
       var dashboardLastUpdate = null, dashboardFailed = false, mapLastUpdate = null, mapFailed = false;
       var nextDashboardPollAt = Date.now()+POLL_MS, nextMapPollAt = Date.now()+POLL_MS, nextComparisonPollAt = Date.now()+POLL_MS;
@@ -464,7 +506,62 @@
         });
         table.appendChild(tbody);
       }
-      async function refreshComparisonData(){
+      function comparisonRowsForScope(scope){
+         if(scope==="br")return comparisonRows.filter(function(item){return item.level==="País";});
+         if(scope.indexOf("region:")===0){
+           var key=scope.slice(7),regionName={"norte":"Norte","nordeste":"Nordeste","centro-oeste":"Centro-Oeste","sudeste":"Sudeste","sul":"Sul"}[key];
+           return comparisonRows.filter(function(item){return item.region===regionName;});
+         }
+         if(scope.indexOf("state:")===0){
+           var uf=scope.slice(6),stateName=STATE_NAMES[uf.toLowerCase()];
+           return comparisonRows.filter(function(item){return item.level==="Estado"&&item.area===stateName;});
+         }
+         return comparisonRows.filter(function(item){return item.level==="País";});
+       }
+       function comparisonChartRows(rows,scope){
+         if(scope==="br")return rows.filter(function(item){return item.level==="País";});
+         if(scope.indexOf("region:")===0)return rows.filter(function(item){return item.level==="Região";});
+         return rows.filter(function(item){return item.level==="Estado";});
+       }
+       function renderComparisonBarChart(containerId,rows,valueKey,scaleMax,formatter){
+         var container=document.getElementById(containerId);container.textContent="";
+         if(!rows.length){container.className="comparison-chart comparison-chart-empty";container.textContent="Aguardando dados oficiais do TSE…";return;}
+         container.className="comparison-chart";
+         rows.forEach(function(item,index){
+           var block=document.createElement("div");block.className="comparison-candidate-block";
+           var title=document.createElement("div");title.className="comparison-chart-candidate";
+           var dot=document.createElement("span");dot.className="comparison-chart-dot";dot.style.background=candidateColor({name:item.name},index);
+           var name=document.createElement("span");name.textContent=item.name;title.appendChild(dot);title.appendChild(name);block.appendChild(title);
+           [{label:"1º turno",key:"first"},{label:"2º turno",key:"second"}].forEach(function(turn){
+             var value=item[turn.key+valueKey]||0,row=document.createElement("div");row.className="comparison-bar-row";
+             var turnLabel=document.createElement("span");turnLabel.className="comparison-bar-turn";turnLabel.textContent=turn.label;
+             var track=document.createElement("div");track.className="comparison-bar-track";
+             var fill=document.createElement("div");fill.className="comparison-bar-fill";
+             fill.style.width=Math.max(0,Math.min(100,scaleMax?value/scaleMax*100:0))+"%";
+             fill.style.background=candidateColor({name:item.name},index);fill.style.opacity=turn.key==="first"?".48":"1";
+             track.appendChild(fill);
+             var output=document.createElement("span");output.className="comparison-bar-value";output.textContent=formatter(value);
+             row.appendChild(turnLabel);row.appendChild(track);row.appendChild(output);block.appendChild(row);
+           });
+           container.appendChild(block);
+         });
+       }
+       function renderComparisonSelection(){
+         var select=document.getElementById("comparison-scope-select");
+         if(select.value!==comparisonScope)select.value=comparisonScope;
+         var rows=comparisonRowsForScope(comparisonScope),chartRows=comparisonChartRows(rows,comparisonScope);
+         renderComparisonTable(rows);
+         var selected=select.options[select.selectedIndex],scopeName=selected?selected.textContent:"Brasil";
+         document.getElementById("comparison-scope-description").textContent=comparisonScope.indexOf("region:")===0
+           ?"Mostrando o total de "+scopeName+" e os estados da região."
+           :comparisonScope.indexOf("state:")===0
+             ?"Mostrando os resultados de "+scopeName+"."
+             :"Mostrando o total nacional do Brasil.";
+         var maxVotes=chartRows.reduce(function(max,item){return Math.max(max,item.firstVotes,item.secondVotes);},0);
+         renderComparisonBarChart("comparison-votes-chart",chartRows,"Votes",maxVotes,fmtInt);
+         renderComparisonBarChart("comparison-share-chart",chartRows,"Share",100,fmtPct);
+       }
+       async function refreshComparisonData(){
         if(comparisonPending)return;
         comparisonPending=true;
         nextComparisonPollAt=Date.now()+POLL_MS;updateCountdownLabels();
@@ -486,7 +583,7 @@
             });
           });
           rows=rows.concat(comparisonAreaRows("País","Brasil","Brasil",firstBrazil,secondBrazil));
-          comparisonRows=rows;renderComparisonTable(comparisonRows);
+          comparisonRows=rows;renderComparisonSelection();
           comparisonLastUpdate=new Date();comparisonFailed=false;
           document.getElementById("comparison-status-dot").style.background="#16823b";
           updateCountdownLabels();
@@ -862,6 +959,7 @@
       document.querySelectorAll("[data-view]").forEach(function(button){button.addEventListener("click",function(){showView(button.getAttribute("data-view"));});});
       document.getElementById("refresh-map").addEventListener("click",refreshMapData);
       document.getElementById("refresh-comparison").addEventListener("click",refreshComparisonData);
+       document.getElementById("comparison-scope-select").addEventListener("change",function(event){comparisonScope=event.target.value;try{localStorage.setItem(COMPARISON_SCOPE_KEY,comparisonScope);}catch(_){}renderComparisonSelection();});
       document.getElementById("scope-select").addEventListener("change",function(event){currentScope=event.target.value;try{localStorage.setItem(SCOPE_KEY,currentScope);}catch(_){}history=loadHistory();candidates=[];updateScopeLabels();poll();});
       updateScopeLabels();
       document.querySelectorAll("[data-chart-type]").forEach(function(button){button.addEventListener("click",function(){setChartType(button.getAttribute("data-chart-type"));});});
