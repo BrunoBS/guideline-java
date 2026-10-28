@@ -58,7 +58,7 @@ Os atributos exatos de `@Audit`, envelopes e chaves de idempotência devem ser c
 
 Há **duas views distintas**:
 
-- **View de microserviços/features:** leitura do cadastro, associação e habilitação; contrato e nome físico devem ser confirmados no Workspace.
+- **View de microserviços/features:** leitura do cadastro, associação, habilitação e dos valores `settings.audit.snapshotEnabled`/`settings.audit.cycleEnabled` da feature, expostos como `snapshot_enabled`/`cycle_enabled`; contrato e nome físico devem ser confirmados no Workspace.
 - **`VW_AUDIT_ACCOUNT_ENVIRONMENT_FLOW`:** fornece o fluxo de ambientes por conta para criação de ciclos.
 
 O Audit Service tem acesso **somente SELECT** às views do Workspace. Trata-se de dependência de leitura deliberada, com privilégios mínimos, versionamento de contrato e testes de integração.
@@ -67,13 +67,28 @@ O Redis é infraestrutura centralizada compartilhada, com **namespace exclusivo 
 
 Redis indisponível: tentar a view diretamente. View indisponível: falha transitória, retentativa e DLQ, **nunca** classificar como cadastro inexistente. Cadastro comprovadamente inexistente ou inativo: rejeição de negócio rastreável, não ingestão válida. Evitar cache negativo duradouro; documentar defasagem de desativação até o TTL e proteção contra misses concorrentes.
 
-## 7. Política de auditoria por feature
+## 7. Configurações de auditoria no settings da feature — decisão definitiva
 
-A **política de auditoria** é responsabilidade do Audit Service, distinta do cadastro de feature no Workspace. É indexada pelo par microserviço/feature e pode definir `snapshotEnabled` e `cycleEnabled`. Não duplicar dados cadastrais do Workspace nem criar um segundo catálogo de features.
+O **Workspace é a fonte oficial** do cadastro de microserviços, features e das configurações de auditoria da feature. Não existe tabela local `AUDIT_FEATURE_POLICY`, nem política paralela no Audit Service.
 
-Para a primeira implementação, a regra de ciclo é fixa: início em `CREATED` no ambiente inicial e fim em `PUBLISHED` no ambiente final. Campos `cycleStartEvent` e `cycleEndEvent`, se materializados, devem refletir essa regra, **não** abrir generalização não aprovada.
+Padronizar no `settings` de cada feature:
 
-**Decisão técnica limitada antes do DDL:** escolher persistência/configuração tipada da política (tabela interna de política por par de identidades, ou parametrização existente), com padrão conservador `snapshotEnabled=false`, `cycleEnabled=false` na ausência de política explícita. Isso não autoriza novo cadastro administrativo de features.
+```json
+{
+  "settings": {
+    "audit": {
+      "snapshotEnabled": true,
+      "cycleEnabled": true
+    }
+  }
+}
+```
+
+Os atributos `settings.audit.snapshotEnabled` e `settings.audit.cycleEnabled` são booleanos e independentes. **Ausência de `audit` ou de um atributo equivale a `false`**. Valores de tipos inválidos devem ser rejeitados na validação do Workspace, e não interpretados silenciosamente como `true`. O contrato de settings deve ser incorporado ao schema/validação de feature do Workspace.
+
+A **view read-only de microserviços/features do Workspace** deve expor o par estável `microservice_code`/`feature_code`, status de associação e ambos os atributos, preferencialmente como colunas booleanas `snapshot_enabled` e `cycle_enabled` derivadas de `settings`. Nome físico e aliases finais dependem do contrato do Workspace. A view **não é uma nova fonte de persistência**. O Audit Service consulta essa view via Redis cache-aside com namespace `audit:`, TTL configurável e fallback direto para a view se o Redis falhar. Alterações de settings seguem a mesma política de invalidação/TTL dos dados da feature; uma decisão antiga em cache não deve ser tratada como configuração permanente.
+
+O Audit Service decide pela captura de snapshot e pela criação de ciclo a partir dos valores resolvidos da feature, **não de atributos adicionais da anotação `@Audit`**. A regra de ciclo continua fixa nesta versão: início em `CREATED` no ambiente inicial e término em `PUBLISHED` no ambiente final, somente se `cycleEnabled=true`. Não abrir ciclos retroativamente quando a flag for habilitada depois da criação, nem apagar ou reiniciar ciclos existentes quando desabilitada. Eventos continuam auditáveis independentemente dessas flags.
 
 ## 8. Operações: agrupamento e criação
 
@@ -142,7 +157,7 @@ Existem **dois schedulers funcionais distintos**: (a) timeout/reconciliação de
 | `AUDIT_OPERATION_STATUS` | Catálogo interno de status de operação. |
 | `AUDIT_FAILURE_REASON_TYPE` | Catálogo interno de motivos de falha. |
 | `AUDIT_CYCLE_STATUS` | Catálogo interno de status de ciclo. |
-| Política por feature | Configuração própria de auditoria por identidade externa; forma de armazenamento a fechar antes do DDL. |
+| Configuração da feature (externa) | `settings.audit.snapshotEnabled` e `settings.audit.cycleEnabled` persistidos somente no Workspace e expostos por sua view; nenhuma tabela local. |
 
 **Não existem** tabelas locais `AUDIT_SERVICE_TYPE` e `AUDIT_RESOURCE_TYPE`. Referências externas de microserviço/feature são atributos estáveis, não FKs cruzadas. FKs internas são permitidas para os cinco catálogos e entidades do Audit Service. Índices devem cobrir conta/recurso/tempo, operação/status/timeout, ciclo/chave única e deduplicação de evento.
 
@@ -274,25 +289,17 @@ Os **cinco** catálogos usam a estrutura uniforme abaixo, com nome próprio de t
 
 Restrições: `UNIQUE(identifier)`; `UNIQUE(purge_event_id)`; `UNIQUE(account_identifier, microservice_code, feature_code, resource_identifier)`. Índice `(retention_purge_at)` para limpeza em batch. `deleted_at` é a remoção física; `retention_purge_at` é a expiração da retenção, não um segundo evento de negócio.
 
-### 14.8 Política técnica por feature — sem cadastro duplicado
+### 14.8 Configuração de auditoria da feature — sem tabela local
 
-A política é **dado próprio da auditoria**, não um espelho da feature. A proposta física mínima é `AUDIT_FEATURE_POLICY`:
+**Decisão definitiva:** não criar `AUDIT_FEATURE_POLICY` nem migration, entidade, repositório ou CRUD equivalente. Os atributos `snapshotEnabled` e `cycleEnabled` residem exclusivamente em `settings.audit` da feature no Workspace, ambos booleanos com default lógico `false`.
 
-| Coluna | Tipo / regra |
-| --- | --- |
-| `id` | `BIGINT UNSIGNED` PK |
-| `microservice_code`, `feature_code` | `VARCHAR(100) NOT NULL`, identidade externa validada pela view |
-| `snapshot_enabled`, `cycle_enabled` | `BOOLEAN NOT NULL DEFAULT FALSE` |
-| `created_at`, `updated_at` | `DATETIME(6) NOT NULL` |
-| `version` | `BIGINT NOT NULL DEFAULT 0` |
-
-`UNIQUE(microservice_code, feature_code)`. **Não há** nome/descrição/status administrativo de microserviço ou feature nessa tabela. Caso a plataforma já possua parametrização tipada que suporte exatamente essa política, ela pode substituir a tabela **antes do DDL**, sem coexistirem duas fontes. Os eventos de início/fim do ciclo permanecem fixos em `CREATED`/`PUBLISHED` nesta versão.
+A view de microserviços/features deve fornecer `microservice_code`, `feature_code`, status e as projeções booleanas `snapshot_enabled` e `cycle_enabled`. O Audit Service apenas consulta e mantém cache Redis `audit:`; não persiste cópia em tabelas próprias. A definição exata do SQL da view depende do schema real de feature do Workspace. Sem configuração, os dois valores são `false`. A política não altera os cinco catálogos internos nem as tabelas transacionais descritas acima.
 
 ### 14.9 Relacionamentos e integridade
 
 ```text
 Workspace (views read-only; SEM FK entre bancos)
-  microservice + feature --> AUDIT_FEATURE_POLICY (somente política)
+  microservice + feature + settings.audit (somente Workspace)
                          --> AUDIT_EVENT
                          --> AUDIT_CYCLE (um por recurso)
                          --> AUDIT_SNAPSHOT
