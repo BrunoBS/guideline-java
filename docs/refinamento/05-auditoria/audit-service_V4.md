@@ -58,7 +58,7 @@ Os atributos exatos de `@Audit`, envelopes e chaves de idempotência devem ser c
 
 Há **duas views distintas**:
 
-- **View de microserviços/features:** leitura do cadastro, associação, habilitação e dos valores `settings.audit.snapshotEnabled`/`settings.audit.cycleEnabled` da feature, expostos como `snapshot_enabled`/`cycle_enabled`; contrato e nome físico devem ser confirmados no Workspace.
+- **View de microserviços/features:** leitura do cadastro, associação, habilitação e dos valores `settings.audit.snapshotEnabled`/`settings.audit.cycleEnabled` da feature, projetados obrigatoriamente como duas colunas booleanas `snapshot_enabled` e `cycle_enabled` na view; o nome físico da view deve ser confirmado no Workspace.
 - **`VW_AUDIT_ACCOUNT_ENVIRONMENT_FLOW`:** fornece o fluxo de ambientes por conta para criação de ciclos.
 
 O Audit Service tem acesso **somente SELECT** às views do Workspace. Trata-se de dependência de leitura deliberada, com privilégios mínimos, versionamento de contrato e testes de integração.
@@ -86,7 +86,7 @@ Padronizar no `settings` de cada feature:
 
 Os atributos `settings.audit.snapshotEnabled` e `settings.audit.cycleEnabled` são booleanos e independentes. **Ausência de `audit` ou de um atributo equivale a `false`**. Valores de tipos inválidos devem ser rejeitados na validação do Workspace, e não interpretados silenciosamente como `true`. O contrato de settings deve ser incorporado ao schema/validação de feature do Workspace.
 
-A **view read-only de microserviços/features do Workspace** deve expor o par estável `microservice_code`/`feature_code`, status de associação e ambos os atributos, preferencialmente como colunas booleanas `snapshot_enabled` e `cycle_enabled` derivadas de `settings`. Nome físico e aliases finais dependem do contrato do Workspace. A view **não é uma nova fonte de persistência**. O Audit Service consulta essa view via Redis cache-aside com namespace `audit:`, TTL configurável e fallback direto para a view se o Redis falhar. Alterações de settings seguem a mesma política de invalidação/TTL dos dados da feature; uma decisão antiga em cache não deve ser tratada como configuração permanente.
+A **view read-only de microserviços/features do Workspace** deve expor o par estável `microservice_code`/`feature_code`, status de associação e ambos os atributos, como colunas booleanas `snapshot_enabled` e `cycle_enabled` derivadas de `settings`, com valor `false` quando ausentes. A view e a validação do JSON são implementadas no Workspace; o Audit Service consome as colunas e não interpreta o JSON. O nome físico da view depende do contrato do Workspace. A view **não é uma nova fonte de persistência**. O Audit Service consulta essa view via Redis cache-aside com namespace `audit:`, TTL configurável e fallback direto para a view se o Redis falhar. Alterações de settings seguem a mesma política de invalidação/TTL dos dados da feature; uma decisão antiga em cache não deve ser tratada como configuração permanente.
 
 O Audit Service decide pela captura de snapshot e pela criação de ciclo a partir dos valores resolvidos da feature, **não de atributos adicionais da anotação `@Audit`**. A regra de ciclo continua fixa nesta versão: início em `CREATED` no ambiente inicial e término em `PUBLISHED` no ambiente final, somente se `cycleEnabled=true`. Não abrir ciclos retroativamente quando a flag for habilitada depois da criação, nem apagar ou reiniciar ciclos existentes quando desabilitada. Eventos continuam auditáveis independentemente dessas flags.
 
@@ -293,7 +293,7 @@ Restrições: `UNIQUE(identifier)`; `UNIQUE(purge_event_id)`; `UNIQUE(account_id
 
 Os atributos `snapshotEnabled` e `cycleEnabled` residem em `settings.audit` da feature no Workspace, ambos booleanos com default lógico `false`.
 
-A view de microserviços/features deve fornecer `microservice_code`, `feature_code`, status e as projeções booleanas `snapshot_enabled` e `cycle_enabled`. O Audit Service consulta essas configurações pela view e utiliza cache Redis com namespace `audit:`. A definição exata do SQL da view depende do schema real de feature do Workspace. Sem configuração, os dois valores são `false`. A política não altera os cinco catálogos internos nem as tabelas transacionais descritas acima.
+A view de microserviços/features deve fornecer `microservice_code`, `feature_code`, status e as projeções booleanas `snapshot_enabled` e `cycle_enabled`. O Audit Service consulta essas configurações pela view e utiliza cache Redis com namespace `audit:`. A implementação da view e da validação de `settings.audit` é uma alteração no Workspace. A projeção deve extrair os dois booleanos do JSON e aplicar `false` para propriedades ausentes, sem mascarar tipos inválidos; a expressão SQL exata depende do schema real da feature. Sem configuração, os dois valores são `false`. A política não altera os cinco catálogos internos nem as tabelas transacionais descritas acima.
 
 ### 14.9 Relacionamentos e integridade
 
