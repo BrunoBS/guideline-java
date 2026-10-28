@@ -146,6 +146,172 @@ Existem **dois schedulers funcionais distintos**: (a) timeout/reconciliação de
 
 **Não existem** tabelas locais `AUDIT_SERVICE_TYPE` e `AUDIT_RESOURCE_TYPE`. Referências externas de microserviço/feature são atributos estáveis, não FKs cruzadas. FKs internas são permitidas para os cinco catálogos e entidades do Audit Service. Índices devem cobrir conta/recurso/tempo, operação/status/timeout, ciclo/chave única e deduplicação de evento.
 
+
+## 14.1 Convenções físicas do MySQL 8.4
+
+Esta seção integra a V4 e **não cria um modelo alternativo**. Nomes abaixo são o modelo físico proposto para implementação, sujeito apenas à conferência do contrato de identificadores do Workspace e da biblioteca. `id BIGINT UNSIGNED AUTO_INCREMENT` é PK técnica; `identifier BINARY(16)` é UUID público, com conversão consistente na aplicação; timestamps são `DATETIME(6)` UTC; colunas `*_code` de identidade externa são `VARCHAR(100)` com comparação estável e case-sensitive. `account_identifier`, `application_identifier` e `environment_identifier` representam identificadores externos, sem FK entre bancos. Todas as FKs abaixo são **somente internas**.
+
+A identidade externa de microserviço/feature é persistida como `microservice_code` + `feature_code` enquanto o contrato da view não confirmar identificadores imutáveis de origem. **Não executar migração física para UUID sem confirmar o contrato real.** O recurso é identificado por `resource_identifier BINARY(16)`, conforme padrão de identifiers públicos da plataforma.
+
+### 14.2 Catálogos — definição de colunas e seeds
+
+Os **cinco** catálogos usam a estrutura uniforme abaixo, com nome próprio de tabela. `code` é estável, único e não pode ser renomeado após uso; `active=false` impede novos usos, sem invalidar histórico.
+
+| Tabela | Colunas (além de `id BIGINT UNSIGNED PK`) | Chaves e índices |
+| --- | --- | --- |
+| `AUDIT_EVENT_TYPE` | `code VARCHAR(60) NOT NULL`, `description VARCHAR(255)`, `active BOOLEAN NOT NULL DEFAULT TRUE`, `created_at DATETIME(6) NOT NULL` | `UNIQUE(code)` |
+| `AUDIT_OPERATION_TYPE` | `code VARCHAR(60) NOT NULL`, `description VARCHAR(255)`, `active BOOLEAN NOT NULL DEFAULT TRUE`, `created_at DATETIME(6) NOT NULL` | `UNIQUE(code)` |
+| `AUDIT_OPERATION_STATUS` | `code VARCHAR(40) NOT NULL`, `description VARCHAR(255)`, `active BOOLEAN NOT NULL DEFAULT TRUE`, `created_at DATETIME(6) NOT NULL` | `UNIQUE(code)` |
+| `AUDIT_FAILURE_REASON_TYPE` | `code VARCHAR(60) NOT NULL`, `description VARCHAR(255)`, `active BOOLEAN NOT NULL DEFAULT TRUE`, `created_at DATETIME(6) NOT NULL` | `UNIQUE(code)` |
+| `AUDIT_CYCLE_STATUS` | `code VARCHAR(40) NOT NULL`, `description VARCHAR(255)`, `active BOOLEAN NOT NULL DEFAULT TRUE`, `created_at DATETIME(6) NOT NULL` | `UNIQUE(code)` |
+
+**Seeds iniciais** (IDs numéricos não são contratos e não devem ser fixados em código):
+
+| Catálogo | `code` inicial |
+| --- | --- |
+| `AUDIT_EVENT_TYPE` | `CREATED`, `UPDATED`, `ACTIVATED`, `DEACTIVATED`, `ACTIVE`, `INACTIVE`, `DELETED`, `PURGED`, `PUBLISH_REQUESTED`, `PUBLISHED`, `PUBLISH_FAILED`, `PROMOTION_REQUESTED`, `PROMOTED`, `PROMOTION_FAILED`, `ROLLBACK_REQUESTED`, `ROLLBACK`, `ROLLBACK_FAILED`, `UNHANDLED_FAILURE` |
+| `AUDIT_OPERATION_TYPE` | `PUBLISH`, `PROMOTION`, `ROLLBACK` |
+| `AUDIT_OPERATION_STATUS` | `STARTED`, `COMPLETED`, `FAILED` |
+| `AUDIT_FAILURE_REASON_TYPE` | `PROCESSING_FAILURE`, `TIMEOUT`, `UNHANDLED_FAILURE` |
+| `AUDIT_CYCLE_STATUS` | `OPEN`, `COMPLETED` |
+
+`ACTIVE/INACTIVE` e `ACTIVATED/DEACTIVATED` aparecem como nomenclaturas usadas no histórico; antes de popular o banco, conferir quais são efetivamente emitidas pela biblioteca e pelos domínios. Não tratar sinônimos como o mesmo evento silenciosamente.
+
+### 14.3 Tabela `AUDIT_OPERATION`
+
+| Coluna | Tipo / regra |
+| --- | --- |
+| `id` | `BIGINT UNSIGNED` PK |
+| `identifier` | `BINARY(16) NOT NULL UNIQUE` |
+| `account_identifier` | `BINARY(16) NOT NULL` |
+| `application_identifier`, `environment_identifier` | `BINARY(16) NULL` |
+| `operation_type_id` | `BIGINT UNSIGNED NOT NULL`, FK `AUDIT_OPERATION_TYPE(id)` |
+| `status_id` | `BIGINT UNSIGNED NOT NULL`, FK `AUDIT_OPERATION_STATUS(id)` |
+| `failure_reason_type_id` | `BIGINT UNSIGNED NULL`, FK `AUDIT_FAILURE_REASON_TYPE(id)` |
+| `actor_identifier` | `VARCHAR(150) NULL` |
+| `correlation_id` | `VARCHAR(100) NULL` |
+| `observation` | `TEXT NULL` |
+| `started_at`, `created_at` | `DATETIME(6) NOT NULL` |
+| `completed_at` | `DATETIME(6) NULL` |
+| `version` | `BIGINT NOT NULL DEFAULT 0` (controle otimista) |
+
+Índices: `UNIQUE(identifier)`; `(status_id, started_at)` para timeout; `(account_identifier, started_at)`; `(correlation_id)`. Não existe `resource_id` nesta tabela.
+
+### 14.4 Tabela `AUDIT_CYCLE`
+
+| Coluna | Tipo / regra |
+| --- | --- |
+| `id` | `BIGINT UNSIGNED` PK |
+| `identifier` | `BINARY(16) NOT NULL UNIQUE` |
+| `account_identifier` | `BINARY(16) NOT NULL` |
+| `microservice_code`, `feature_code` | `VARCHAR(100) NOT NULL` cada |
+| `resource_identifier` | `BINARY(16) NOT NULL` |
+| `status_id` | `BIGINT UNSIGNED NOT NULL`, FK `AUDIT_CYCLE_STATUS(id)` |
+| `initial_environment_identifier` | `BINARY(16) NOT NULL` |
+| `final_environment_identifier` | `BINARY(16) NOT NULL` |
+| `started_at`, `created_at` | `DATETIME(6) NOT NULL` |
+| `completed_at` | `DATETIME(6) NULL` |
+| `version` | `BIGINT NOT NULL DEFAULT 0` |
+
+**Restrição central:** `UNIQUE(account_identifier, microservice_code, feature_code, resource_identifier)` impede segundo ciclo, inclusive após conclusão. Índices `(status_id, started_at)` e `(account_identifier, resource_identifier)`. `completed_at` só pode ser preenchido após `PUBLISHED` no ambiente final congelado; a transição é protegida por atualização condicional/lock.
+
+### 14.5 Tabela `AUDIT_SNAPSHOT`
+
+| Coluna | Tipo / regra |
+| --- | --- |
+| `id` | `BIGINT UNSIGNED` PK |
+| `identifier` | `BINARY(16) NOT NULL UNIQUE` |
+| `account_identifier` | `BINARY(16) NOT NULL` |
+| `microservice_code`, `feature_code` | `VARCHAR(100) NOT NULL` |
+| `resource_identifier` | `BINARY(16) NOT NULL` |
+| `resource_version` | `BIGINT NULL` (versão de negócio, se houver) |
+| `bucket` | `VARCHAR(255) NOT NULL` |
+| `object_key` | `VARCHAR(1024) NOT NULL` |
+| `object_version_id` | `VARCHAR(255) NULL` |
+| `sha256` | `CHAR(64) NOT NULL` |
+| `size_bytes` | `BIGINT UNSIGNED NOT NULL` |
+| `created_at` | `DATETIME(6) NOT NULL` |
+
+Índices: `UNIQUE(identifier)`; `(account_identifier, microservice_code, feature_code, resource_identifier, created_at)`; `(bucket, object_key(191))`. Deduplicação de snapshot por identificador estável de origem; `resource_version` não é necessariamente único após rollback.
+
+### 14.6 Tabela `AUDIT_EVENT`
+
+| Coluna | Tipo / regra |
+| --- | --- |
+| `id` | `BIGINT UNSIGNED` PK |
+| `identifier` | `BINARY(16) NOT NULL UNIQUE` (idempotência do evento) |
+| `account_identifier` | `BINARY(16) NOT NULL` |
+| `application_identifier`, `environment_identifier` | `BINARY(16) NULL` |
+| `microservice_code`, `feature_code` | `VARCHAR(100) NOT NULL` |
+| `resource_identifier` | `BINARY(16) NOT NULL` |
+| `event_type_id` | `BIGINT UNSIGNED NOT NULL`, FK `AUDIT_EVENT_TYPE(id)` |
+| `operation_id` | `BIGINT UNSIGNED NULL`, FK `AUDIT_OPERATION(id)` |
+| `cycle_id` | `BIGINT UNSIGNED NULL`, FK `AUDIT_CYCLE(id)` |
+| `snapshot_id` | `BIGINT UNSIGNED NULL`, FK `AUDIT_SNAPSHOT(id)` |
+| `intent_identifier` | `BINARY(16) NULL` (mesma correlação da intenção e de seu desfecho) |
+| `actor_identifier` | `VARCHAR(150) NULL` |
+| `correlation_id`, `causation_id`, `trace_id` | `VARCHAR(100) NULL` |
+| `resource_version` | `BIGINT NULL` |
+| `metadata` | `JSON NULL` |
+| `message`, `solution` | `TEXT NULL` |
+| `occurred_at`, `created_at` | `DATETIME(6) NOT NULL` |
+
+Índices: `UNIQUE(identifier)`; `(account_identifier, microservice_code, feature_code, resource_identifier, occurred_at)`; `(operation_id, intent_identifier)`; `(cycle_id, occurred_at)`; `(account_identifier, occurred_at)`; `(correlation_id)`. Eventos são imutáveis; associação técnica de ciclo/snapshot pode ser preenchida de modo idempotente durante a ingestão. A regra de **um desfecho por intenção** deve ser aplicada por transação e constraint adequada ao contrato de eventos, sem `UNIQUE(operation_id, intent_identifier)` indiscriminado (isso bloquearia a própria dupla intenção/desfecho).
+
+### 14.7 Tabela `AUDIT_DELETED_RESOURCE`
+
+| Coluna | Tipo / regra |
+| --- | --- |
+| `id` | `BIGINT UNSIGNED` PK |
+| `identifier` | `BINARY(16) NOT NULL UNIQUE` |
+| `account_identifier` | `BINARY(16) NOT NULL` |
+| `application_identifier` | `BINARY(16) NULL` |
+| `microservice_code`, `feature_code` | `VARCHAR(100) NOT NULL` |
+| `resource_identifier` | `BINARY(16) NOT NULL` |
+| `resource_name` | `VARCHAR(255) NULL` |
+| `purge_event_id` | `BIGINT UNSIGNED NOT NULL`, FK `AUDIT_EVENT(id)` |
+| `deleted_at`, `retention_purge_at`, `created_at` | `DATETIME(6) NOT NULL` |
+
+Restrições: `UNIQUE(identifier)`; `UNIQUE(purge_event_id)`; `UNIQUE(account_identifier, microservice_code, feature_code, resource_identifier)`. Índice `(retention_purge_at)` para limpeza em batch. `deleted_at` é a remoção física; `retention_purge_at` é a expiração da retenção, não um segundo evento de negócio.
+
+### 14.8 Política técnica por feature — sem cadastro duplicado
+
+A política é **dado próprio da auditoria**, não um espelho da feature. A proposta física mínima é `AUDIT_FEATURE_POLICY`:
+
+| Coluna | Tipo / regra |
+| --- | --- |
+| `id` | `BIGINT UNSIGNED` PK |
+| `microservice_code`, `feature_code` | `VARCHAR(100) NOT NULL`, identidade externa validada pela view |
+| `snapshot_enabled`, `cycle_enabled` | `BOOLEAN NOT NULL DEFAULT FALSE` |
+| `created_at`, `updated_at` | `DATETIME(6) NOT NULL` |
+| `version` | `BIGINT NOT NULL DEFAULT 0` |
+
+`UNIQUE(microservice_code, feature_code)`. **Não há** nome/descrição/status administrativo de microserviço ou feature nessa tabela. Caso a plataforma já possua parametrização tipada que suporte exatamente essa política, ela pode substituir a tabela **antes do DDL**, sem coexistirem duas fontes. Os eventos de início/fim do ciclo permanecem fixos em `CREATED`/`PUBLISHED` nesta versão.
+
+### 14.9 Relacionamentos e integridade
+
+```text
+Workspace (views read-only; SEM FK entre bancos)
+  microservice + feature --> AUDIT_FEATURE_POLICY (somente política)
+                         --> AUDIT_EVENT
+                         --> AUDIT_CYCLE (um por recurso)
+                         --> AUDIT_SNAPSHOT
+                         --> AUDIT_DELETED_RESOURCE
+
+AUDIT_EVENT_TYPE        1 -- N AUDIT_EVENT
+AUDIT_OPERATION_TYPE    1 -- N AUDIT_OPERATION
+AUDIT_OPERATION_STATUS  1 -- N AUDIT_OPERATION
+AUDIT_FAILURE_REASON_TYPE 1 -- N AUDIT_OPERATION
+AUDIT_CYCLE_STATUS      1 -- N AUDIT_CYCLE
+
+AUDIT_OPERATION         1 -- N AUDIT_EVENT (opcional)
+AUDIT_CYCLE             1 -- N AUDIT_EVENT (opcional)
+AUDIT_SNAPSHOT          1 -- N AUDIT_EVENT (opcional)
+AUDIT_EVENT             1 -- 0..1 AUDIT_DELETED_RESOURCE (PURGED)
+```
+
+**Transações obrigatórias:** evento + criação/conclusão de ciclo; evento `PURGED` + tombstone; operação + intenções; fechamento de operação + `UNHANDLED_FAILURE` necessários. Os identificadores de conta, aplicação, ambiente, microserviço e feature são referências externas sem FK local. Índices e constraints devem ser testados em MySQL real via Testcontainers.
+
 ## 15. APIs e consultas
 
 A entrada principal de eventos é **mensageria**, não um CRUD público de fatos. Consultas devem permitir histórico por conta, microserviço/feature, recurso, aplicação/ambiente quando aplicável, operação, ciclo e intervalo temporal; consultar snapshots/tombstones com autorização.
