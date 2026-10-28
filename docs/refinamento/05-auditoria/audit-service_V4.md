@@ -67,9 +67,9 @@ O Redis é infraestrutura centralizada compartilhada, com **namespace exclusivo 
 
 Redis indisponível: tentar a view diretamente. View indisponível: falha transitória, retentativa e DLQ, **nunca** classificar como cadastro inexistente. Cadastro comprovadamente inexistente ou inativo: rejeição de negócio rastreável, não ingestão válida. Evitar cache negativo duradouro; documentar defasagem de desativação até o TTL e proteção contra misses concorrentes.
 
-## 7. Configurações de auditoria no settings da feature — decisão definitiva
+## 7. Configurações de auditoria no settings da feature
 
-O **Workspace é a fonte oficial** do cadastro de microserviços, features e das configurações de auditoria da feature. Não existe tabela local `AUDIT_FEATURE_POLICY`, nem política paralela no Audit Service.
+O **Workspace é a fonte oficial** do cadastro de microserviços, features e das configurações de auditoria da feature.
 
 Padronizar no `settings` de cada feature:
 
@@ -157,7 +157,7 @@ Existem **dois schedulers funcionais distintos**: (a) timeout/reconciliação de
 | `AUDIT_OPERATION_STATUS` | Catálogo interno de status de operação. |
 | `AUDIT_FAILURE_REASON_TYPE` | Catálogo interno de motivos de falha. |
 | `AUDIT_CYCLE_STATUS` | Catálogo interno de status de ciclo. |
-| Configuração da feature (externa) | `settings.audit.snapshotEnabled` e `settings.audit.cycleEnabled` persistidos somente no Workspace e expostos por sua view; nenhuma tabela local. |
+| Configuração da feature (externa) | `settings.audit.snapshotEnabled` e `settings.audit.cycleEnabled` armazenados no Workspace e expostos por sua view. |
 
 **Não existem** tabelas locais `AUDIT_SERVICE_TYPE` e `AUDIT_RESOURCE_TYPE`. Referências externas de microserviço/feature são atributos estáveis, não FKs cruzadas. FKs internas são permitidas para os cinco catálogos e entidades do Audit Service. Índices devem cobrir conta/recurso/tempo, operação/status/timeout, ciclo/chave única e deduplicação de evento.
 
@@ -289,11 +289,11 @@ Os **cinco** catálogos usam a estrutura uniforme abaixo, com nome próprio de t
 
 Restrições: `UNIQUE(identifier)`; `UNIQUE(purge_event_id)`; `UNIQUE(account_identifier, microservice_code, feature_code, resource_identifier)`. Índice `(retention_purge_at)` para limpeza em batch. `deleted_at` é a remoção física; `retention_purge_at` é a expiração da retenção, não um segundo evento de negócio.
 
-### 14.8 Configuração de auditoria da feature — sem tabela local
+### 14.8 Origem das configurações de auditoria da feature
 
-**Decisão definitiva:** não criar `AUDIT_FEATURE_POLICY` nem migration, entidade, repositório ou CRUD equivalente. Os atributos `snapshotEnabled` e `cycleEnabled` residem exclusivamente em `settings.audit` da feature no Workspace, ambos booleanos com default lógico `false`.
+Os atributos `snapshotEnabled` e `cycleEnabled` residem em `settings.audit` da feature no Workspace, ambos booleanos com default lógico `false`.
 
-A view de microserviços/features deve fornecer `microservice_code`, `feature_code`, status e as projeções booleanas `snapshot_enabled` e `cycle_enabled`. O Audit Service apenas consulta e mantém cache Redis `audit:`; não persiste cópia em tabelas próprias. A definição exata do SQL da view depende do schema real de feature do Workspace. Sem configuração, os dois valores são `false`. A política não altera os cinco catálogos internos nem as tabelas transacionais descritas acima.
+A view de microserviços/features deve fornecer `microservice_code`, `feature_code`, status e as projeções booleanas `snapshot_enabled` e `cycle_enabled`. O Audit Service consulta essas configurações pela view e utiliza cache Redis com namespace `audit:`. A definição exata do SQL da view depende do schema real de feature do Workspace. Sem configuração, os dois valores são `false`. A política não altera os cinco catálogos internos nem as tabelas transacionais descritas acima.
 
 ### 14.9 Relacionamentos e integridade
 
