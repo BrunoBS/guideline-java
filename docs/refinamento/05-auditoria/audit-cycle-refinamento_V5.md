@@ -134,3 +134,231 @@ Nenhum nome novo de coluna, endpoint, pacote ou assinatura Java é normativo nes
 ## 11. Limites da entrega
 
 Este arquivo é **refinamento funcional e arquitetural**, não solicitação de implementação. Não altera código, banco, migrations, branches, PRs ou regras de governança além de registrar a proposta para discussão.
+
+
+---
+
+## 12. Catálogo de cenários funcionais — exemplos ilustrativos
+
+> Os horários, IDs, recursos e números abaixo são **dados fictícios para validar a experiência do usuário**. Não são registros reais. Os exemplos assumem que os eventos de abertura subsequente e a correlação de publicação foram aprovados conforme as pendências da seção 10.
+
+### E01 — Primeira jornada de uma chave, com alteração no meio
+
+**Contexto:** aplicação `PAYMENTS`, chave `payment.timeout`, fluxo DEV → HOMO → PROD.
+
+| Horário | Evento | Ambiente | Operação | Ciclo | Resultado |
+| --- | --- | --- | --- | --- | --- |
+| 10:00 | CREATED | DEV | — | C-001 | Abre |
+| 10:30 | PUBLISHED | DEV | — | C-001 | Continua |
+| 11:00 | PROMOTED + PUBLISHED | HOMO | OP-001 | C-001 | Continua |
+| 11:10 | UPDATED | DEV | — | C-001 | Continua |
+| 11:15 | PROMOTED + PUBLISHED | PROD | OP-002 | C-001 | Fecha |
+
+**Lead time C-001: 75 minutos.** A alteração das 11:10 está no ciclo, mesmo que a versão publicada em PROD seja a versão que já estava em HOMO. Não afirmar que essa alteração foi entregue em PROD.
+
+### E02 — Segundo ciclo do mesmo recurso, em outro pacote
+
+| Horário | Evento | Ambiente | Pacote | Ciclo |
+| --- | --- | --- | --- | --- |
+| 11:30 | PUBLISHED | HOMO | PKG-002 | Abre C-002 |
+| 11:35 | PUBLISHED | PROD | PKG-003 | Fecha C-002 |
+
+**Lead time C-002: 5 minutos.** C-001 continua íntegro. A origem da alteração publicada pode ser anterior ao início de C-002; o ciclo não é uma métrica por revisão.
+
+### E03 — Operação com quatro recursos de duas features
+
+**Pacote PKG-010:** duas chaves `KEY-A`, `KEY-B` e dois menus `MENU-A`, `MENU-B`.
+
+| Recurso | Feature | Ciclo | DEV → HOMO (OP-010) | HOMO → PROD (OP-011) | Tempo do ciclo |
+| --- | --- | --- | --- | --- | --- |
+| KEY-A | KEY | C-101 | 09:30 | 11:00 | 120 min (abriu 09:00) |
+| KEY-B | KEY | C-102 | 09:30 | 11:00 | 90 min (abriu 09:30) |
+| MENU-A | MENU | C-103 | 09:30 | 11:00 | 180 min (abriu 08:00) |
+| MENU-B | MENU | C-104 | 10:30 | 11:00 | 60 min (abriu 10:00) |
+
+**Regra de validação:** a publicação de MENU-B em HOMO ocorre às 10:30, após sua abertura às 10:00. O dashboard não pode associar ao ciclo eventos anteriores a `started_at`.
+
+**Agregados demonstrativos:** 4 recursos distintos, 2 features distintas, 2 operações, 4 ciclos. Média dos quatro tempos de ciclo = **112,5 minutos**. Essa média é por ciclo, **não** o lead time da solicitação do motor.
+
+### E04 — Recurso promovido em solicitações diferentes
+
+| Horário | Solicitação | Operação | Evento | Ciclo |
+| --- | --- | --- | --- | --- |
+| Seg 09:00 | — | — | KEY-X CREATED DEV | C-201 abre |
+| Seg 12:00 | SOL-A | OP-A | KEY-X PUBLISHED HOMO | C-201 |
+| Qua 16:00 | SOL-B | OP-B | KEY-X PUBLISHED PROD | C-201 fecha |
+
+**C-201 dura 55 horas.** O ciclo não é segmentado por solicitação. SOL-A e SOL-B têm lead times próprios, calculados por eventos do motor, não pelo C-201.
+
+### E05 — Falha parcial de uma operação
+
+OP-030 tenta publicar KEY-A, KEY-B e MENU-A em PROD. KEY-A e MENU-A emitem `PUBLISHED PROD`; KEY-B emite `PUBLISH_FAILED`.
+
+Resultado: ciclos de KEY-A e MENU-A encerram; ciclo de KEY-B permanece OPEN. A operação pode ser FAILED conforme a V4, sem forçar fechamento de todos os ciclos.
+
+### E06 — Eventos recebidos fora de ordem
+
+| Ocorrido em | Recebido em | Fato | Associação correta |
+| --- | --- | --- | --- |
+| 10:00 | 10:01 | CREATED DEV | Abre C-301 |
+| 10:20 | 10:40 | UPDATED DEV | C-301 |
+| 10:30 | 10:31 | PUBLISHED PROD | Fecha C-301 |
+
+A ingestão do `UPDATED` acontece depois do fechamento, mas o evento pertence temporalmente ao C-301. **Duração: 30 minutos**, sem reabrir ou alterar os marcos.
+
+### E07 — Ciclo OPEN por vários dias
+
+KEY-Y criado segunda às 08:00, publicado em HOMO terça às 09:00 e ainda não publicado em PROD na sexta. C-401 continua OPEN. O dashboard pode exibir **idade atual** (agora − `started_at`) separada da duração final, que permanece nula. Não aplicar timeout de operação nem janela de atraso como expiração automática do ciclo.
+
+### E08 — Mesmo nome de chave em aplicações diferentes
+
+`payment.timeout` em `PAYMENTS` e em `CHECKOUT` são recursos distintos, com identificadores estáveis distintos. Seus ciclos não podem ser misturados. Filtros por aplicação precisam preservar o isolamento por conta e a identidade principal.
+
+### E09 — Publicação sem ciclo habilitado
+
+Feature com `cycleEnabled=false`: `CREATED`, `UPDATED` e `PUBLISHED` continuam registrados e consultáveis; nenhum CYCLE é criado. A visão de histórico do ambiente-valor continua disponível.
+
+### E10 — Uma solicitação com múltiplos pacotes, aplicações e features
+
+SOL-900 criada às 08:00, inclui 2 pacotes, 3 aplicações, 4 features e 12 recursos. OP-901 promove DEV → HOMO às 09:00; OP-902 promove HOMO → PROD às 10:30; evento de conclusão da solicitação às 10:40.
+
+**Lead time da solicitação: 160 minutos.** Independentemente dos 12 ciclos de recursos, o dashboard de solicitações contabiliza SOL-900 **uma única vez**. Quantidades devem usar identificadores distintos, não número de eventos.
+
+## 13. Protótipos textuais de dashboards e navegação
+
+Os protótipos a seguir descrevem **visões de produto**, não APIs existentes. Cada tela deve suportar paginação, filtros, controle de acesso e links para os detalhes correlatos.
+
+### Dashboard A — Visão geral de ciclos de recursos
+
+```text
+AUDITORIA / CICLOS                         Período: [últimos 30 dias]
+Filtros: [Workspace] [Aplicação] [Feature] [Status] [Ambiente]
+
+Ciclos iniciados:  120     Concluídos no período: 95
+Ciclos abertos:     25     Lead time médio concluídos: 2h15
+P90 concluídos:    5h10   Mais antigo OPEN: 4 dias
+
+Evolução: [gráfico de ciclos iniciados x concluídos por dia]
+Distribuição: [gráfico de duração por faixa]
+Detalhamento:
+Ciclo    Recurso            Feature  Início        Fim          Duração Status
+C-001    payment.timeout    KEY      30/10 10:00   30/10 11:15  75 min  COMPLETED
+C-002    payment.timeout    KEY      30/10 11:30   30/10 11:35   5 min  COMPLETED
+C-401    KEY-Y              KEY      26/10 08:00   —            —       OPEN
+```
+
+**Regras de métricas:** a média e P90 consideram apenas ciclos COMPLETED; ciclos OPEN entram em idade atual, não na média de durações. Definir claramente o filtro temporal: por `completed_at` para tempos de conclusão, por `started_at` para aberturas. Não misturar denominadores.
+
+### Dashboard B — Auditoria da chave na aplicação
+
+```text
+APLICAÇÃO: PAYMENTS  /  CHAVE: payment.timeout
+[Histórico de ciclos] [Eventos da chave] [Snapshots]
+
+C-002  COMPLETED  11:30 → 11:35   5 min   [Expandir]
+    11:30 PUBLISHED HOMO  OP-003  PKG-002
+    11:35 PUBLISHED PROD  OP-004  PKG-003
+
+C-001  COMPLETED  10:00 → 11:15  75 min   [Expandir]
+    10:00 CREATED DEV
+    11:00 PUBLISHED HOMO  OP-001  PKG-001
+    11:10 UPDATED DEV
+    11:15 PUBLISHED PROD  OP-002  PKG-001
+```
+
+**Interação:** expandir ciclo revela eventos ordenados por `occurred_at`; selecionar evento abre seus metadados, operação e snapshot (se existir). A tela também pode mostrar eventos sem ciclo em aba própria.
+
+### Dashboard C — Histórico do ambiente-valor
+
+```text
+APLICAÇÃO: PAYMENTS / CHAVE: payment.timeout / AMBIENTE: DEV
+VALOR: [identificador estável da entidade ambiente-valor]
+Filtros: [Tipo de evento] [Período] [Operação]
+
+10:00 CREATED   valor 30  [Snapshot]
+11:10 UPDATED   valor 60  [Snapshot]
+[Ver chave principal e seus ciclos]
+```
+
+Trocar para HOMO ou PROD muda o **identificador da entidade ambiente-valor** e os eventos mostrados. Não exibir ciclos próprios nessa tela. Se o payload for sensível, mostrar metadados e oferecer snapshot apenas com autorização específica.
+
+### Dashboard D — Solicitações do motor
+
+```text
+MOTOR / SOLICITAÇÕES                        Período: [últimos 30 dias]
+Filtros: [Status] [Aplicação] [Feature] [Faixa de duração]
+
+Solicitações concluídas: 80  | Tempo médio: 95 min
+Em andamento: 12             | Falhas: 8
+
+Solicitação  Início       Conclusão    Duração  Apps  Features  Recursos  Operações
+SOL-900      08:00        10:40        160 min     3         4        12          2
+SOL-901      09:00        09:30         30 min     1         1         1          2
+SOL-902      09:15        —                 —     2         3         6          1
+```
+
+**Regra:** média por solicitação COMPLETED, não por recurso, operação ou ciclo. Uma solicitação com 100 features pesa uma vez na média. Contagens de apps/features/recursos são distintas dentro da solicitação.
+
+### Dashboard E — Detalhe de uma solicitação
+
+```text
+SOL-900 | COMPLETED | Lead time: 2h40 | 3 apps | 4 features | 12 recursos
+
+08:00  Solicitação criada                     [início]
+09:00  OP-901  DEV → HOMO    COMPLETED         [ver operação]
+10:30  OP-902  HOMO → PROD  COMPLETED         [ver operação]
+10:40  Solicitação concluída                  [fim]
+
+[Recursos envolvidos] [Operações] [Eventos do motor]
+```
+
+A jornada é reconstruída pelos eventos do motor; não somar durações de operações nem durações dos ciclos. A soma pode superestimar por paralelismo e esperas.
+
+### Dashboard F — Operação e seus recursos
+
+```text
+OP-030 | PUBLISH | FAILED | Pacote PKG-030
+Recursos: 3 | Sucessos: 2 | Falhas: 1
+
+Recurso   Feature  Evento terminal   Ciclo     Efeito no ciclo
+KEY-A     KEY      PUBLISHED PROD    C-501     COMPLETED
+KEY-B     KEY      PUBLISH_FAILED    C-502     OPEN
+MENU-A    MENU     PUBLISHED PROD    C-503     COMPLETED
+```
+
+Uma operação atravessa vários ciclos. Permitir navegar de cada linha para a entidade principal, ciclo e evento.
+
+## 14. Gráficos e filtros recomendados
+
+| Gráfico | Unidade de análise | Eixo/dimensão | Medida | Cuidados |
+| --- | --- | --- | --- | --- |
+| Ciclos iniciados e concluídos | Ciclo | Dia/semana | Contagem distinta | Inícios por `started_at`; conclusões por `completed_at` |
+| Lead time de ciclos por feature | Ciclo COMPLETED | Feature | Média, mediana, P90 | Cada ciclo conta uma vez |
+| Ciclos OPEN por idade | Ciclo OPEN | Faixa de idade | Contagem | Idade não é duração concluída |
+| Lead time de solicitações | Solicitação COMPLETED | Dia de conclusão | Média, mediana, P90 | Cada solicitação conta uma vez |
+| Solicitações por quantidade de apps | Solicitação | Faixa de apps distintos | Média de duração | Não multiplicar solicitação por app |
+| Sucesso/falha por operação | Operação | Tipo/status | Contagem distinta | Não inferir sucesso de ciclo por status da operação |
+| Recursos publicados por feature | Recurso + evento | Feature/período | Recursos distintos | Distinguir recursos de publicações |
+
+Filtros transversais: período, workspace/conta, aplicação, microserviço, feature, recurso, ambiente, status e operação/solicitação quando aplicável. **A aplicação de filtros em dashboards agregados precisa declarar se uma solicitação inteira é selecionada por conter uma feature/app ou se a contagem se refere somente ao subconjunto; o lead time da solicitação permanece integral em ambos os casos.**
+
+## 15. Casos de teste adicionais para os dashboards
+
+- TD01: dois ciclos da mesma chave aparecem separados, sem duplicação de eventos.
+- TD02: evento atrasado entra no ciclo histórico correto sem alterar a duração.
+- TD03: filtros de DEV não misturam eventos de HOMO/PROD na visão ambiente-valor.
+- TD04: ciclo OPEN não entra na média de ciclos concluídos.
+- TD05: uma solicitação com 12 recursos entra uma única vez no cálculo do lead time médio do motor.
+- TD06: uma operação com duas features e quatro recursos mostra 2 features distintas e 4 recursos distintos.
+- TD07: operação FAILED pode coexistir com ciclos de recursos publicados e concluídos.
+- TD08: filtros por aplicação não misturam chaves de mesmo nome de aplicações distintas.
+- TD09: ausência de snapshot ou `cycleEnabled=false` não impede consulta dos eventos.
+- TD10: dashboards não apresentam como parte do ciclo eventos com `occurred_at < started_at`, salvo regra de reconciliação explicitamente formalizada.
+
+## 16. Pontos de UX ainda sujeitos a aprovação
+
+1. Definir se dashboards de ciclos são globais do Audit Service ou embutidos nas telas de cada feature; a navegação pode suportar ambos.
+2. Definir se percentis, distribuição por faixa e séries históricas entram na primeira entrega ou em fase posterior.
+3. Definir a semântica de filtro por feature/aplicação para solicitações multi-feature e multi-app.
+4. Definir autorização para visualização de snapshots e dados potencialmente sensíveis.
+5. Confirmar nomenclatura dos eventos do motor e campos disponíveis para o detalhamento das solicitações.
