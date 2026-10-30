@@ -362,3 +362,136 @@ Filtros transversais: período, workspace/conta, aplicação, microserviço, fea
 3. Definir a semântica de filtro por feature/aplicação para solicitações multi-feature e multi-app.
 4. Definir autorização para visualização de snapshots e dados potencialmente sensíveis.
 5. Confirmar nomenclatura dos eventos do motor e campos disponíveis para o detalhamento das solicitações.
+
+
+---
+
+## 17. Diagramas Mermaid — apoio ao refinamento e à implementação
+
+> Diagramas conceituais, com nomes ilustrativos. O vínculo real com os tipos de evento e campos físicos deve ser conferido nos contratos existentes. Os diagramas não alteram as pendências de abertura subsequente e reconciliação.
+
+### 17.1 Linha do tempo de dois ciclos da mesma chave
+
+```mermaid
+flowchart TD
+    A["10:00 CREATED DEV"] --> B["Abrir C1"]
+    B --> C["11:00 PUBLISHED HOMO"]
+    C --> D["11:10 UPDATED DEV<br/>Permanece em C1"]
+    D --> E["11:15 PUBLISHED PROD"]
+    E --> F["Fechar C1: 75 min"]
+    F --> G["11:30 PUBLISHED HOMO<br/>Novo evento elegível"]
+    G --> H["Abrir C2"]
+    H --> I["11:35 PUBLISHED PROD"]
+    I --> J["Fechar C2: 5 min"]
+```
+
+A alteração de 11:10 permanece em C1, embora não seja necessariamente o conteúdo publicado em PROD às 11:15. C2 mede a jornada seguinte do recurso, não a idade da revisão de DEV.
+
+### 17.2 Decisão de associação de eventos e ciclo
+
+```mermaid
+flowchart TD
+    A["Evento auditável recebido"] --> B["Validar identidade, feature e idempotência"]
+    B --> C{"cycleEnabled?"}
+    C -->|Não| D["Persistir evento sem novo ciclo"]
+    C -->|Sim| E["Resolver intervalo pelo occurred_at<br/>e pela identidade do recurso"]
+    E --> F{"Pertence a ciclo histórico?"}
+    F -->|Sim| G["Associar ao ciclo histórico<br/>sem alterar marcos"]
+    F -->|Não| H{"Existe ciclo OPEN aplicável?"}
+    H -->|Sim| I["Associar ao OPEN"]
+    H -->|Não| J{"Evento elegível para abertura?"}
+    J -->|Sim| K["Abrir ciclo com fluxo congelado"]
+    J -->|Não| L["Registrar evento e pendência<br/>de correlação, se necessário"]
+    I --> M{"PUBLISHED no ambiente final?"}
+    K --> M
+    M -->|Sim| N["Encerrar ciclo uma vez"]
+    M -->|Não| O["Manter ciclo OPEN"]
+```
+
+**Nota:** o fluxo simplifica a associação temporal. Recebimentos concorrentes, fechamento antecipado e eventos sem contexto suficiente exigem reconciliação transacional, não inferência por ordem de chegada.
+
+### 17.3 Modelo conceitual de relacionamento
+
+```mermaid
+erDiagram
+    RESOURCE_KEY ||--o{ AUDIT_CYCLE : "possui historico"
+    RESOURCE_KEY ||--o{ ENVIRONMENT_VALUE : "possui por ambiente"
+    RESOURCE_KEY ||--o{ AUDIT_EVENT : "correlaciona"
+    ENVIRONMENT_VALUE ||--o{ AUDIT_EVENT : "origina eventos"
+    AUDIT_CYCLE o|--o{ AUDIT_EVENT : "agrupa temporalmente"
+    AUDIT_OPERATION o|--o{ AUDIT_EVENT : "agrupa execucao"
+    PROMOTION_REQUEST ||--o{ AUDIT_OPERATION : "correlaciona"
+    RESOURCE_KEY {
+        uuid identifier
+        uuid application_identifier
+    }
+    ENVIRONMENT_VALUE {
+        uuid identifier
+        uuid environment_identifier
+    }
+    AUDIT_CYCLE {
+        uuid identifier
+        datetime started_at
+        datetime completed_at
+        string status
+    }
+    AUDIT_EVENT {
+        uuid identifier
+        datetime occurred_at
+        string event_type
+    }
+    AUDIT_OPERATION {
+        uuid identifier
+        string status
+    }
+    PROMOTION_REQUEST {
+        uuid request_identifier
+    }
+```
+
+**Atenção:** `RESOURCE_KEY`, `ENVIRONMENT_VALUE` e `PROMOTION_REQUEST` representam entidades de origem ou identidades conceituais; **não** significam novas tabelas locais do Audit Service. Uma operação pode conter muitos recursos, e um ciclo pode incluir eventos de várias operações.
+
+### 17.4 Navegação entre as duas visões e dashboards
+
+```mermaid
+flowchart LR
+    A["Dashboard geral de auditoria"] --> B["Visão da chave por aplicação"]
+    A --> C["Dashboard de solicitações do motor"]
+    B --> D["Lista de ciclos da chave"]
+    D --> E["Linha do tempo dos eventos do ciclo"]
+    B --> F["Ambiente-valor DEV / HOMO / PROD"]
+    F --> G["Eventos exclusivos do ambiente-valor"]
+    E --> H["Detalhe do evento e snapshot autorizado"]
+    G --> H
+    E --> I["Detalhe da operação"]
+    C --> J["Linha do tempo da solicitação"]
+    J --> I
+    I --> H
+```
+
+### 17.5 Sequência de ingestão e projeção
+
+```mermaid
+sequenceDiagram
+    participant S as Serviço de domínio
+    participant L as Platform Audit Library
+    participant Q as Storage / Fila
+    participant A as Audit Service
+    participant DB as Audit DB
+    participant UI as Dashboard
+    S->>L: Executa use case e grava outbox
+    L->>Q: Publica snapshot e notificação
+    Q-->>A: Entrega evento
+    A->>A: Valida origem e idempotência
+    A->>DB: Persiste fato imutável
+    A->>DB: Associa evento ao ciclo correto
+    opt Publicação efetiva no ambiente final
+        A->>DB: Encerra ciclo OPEN correspondente
+    end
+    UI->>A: Consulta chave e ciclos ou ambiente-valor
+    A->>DB: Consulta paginada
+    DB-->>A: Eventos e ciclos
+    A-->>UI: Visão solicitada
+```
+
+A consolidação analítica das **solicitações do motor** ocorre em projeção independente dos ciclos, a partir dos eventos próprios do motor.
