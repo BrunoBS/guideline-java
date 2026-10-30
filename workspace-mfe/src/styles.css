@@ -19,3 +19,17 @@
 .cycle-event{position:relative;padding:0 0 22px 22px}.cycle-point{position:absolute;left:-20px;top:4px;width:14px;height:14px;background:#ff7100;border:3px solid white;border-radius:50%;box-shadow:0 0 0 1px #f1b385}
 .cycle-event b{margin-right:10px}.cycle-event p{font-size:12px;margin:7px 0 2px}.cycle-event .text-btn{padding-left:0}
 @media(max-width:650px){.key-context{align-items:flex-start;flex-direction:column}.cycle-track{gap:4px}.cycle-stage{padding:10px 4px}.cycle-stage b{font-size:14px}.cycle-stage span{font-size:10px}.cycle-arrow{font-size:16px}.cycle-summary{grid-template-columns:1fr}.audit-panel .section-title{align-items:flex-start;flex-direction:column}}
+
+/* Dashboard de ciclo de vida — dados simulados */
+.audit-dashboard-intro{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:8px 0 18px}.audit-dashboard-intro h2{font-size:25px;margin:6px 0}.audit-dashboard-intro p{color:#8190a7;font-size:13px;margin:0}
+.audit-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.audit-kpi{background:#fff;border:1px solid #e4eaf3;border-radius:15px;padding:19px;box-shadow:0 8px 30px #142d5908;min-height:125px}
+.audit-kpi small,.audit-kpi span{display:block;color:#8291a7;font-size:11px}.audit-kpi strong{display:block;color:#244d93;font-size:25px;margin:12px 0 9px}.audit-kpi span{line-height:1.5}
+.audit-dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.audit-dashboard-grid>.panel{min-width:0}
+.audit-bars{display:grid;gap:22px;margin:25px 0 18px}.audit-bar-row{display:grid;grid-template-columns:44px minmax(0,1fr) 25px 40px;align-items:center;gap:10px;font-size:13px}.audit-bar-row b{color:#244d93}.audit-bar-row small{color:#8492a8;text-align:right}
+.audit-bar-track{height:12px;background:#edf2f9;border-radius:12px;overflow:hidden}.audit-bar-fill{height:100%;background:linear-gradient(90deg,#2966c2,#ff8b32);border-radius:12px;min-width:0}.audit-bar-fill.accent{background:#ff8b32}.audit-bar-fill.pending{background:#cbd5e1}
+.audit-milestones{display:grid;gap:22px;margin:25px 0 20px}.audit-milestones>div>span{display:block;color:#64748b;font-size:12px}.audit-milestones b{display:block;margin:7px 0;color:#244d93;font-size:14px}
+.audit-progress{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}.audit-progress-item{border:1px solid #dce7f7;border-radius:12px;padding:16px 12px;background:#f5f8fd}.audit-progress-item b,.audit-progress-item strong,.audit-progress-item small{display:block}.audit-progress-item b{color:#235cb4;font-size:19px}.audit-progress-item strong{font-size:12px;margin:10px 0}.audit-progress-item small{font-size:11px;color:#7c8ba3;line-height:1.5}.audit-progress-item.pending{background:#f8fafc;border-style:dashed}.audit-progress-item.pending b{color:#94a3b8}
+.audit-event-types{display:grid;gap:10px;margin:20px 0}.audit-event-types>div{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e9eef6;padding:9px 0;font-size:12px;color:#52657f}.audit-event-types strong{background:#eaf0ff;color:#2355aa;border-radius:9px;padding:6px 12px}
+@media(max-width:850px){.audit-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.audit-dashboard-grid{grid-template-columns:1fr}}
+@media(max-width:520px){.audit-dashboard-intro{align-items:flex-start;flex-direction:column}.audit-kpis{grid-template-columns:1fr}.audit-progress{grid-template-columns:1fr}}
