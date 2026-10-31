@@ -4,8 +4,8 @@ Status: V1 integrada em `BrunoBS/platform-libraries` pelo PR #78 no commit `e7e9
 ## Objetivo
 Criar módulo `platform-scheduling` que protege por padrão os métodos com `@Scheduled` do Spring contra execução concorrente entre instâncias do mesmo serviço, sem exigir `@SchedulerLock` ou nomes manuais. Um método pode optar por não usar lock com a anotação própria `@DisableScheduledLock`. ShedLock encapsulado na biblioteca, Redis como único backend de lock. A anotação `@Scheduled` continua determinando cron/fixedDelay/fixedRate; o lock não altera a frequência configurada. Para retorno `Mono` ou `Flux`, a thread do scheduler fica bloqueada até conclusão, erro ou cancelamento do publisher, mantendo o lock ativo durante a assinatura.
 
-## Pré-requisitos e governança
-Aguardar Codex concluir trabalho atual; sincronizar main de Audit Service, Platform Libraries e Golden Platform, versões publicadas e gitlinks. Criar branch de POC isolada. Não assumir viabilidade da interceptação antes de validar com Spring Boot 4.1.1 / Spring Framework correspondente e versão efetiva de ShedLock.
+## Governança e evidência
+A V1 foi integrada em `platform-libraries` pelo PR #78. A execução `Verify #1840` no commit da branch concluiu `mvn clean verify` com Java 25. A Golden Platform fixa o commit de merge pelo gitlink; o artefato Maven é publicado em fluxo de release separado.
 
 ## Dependências e responsabilidades
 - Novo JAR `platform-scheduling` integra Spring Scheduling, ShedLock e `RedisLockProvider`.
@@ -13,7 +13,7 @@ Aguardar Codex concluir trabalho atual; sincronizar main de Audit Service, Platf
 - Reutilizar o `RedisConnectionFactory` gerenciado pelo `platform-redis`, sem segunda conexão e sem tabelas SQL de ShedLock.
 - Configuração/credenciais Redis pertencem ao microserviço; lock usa namespace estável do nome do serviço e não compartilha nomes com outros serviços.
 
-## Configuração proposta
+## Configuração aprovada V1
 ```yaml
 golden:
   scheduling:
@@ -23,12 +23,12 @@ golden:
       lock-at-least-for: PT0S
       keep-alive: true
 ```
-Valores aprovados na V1 após validação de limites e comportamento do `KeepAliveLockProvider`; evitar TTL curto demais. Não há overrides de duração por tarefa. `@DisableScheduledLock` é uma exclusão pontual do lock, não um override de duração. Não exigir segunda propriedade de confirmação para `enabled=false`.
+Os defaults e limites descritos foram implementados e cobertos por testes de configuração. Evitar TTL curto demais. Não há overrides de duração por tarefa. `@DisableScheduledLock` é uma exclusão pontual do lock, não um override de duração. Não exigir segunda propriedade de confirmação para `enabled=false`.
 
 ## Semântica
 - `enabled=true` (padrão desejado): adquirir lock antes da execução real; se já ocupado, **pular** a invocação, sem fila implícita. Liberar ao término conforme semântica ShedLock e `lock-at-least-for`.
 - `enabled=false`: Spring `@Scheduled` funciona normalmente, **sem proteção distribuída**. Log WARN explícito; não exigir Redis ativo apenas para scheduling.
-- Redis indisponível ao iniciar com lock habilitado: falhar startup de forma clara. Redis indisponível antes da execução: **fail closed** (não executar tarefa desprotegida). Confirmar comportamento concreto do provider e interceptação.
+- Redis indisponível ao iniciar com lock habilitado: falhar startup de forma clara. Redis indisponível antes da execução: **fail closed** (não executar tarefa desprotegida); startup indisponível com lock habilitado também falha.
 - Perda de Redis durante tarefa em execução pode resultar em expiração do lock e concorrência; KeepAlive reduz risco, mas **não garante exclusividade absoluta**. Tarefas devem ser idempotentes e tolerantes a retries; quando apropriado, claim transacional no banco e leases.
 - `lock-at-most-for` é duração máxima de lease sem renovação; `lock-at-least-for` é duração mínima do lock, não duração de execução; keep-alive tenta renovar periodicamente enquanto executa.
 
@@ -39,7 +39,7 @@ Valores aprovados na V1 após validação de limites e comportamento do `KeepAli
 - A exclusão por anotação é testada em integração para permitir execução concorrente entre duas instâncias; o suporte reativo é testado com contextos concorrentes para `Mono` e `Flux`.
 
 ## Descoberta automática e nomes
-A POC deve comprovar interceptação do **Runnable realmente registrado pelo Spring**, não apenas chamada direta ao método/proxy. Investigar `ScheduledAnnotationBeanPostProcessor`, `ScheduledTaskRegistrar`, `TaskScheduler` e APIs de decoração disponíveis, usando API programática ShedLock (`DefaultLockingTaskExecutor` / `LockProvider` / `KeepAliveLockProvider`). Não assumir que AOP em método anotado funciona para todos os agendamentos.
+A integração protege o `Runnable` registrado pelo Spring por meio das APIs públicas de scheduling, sem depender de AOP no método anotado nem de campos privados do Spring. Os testes de integração exercitam tarefas agendadas em contextos Spring.
 
 Identificador de lock determinístico: `<serviceName>:<fullyQualifiedClassName>:<methodName>:<scheduleDiscriminator>`. Considerar overloads, `@Schedules` repetidos, métodos herdados, proxies, múltiplos `TaskScheduler`, alterações de cron e múltiplas instâncias. Evitar identificadores dependentes de pod, hostname ou UUID aleatório.
 
@@ -69,7 +69,7 @@ sequenceDiagram
   end
 ```
 
-## Matriz obrigatória da POC
+## Matriz de validação V1
 1. Duas instâncias do mesmo serviço, mesmo cron: uma execução por janela; lock concorrente pula.
 2. Dois serviços diferentes com classe/método iguais: locks independentes por namespace.
 3. `cron`, `fixedRate`, `fixedDelay`, métodos repetidos, múltiplos schedulers, proxies e tarefas de longa duração.
@@ -85,7 +85,7 @@ sequenceDiagram
 ## Critérios de aceite
 - Aplicação usa `@Scheduled` sem anotação ShedLock; todas as tarefas são protegidas por padrão, com exceção explícita via `@DisableScheduledLock`.
 - Exclusão distribuída demonstrada com duas instâncias reais e Redis Testcontainers.
-- Não modifica semântica Spring além de pular execução quando lock não é adquirido.
+- Mantém cron/fixedRate/fixedDelay do Spring; pula a invocação quando lock não é adquirido. Para `Mono` e `Flux`, bloqueia intencionalmente a thread do scheduler até o publisher terminar, mantendo o lock durante toda a execução.
 - Fail-closed comprovado, bypass explícito documentado, renovação comprovada e limites conhecidos.
 - Sem tabelas SQL de lock; mesma conexão Redis; regras de dependências verificáveis.
 - `mvn clean verify` com integração e arquitetura aprovados, documentação de configuração e observabilidade.
