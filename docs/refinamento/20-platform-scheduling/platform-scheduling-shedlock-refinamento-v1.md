@@ -1,5 +1,5 @@
 # Refinamento — Platform Scheduling (ShedLock + Redis)
-Status: V1 implementada na branch `poc/platform-scheduling-shedlock`; PR #78 em revisão para integração. O contrato abaixo foi atualizado conforme a decisão posterior de permitir exclusão por tarefa e suportar publishers reativos com bloqueio da thread do scheduler.
+Status: V1 integrada em `BrunoBS/platform-libraries` pelo PR #78 no commit `e7e9316796ac803bab70ce2407859c7d9ccd02f6`. O contrato abaixo reflete a decisão de permitir exclusão por tarefa e suportar publishers reativos com bloqueio da thread do scheduler.
 
 ## Objetivo
 Criar módulo `platform-scheduling` que protege por padrão os métodos com `@Scheduled` do Spring contra execução concorrente entre instâncias do mesmo serviço, sem exigir `@SchedulerLock` ou nomes manuais. Um método pode optar por não usar lock com a anotação própria `@DisableScheduledLock`. ShedLock encapsulado na biblioteca, Redis como único backend de lock. A anotação `@Scheduled` continua determinando cron/fixedDelay/fixedRate; o lock não altera a frequência configurada. Para retorno `Mono` ou `Flux`, a thread do scheduler fica bloqueada até conclusão, erro ou cancelamento do publisher, mantendo o lock ativo durante a assinatura.
