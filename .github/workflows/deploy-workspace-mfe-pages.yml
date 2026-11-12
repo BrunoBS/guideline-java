@@ -6,6 +6,7 @@ on:
       - feat/workspace-mfe-prototype
     paths:
       - 'workspace-mfe/**'
+      - 'prototypes/audit-mfe/**'
       - '.github/workflows/deploy-workspace-mfe-pages.yml'
   workflow_dispatch:
 
@@ -34,6 +35,10 @@ jobs:
       - name: Build Angular for project Pages URL
         working-directory: workspace-mfe
         run: npm run build -- --base-href /guideline-java/
+      - name: Include Audit MFE conceptual prototype
+        run: |
+          mkdir -p workspace-mfe/dist/workspace-mfe/browser/prototypes/audit-mfe
+          cp prototypes/audit-mfe/index.html workspace-mfe/dist/workspace-mfe/browser/prototypes/audit-mfe/index.html
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
