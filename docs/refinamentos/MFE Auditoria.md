@@ -8,7 +8,7 @@ A Golden Platform possui recursos de diferentes domínios (por exemplo, contas e
 
 O **Audit MFE** é uma interface de investigação e rastreabilidade, não de edição, execução de promoção ou administração de recursos. O Portal fornece o contexto autenticado; o Audit Service valida o escopo no servidor, consulta o histórico e retorna projeções apropriadas a cada tela. A UI não deve deduzir autorização de parâmetros de URL.
 
-**Sete telas:** 1. Busca de recursos; 2. Eventos do recurso/feature; 3. Detalhe do evento; 4. Operações; 5. Detalhe da operação; 6. Revisões; 7. Detalhe da revisão.
+**Sete telas (ordem de inventário, não sequência de navegação):** 1. Busca de recursos; 2. Eventos da feature; 3. Detalhe do evento; 4. Operações; 5. Detalhe da operação; 6. Revisões; 7. Detalhe da revisão.
 
 ## 2. Decisões funcionais e semântica do domínio
 
@@ -60,13 +60,13 @@ Os exemplos seguintes usam IDs como `String` por neutralidade; adaptar aos tipos
 
 **Contexto e justificativa:** localizar um recurso auditado pelo **nome histórico ou pelo identificador**, sem exigir que o usuário saiba o ID previamente. A busca por nome contempla renomeações e não depende do cadastro atual da feature.
 
-**Objetivo:** resolver **nome histórico OU identificador → identificadores distintos**; a tela 2 consulta os eventos do recurso escolhido.
+**Objetivo:** resolver **nome histórico OU identificador → identificadores distintos**; a seleção do recurso abre **Operações do recurso**, não a lista de eventos da feature.
 
 **Filtros e contexto:** workspace herdado da sessão; **aplicação obrigatória**; **tipo de recurso obrigatório** (configuração, regra, menu ou outro tipo suportado); **um único campo obrigatório “Nome ou identificador”**, sem seletor de modalidade. O termo é comparado com o nome histórico **OU** com o ID, sempre por igualdade (`=`), **nunca `LIKE`**. **Ambiente não participa da busca**; considerar os ambientes autorizados da aplicação. Habilitar a busca apenas com aplicação, tipo e termo preenchidos.
 
 **Semântica da identidade:** nomes anteriores e posteriores à renomeação devem ser pesquisáveis. Renomear um recurso não muda seu `resource_id`. Se dois IDs distintos já tiveram exatamente o nome buscado, ambos aparecem. Eventos ou ambientes múltiplos para um mesmo ID produzem **uma linha por ID distinto**. A igualdade do MySQL deve ter semântica de case/acento explicitamente definida por collation ou normalização.
 
-**Resultado:** `resourceId`, `matchedName` (nome histórico correspondente, **quando a correspondência foi pelo nome**) ou `lastKnownName` (último nome conhecido na auditoria, **quando a correspondência foi pelo ID**, se disponível), `lastOccurrenceAt` (última ocorrência auditada do recurso correspondente); ação **Ver eventos**. Não afirmar que o último nome conhecido é o nome atual. A tela 2 solicita o ambiente antes de consultar os eventos.
+**Resultado:** `resourceId`, `matchedName` (nome histórico correspondente, **quando a correspondência foi pelo nome**) ou `lastKnownName` (último nome conhecido na auditoria, **quando a correspondência foi pelo ID**, se disponível), `lastOccurrenceAt` (última ocorrência auditada do recurso correspondente); ação **Ver operações**. Não afirmar que o último nome conhecido é o nome atual. A seleção abre **Operações do recurso** usando aplicação, tipo e ID; não exige ambiente. A lista de eventos da feature é acessada separadamente, dentro da própria feature.
 
 **DTOs e API candidatos:**
 
@@ -112,11 +112,11 @@ A consulta demonstra **o OR funcional e a deduplicação por ID**; para montar `
 
 ## 5. Tela 2 — Eventos do recurso / feature
 
-**Contexto e justificativa:** o usuário já escolheu um recurso e quer entender sua sequência de mudanças em um ambiente específico. Repetir aplicação e recurso como filtros seria redundante.
+**Contexto e justificativa:** esta é uma entrada independente, acessada **dentro da própria feature** para consultar seus eventos por ambiente; não é o destino da Busca de recursos. Repetir aplicação e recurso como filtros seria redundante.
 
 **Objetivo:** visualizar e filtrar eventos de um recurso sem misturar ambientes.
 
-**Contexto fixo:** workspace, aplicação, tipo/ID do recurso no cabeçalho. **Filtro obrigatório:** ambiente. **Filtros opcionais:** período, tipo de evento, origem/ator quando houver suporte. Não reapresentar aplicação/recurso como campos editáveis; usar "Trocar recurso" para retornar à busca.
+**Contexto fixo:** workspace, aplicação, tipo/ID do recurso no cabeçalho. **Filtro obrigatório:** ambiente. **Filtros opcionais:** período, tipo de evento, origem/ator quando houver suporte. Não reapresentar aplicação/recurso como campos editáveis; o retorno deve preservar a navegação da feature de origem.
 
 **Resultado:** instante, tipo, resumo, ator, origem, revisão quando existir, operação quando existir; ações **Detalhes**, **Ver revisão** e **Ver operação** condicionais. Histórico pode ser lista ou timeline sem alterar o contrato.
 
@@ -174,11 +174,11 @@ WHERE e.id = :eventId AND e.workspace_id = :workspaceId;
 
 **Justificativa:** PK de evento para acesso direto; autorização também por aplicação/ambiente/recurso. Snapshot armazenado em S3/Blob não é carregado automaticamente. `revisionNumber` pode exigir join autorizado com read model; evitar N+1. **Aceite:** navegação evento ↔ revisão/operação, ausência legítima de vínculos, mascaramento e acesso negado.
 
-## 7. Tela 4 — Operações
+## 7. Tela 4 — Operações (geral e por recurso)
 
 **Contexto e justificativa:** ponto de entrada para investigar execuções do motor sem conhecer previamente um recurso; uma operação pode afetar muitos recursos e ambientes.
 
-**Objetivo:** encontrar operações autorizadas e abrir seus detalhes.
+**Objetivo:** encontrar operações autorizadas e abrir seus detalhes. **Dois modos de entrada:** (a) lista geral de operações, independente de recurso; (b) **Operações do recurso**, aberta após selecionar um resultado da Busca de recursos, filtrando por aplicação, tipo e ID do recurso, sem exigir ambiente. A ordem das telas no menu não define o fluxo.
 
 **Filtros:** período, aplicação (se fizer parte do escopo da operação), tipo, status, identificador e ator; workspace herdado. **Não restringir a um recurso**. Exibir resultados paginados, não todas as linhas em uma resposta.
 
@@ -206,6 +206,21 @@ ORDER BY o.started_at DESC, o.id DESC LIMIT :pageSizePlusOne;
 ```
 
 **Justificativa:** índices candidatos `(workspace_id, started_at, id)` e `(workspace_id, application_id, started_at, id)`; filtros por ID/ator precisam entrar na query final. Não executar `COUNT` por linha; contador materializado ou carregamento específico. **Aceite:** status, filtros, operações sem eventos, paginação, autorização.
+
+**Contrato específico do fluxo por recurso (candidato):** `GET /audit/resources/{resourceType}/{resourceId}/operations?applicationId=&cursor=&limit=`. Consultar os `operation_id` **distintos e não nulos** de eventos autorizados que referenciam o recurso e recuperar os dados das operações correspondentes, evitando duplicidade quando a operação contém vários eventos do mesmo recurso. Uma operação pode afetar outros recursos; ao abri-la, o detalhe apresenta os eventos autorizados de toda a operação. Eventos manuais sem `operationId` não aparecem como operações. O escopo do recurso **não impõe ambiente**; respeitar autorização por ambiente e aplicação na consulta e no detalhe.
+
+```sql
+-- Consulta conceitual; tabelas/colunas e paginação definitivas pendentes
+SELECT DISTINCT e.operation_id
+FROM audit_event e
+WHERE e.workspace_id = :workspaceId
+  AND e.application_id = :applicationId
+  AND e.resource_type = :resourceType
+  AND e.resource_id = :resourceId
+  AND e.operation_id IS NOT NULL;
+```
+
+**Aceite adicional:** Busca de recursos → Operações do recurso → Detalhe da operação → Detalhe do evento; a lista geral continua independente; o histórico de eventos da feature não é aberto pela busca.
 
 ## 8. Tela 5 — Detalhe da operação
 
@@ -322,9 +337,11 @@ FROM sequenced ORDER BY occurred_at ASC, id ASC;
 
 | Origem | Destino | Condição | Identificador usado |
 |---|---|---|---|
-| Busca de recursos | Eventos do recurso | Recurso selecionado + ambiente escolhido | aplicação + tipo + recurso + ambiente |
+| Busca de recursos | Operações do recurso | Recurso selecionado | aplicação + tipo + resourceId (sem ambiente obrigatório) |
+| Feature de origem | Eventos da feature | Recurso contextualizado + ambiente selecionado | aplicação + tipo + recurso + ambiente |
+| Operações do recurso | Detalhe da operação | Operação selecionada | operationId |
 | Eventos do recurso | Detalhe do evento | Sempre | eventId |
-| Detalhe do evento | Busca/histórico do recurso | Sempre | aplicação + tipo + recurso + ambiente |
+| Detalhe do evento | Feature de origem / histórico da feature | Quando houver rota de retorno autorizada | aplicação + tipo + recurso + ambiente |
 | Detalhe do evento | Detalhe da operação | Somente se operationId existir | operationId |
 | Detalhe do evento | Detalhe da revisão | Somente se revisionId existir | revisionId (não apenas Rn) |
 | Operações | Detalhe da operação | Sempre | operationId |
