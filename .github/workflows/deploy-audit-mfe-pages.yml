@@ -1,13 +1,9 @@
-name: Deploy all prototypes to GitHub Pages
+name: Deploy prototypes to GitHub Pages
 on:
   push:
     branches: [main]
     paths:
-      - 'docs/prototypes/**'
-      - 'docs/tse/**'
-      - 'workspace-mfe/**'
-      - 'poc/schema-renderer/**'
-      - 'tse/**'
+      - 'prototypes/**'
       - '.github/workflows/deploy-audit-mfe-pages.yml'
   workflow_dispatch:
 permissions:
@@ -19,77 +15,42 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
-        with:
-          ref: main
-          path: source
-      - name: Checkout Schema Renderer POC
-        uses: actions/checkout@v4
-        with:
-          ref: feature/poc-schema-renderer
-          path: schema-source
-      - name: Checkout Workspace MFE
-        uses: actions/checkout@v4
-        with:
-          ref: feat/workspace-mfe-prototype
-          path: workspace-source
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Build Schema Builder
-        working-directory: schema-source/poc/schema-renderer
+      - name: Build Schema Renderer
+        working-directory: prototypes/schema-renderer
         run: |
           npm ci
           npm run build -- --base-href /guideline-java/schema-renderer/
       - name: Build Workspace MFE
-        working-directory: workspace-source/workspace-mfe
+        working-directory: prototypes/workspace-mfe
         run: |
           npm install --no-audit --no-fund
-          npm run build -- --base-href /guideline-java/portal-manager/
-      - name: Prepare all sites
+          npm run build -- --base-href /guideline-java/workspace-mfe/
+      - name: Assemble Pages site
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p _site
-          # Preserve each prototype directory and all its relative assets.
-          if [ -d source/docs/prototypes ]; then
-            for dir in source/docs/prototypes/*; do
-              [ -d "$dir" ] || continue
-              cp -a "$dir" "_site/$(basename "$dir")"
-            done
-          fi
-          # Publish the TSE dashboard under its own stable path.
-          if [ -d source/docs/tse ]; then
-            cp -a source/docs/tse _site/tse
-          elif [ -d source/tse ]; then
-            cp -a source/tse _site/tse
-          fi
-          mkdir -p _site/schema-renderer _site/portal-manager
-          cp -a schema-source/poc/schema-renderer/dist/schema-renderer-poc/browser/. _site/schema-renderer/
-          cp -a workspace-source/workspace-mfe/dist/workspace-mfe/browser/. _site/portal-manager/
+          cp prototypes/index.html _site/index.html
+          for name in audit-events audit-mfe tse; do
+            cp -a "prototypes/$name" "_site/$name"
+          done
+          mkdir -p _site/schema-renderer _site/workspace-mfe
+          cp -a prototypes/schema-renderer/dist/schema-renderer-poc/browser/. _site/schema-renderer/
+          cp -a prototypes/workspace-mfe/dist/workspace-mfe/browser/. _site/workspace-mfe/
           cp _site/schema-renderer/index.html _site/schema-renderer/404.html
-          cp _site/portal-manager/index.html _site/portal-manager/404.html
-          if [ -d workspace-source/prototypes ]; then
-            mkdir -p _site/prototypes
-            cp -a workspace-source/prototypes/. _site/prototypes/
-          fi
+          cp _site/workspace-mfe/index.html _site/workspace-mfe/404.html
           touch _site/.nojekyll
-          python3 - <<'PY'
-          from pathlib import Path
-          from html import escape
-          entries = sorted(p.name for p in Path('_site').iterdir() if p.is_dir() and (p/'index.html').exists())
-          links = ''.join(f'<li><a href="{escape(name)}/">{escape(name)}</a></li>' for name in entries)
-          Path('_site/index.html').write_text(
-              '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Protótipos Golden</title>'
-              '<h1>Protótipos Golden</h1><ul>'+links+'</ul></html>', encoding='utf-8')
-          PY
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
