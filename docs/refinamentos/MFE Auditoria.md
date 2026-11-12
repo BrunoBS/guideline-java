@@ -1,102 +1,184 @@
-# MFE Auditoria — Refinamento funcional e técnico
+# Audit MFE — refinamento funcional, navegação e contratos técnicos
 
-> Status: proposta de refinamento, não implementação. Complementa [Revisão Timeline.md](./Revis%C3%A3o%20Timeline.md). Nomes de tabelas, colunas e endpoints são candidatos: validar com o esquema real do Audit Service.
+> **Status:** proposta funcional e técnica para revisão. Atualizado em 12/11/2026. Este documento descreve comportamento esperado; rotas, DTOs, tabelas e índices são **candidatos**, não implementação confirmada. Validar o esquema físico e contratos existentes do Audit Service antes de codificar. Documento complementar: [Revisão Timeline.md](./Revis%C3%A3o%20Timeline.md).
 
-## 1. Objetivo e arquitetura
+## 1. Contexto, problema e objetivo
 
-Centralizar no Audit MFE a investigação de recursos, eventos, operações e revisões. O Portal fornece contexto autenticado (workspace/conta, aplicação, ambiente); o MFE de feature e o MFE do motor encaminham para auditoria com filtros. O Audit Service aplica autorização no servidor e entrega projeções leves. O motor executa promoções; a auditoria registra fatos, não os executa.
+A Golden Platform possui recursos de diferentes domínios (por exemplo, contas e configurações), operações do motor de promoção e eventos produzidos pelas features. Uma investigação precisa responder: **o que mudou, em qual recurso, em qual aplicação/ambiente, quando, por quem, por qual operação e, quando existir versionamento, em qual revisão?** Sem navegação correlacionada, o usuário precisa reconstruir manualmente essas relações.
 
-**Sete telas:** (1) busca de recursos, (2) listagem/timeline de eventos, (3) detalhe de evento, (4) listagem de operações, (5) detalhe de operação, (6) listagem de revisões, (7) detalhe de revisão.
+O **Audit MFE** é uma interface de investigação e rastreabilidade, não de edição, execução de promoção ou administração de recursos. O Portal fornece o contexto autenticado; o Audit Service valida o escopo no servidor, consulta o histórico e retorna projeções apropriadas a cada tela. A UI não deve deduzir autorização de parâmetros de URL.
 
-**Regras transversais**
-- Timeline de uma feature **exige ambiente**; não misturar DEV/HOM/PROD.
-- Detalhe de Operation consulta eventos correlacionados à operação, potencialmente de múltiplos ambientes, recursos e aplicações, mas sempre sob autorização individual e de escopo.
-- Evento tem identificador estável, instante de ocorrência, tipo, contexto, recurso, origem, eventual operationId e referência a snapshot/payload; não carregar payloads grandes em listas.
-- Eventos do motor (pacote criado/editado/promovido) e eventos internos da feature (criada/atualizada/publicada/desativada/reativada) são perspectivas distintas; não presumir que todo evento de feature tem operationId.
-- Paginação por cursor (timestamp + id) para listas extensas; ordenar deterministicamente por occurred_at DESC, id DESC (ou ASC no histórico).
-- Valores sensíveis e snapshots somente mediante autorização e mascaramento. Datas persistidas em UTC; API usa ISO-8601 com offset.
-- Revisions: número exibido (R1) não garante mesma identidade/linhagem entre ambientes. Correlação entre criações independentes precisa de regra explícita e auditável.
+**Sete telas:** 1. Busca de recursos; 2. Eventos do recurso/feature; 3. Detalhe do evento; 4. Operações; 5. Detalhe da operação; 6. Revisões; 7. Detalhe da revisão.
 
-## 2. Navegação e protótipos textuais
+## 2. Decisões funcionais e semântica do domínio
+
+1. **Aplicação obrigatória na busca de recursos.** O usuário deve saber em qual aplicação investigar; não disponibilizar opção "todas as aplicações" nessa busca. Workspace/conta é obtido do contexto autenticado.
+2. **Tipo de recurso** é filtro explícito. Identificador/nome permite refinar; a estratégia de busca por nome depende do catálogo disponível.
+3. **Evento é universal; revisão não.** Recursos sem fluxo de promoção/versionamento, como uma conta comum, podem gerar eventos sem `revisionId`. Para recursos versionados/promovíveis, a revisão é criada na criação da feature/recurso e avança nas alterações relevantes; a promoção **transporta a revisão existente** ao destino, sem criar nova revisão só pelo transporte. Definir com o domínio exatamente quais mudanças geram nova revisão (valor, status etc.).
+4. **Operação é vínculo opcional do evento.** Uma alteração manual pode não pertencer a operação. Uma promoção pode produzir vários eventos de features, cada qual com seu recurso, ambiente e revisão.
+5. **Eventos do motor e eventos das features não são a mesma coisa.** A operação representa a execução/ação do motor (ex.: criar pacote, editar pacote, promover); os eventos internos representam efeitos nos recursos. A UI os distingue claramente, inclusive no detalhe da operação.
+6. **Revisão é identificada por ID/linhagem, não pelo rótulo R1/R2.** Mesmo número em ambientes ou criações independentes não implica mesma identidade. Uma promoção deve preservar a referência da revisão que transporta; uma consulta de timeline multiambiente exige correlação auditável.
+7. **Histórico de recurso é contextualizado por ambiente.** A tela 2 exige um ambiente escolhido antes de consultar os eventos; não misturar DEV/HOM/PROD no mesmo histórico de feature. O detalhe de operação pode atravessar ambientes autorizados.
+8. **Rastreabilidade bidirecional.** Recurso → eventos → evento → revisão (se houver) / operação (se houver); operação → eventos internos → evento → recurso / revisão; revisão → eventos → evento. Links devem preservar contexto e permitir retorno.
+9. **Nenhuma listagem carrega payload/snapshot completo.** Snapshots e valores anteriores/novos somente sob demanda, autorizados e mascarados.
+10. **Filtros e resultados são paginados.** Datas persistidas em UTC; API usa ISO-8601 com offset; interface exibe fuso do usuário. Ordenação determinística por instante + ID.
+
+### Relações conceituais
 
 ```text
-Portal / Workspace
- ├─ Audit MFE / Recursos [busca] → Eventos do recurso [timeline] → Detalhe do evento
- │                                                      └→ Operation (quando vinculada)
- ├─ Audit MFE / Operações [busca] → Detalhe da operação → Eventos internos → Detalhe do evento
- └─ Audit MFE / Revisões [busca] → Detalhe da revisão [resumo + timeline + intervalos + histórico]
+Workspace (escopo de autorização)
+  └─ Aplicação
+      └─ Recurso (tipo + id)
+          ├─ Eventos (0..N)
+          │   ├─ Revisão (0..1; obrigatória quando o domínio é versionado)
+          │   └─ Operação (0..1; opcional)
+          └─ Revisões (0..N; apenas recursos versionados)
+Operação (0..N eventos internos, possivelmente em vários ambientes)
+  └─ Eventos do motor e eventos de recursos, identificados por categoria
 ```
 
-**Cabeçalhos compartilhados:** breadcrumb, workspace, aplicação, ambiente quando aplicável, período e ações de retorno. Estados de carregamento, vazio, erro, acesso negado e paginação em todas as listagens.
+Os identificadores de recurso precisam ser compostos com workspace, aplicação e tipo, para evitar colisões. Os vínculos são verificados no servidor; não basta receber IDs do frontend.
 
-## 3. Tela 1 — Busca de recursos
+## 3. Convenções de interface, filtros e API
 
-**Objetivo:** encontrar uma feature/recurso para iniciar investigação. **Protótipo:** filtros no topo (workspace, aplicação, tipo de recurso, identificador/nome; ambiente opcional na busca); tabela com tipo, identificador, aplicação, ambientes conhecidos, último evento e ação “Ver eventos”. Selecionar ambiente antes de abrir timeline.
+**Padrão visual:** breadcrumb, título com propósito, contexto visível (workspace, aplicação, recurso, ambiente quando aplicável), filtros identificados, tabela/timeline, ações claras, loading, vazio, erro, acesso negado e paginação. Exibir "dados fictícios" nos protótipos. Contextos já escolhidos na tela anterior aparecem no cabeçalho, sem exigir preenchimento duplicado.
 
-**API proposta:** `GET /audit/resources?workspaceId=&applicationId=&resourceType=&query=&cursor=&limit=`. Resposta `ResourceSearchResponse(items, nextCursor)`, itens `ResourceSummary(resourceType, resourceId, displayName, applicationId, environmentIds, lastEventAt)`. O catálogo de recursos pode vir da feature dona; se a auditoria não for fonte de verdade, nome e existência atual devem ser enriquecidos via catálogo, não inferidos do audit trail.
+**Filtros:** diferenciar obrigatórios, opcionais e herdados. Período usa `from` inclusivo e `to` exclusivo; validar `from < to` e limites. Tipos/status são enums do domínio. Limites de página validados no backend; cursores opacos codificam ordenação e filtros, e devem ser rejeitados quando incompatíveis.
 
-**SQL candidato (quando busca pelo histórico auditado):**
+**Contrato transversal sugerido:**
+
+```java
+public record CursorPage<T>(List<T> items, String nextCursor) {}
+public record ResourceRef(String applicationId, String resourceType, String resourceId) {}
+public record RevisionRef(String revisionId, Long revisionNumber) {}
+public record OperationRef(String operationId) {}
+```
+
+Os exemplos seguintes usam IDs como `String` por neutralidade; adaptar aos tipos reais. Campos de ator/origem e metadata não devem incluir dados sensíveis.
+
+## 4. Tela 1 — Busca de recursos
+
+**Contexto e justificativa:** ponto de entrada quando a pessoa sabe qual aplicação ou recurso deseja investigar, mas ainda não sabe qual evento ocorreu. Evita exigir IDs de eventos/operações.
+
+**Objetivo:** localizar um recurso auditável e iniciar seu histórico.
+
+**Filtros:** aplicação **obrigatória**; tipo de recurso **opcional** (recomendado para reduzir resultados); nome/identificador **opcional**; ambiente **não é requisito para encontrar o recurso**, mas será obrigatório ao entrar na tela 2. Workspace é herdado da sessão. A busca só é habilitada após escolher aplicação. Não oferecer "todas as aplicações".
+
+**Resultado:** tipo, ID, nome amigável quando disponível, aplicação, ambientes com eventos, último evento e ação **Ver eventos**. Ao clicar, escolher ambiente se não houver um selecionado; não presumir ambiente.
+
+**DTOs e API candidatos:**
+
+```java
+public record ResourceSummary(String resourceType, String resourceId,
+    String displayName, String applicationId, List<String> environmentIds,
+    Instant lastEventAt) {}
+public record ResourceSearchResponse(List<ResourceSummary> items, String nextCursor) {}
+// GET /audit/resources?applicationId=&resourceType=&query=&cursor=&limit=
+```
+
+**MySQL 8 — busca por ID auditado (candidata):**
+
 ```sql
 SELECT e.resource_type, e.resource_id, e.application_id,
        MAX(e.occurred_at) AS last_event_at
 FROM audit_event e
-WHERE e.workspace_id = :workspaceId AND e.application_id = :applicationId
-  AND e.resource_type = :resourceType
+WHERE e.workspace_id = :workspaceId
+  AND e.application_id = :applicationId
+  AND (:resourceType IS NULL OR e.resource_type = :resourceType)
   AND (:resourceId IS NULL OR e.resource_id = :resourceId)
 GROUP BY e.resource_type, e.resource_id, e.application_id
-ORDER BY last_event_at DESC, e.resource_id
-LIMIT :limit;
+ORDER BY last_event_at DESC, e.resource_id DESC
+LIMIT :pageSizePlusOne;
 ```
-Evitar `LIKE '%texto%'` em grande volume; preferir índice de busca/catálogo dedicado. Paginação por cursor requer reescrever a condição com chave agregada ou materializar índice de recursos. **Índices candidatos:** `(workspace_id, application_id, resource_type, resource_id, occurred_at)`. **Aceite:** filtro isolado por tenant, recurso correto, busca vazia, paginação estável, navegação com ambiente definido.
 
-## 4. Tela 2 — Listagem / timeline de eventos da feature
+**Justificativa técnica:** o audit trail pode não conter nome atual ou recursos sem eventos. Para busca textual, preferir catálogo da feature ou read model/index de recursos, não `LIKE '%texto%'` em eventos volumosos. A consulta agregada acima ilustra o agrupamento, **não implementa cursor estável**: usar read model com `last_event_at, resource_id` ou cursor sobre agregação com predicado externo. Índice candidato: `(workspace_id, application_id, resource_type, resource_id, occurred_at)`.
 
-**Protótipo:** contexto fixo de recurso e ambiente, filtros por período/tipo/origem, lista cronológica com data/hora, tipo, usuário/ator, resumo, origem, vínculo de operação; ação “Ver detalhes”. Pode alternar apresentação visual timeline/lista sem alterar contrato.
+**Aceite:** aplicação obrigatória; nenhum vazamento entre aplicações; ambientes corretos; estado vazio; paginação estável; navegação com seleção de ambiente.
 
-**API:** `GET /audit/resources/{resourceType}/{resourceId}/events?workspaceId=&applicationId=&environmentId=&from=&to=&type=&cursor=&limit=`; `environmentId` obrigatório. DTOs: `EventPage(items, nextCursor)`; `EventSummary(id, occurredAt, environmentId, type, origin, actor, description, operationId, revisionId)`.
+## 5. Tela 2 — Eventos do recurso / feature
+
+**Contexto e justificativa:** o usuário já escolheu um recurso e quer entender sua sequência de mudanças em um ambiente específico. Repetir aplicação e recurso como filtros seria redundante.
+
+**Objetivo:** visualizar e filtrar eventos de um recurso sem misturar ambientes.
+
+**Contexto fixo:** workspace, aplicação, tipo/ID do recurso no cabeçalho. **Filtro obrigatório:** ambiente. **Filtros opcionais:** período, tipo de evento, origem/ator quando houver suporte. Não reapresentar aplicação/recurso como campos editáveis; usar "Trocar recurso" para retornar à busca.
+
+**Resultado:** instante, tipo, resumo, ator, origem, revisão quando existir, operação quando existir; ações **Detalhes**, **Ver revisão** e **Ver operação** condicionais. Histórico pode ser lista ou timeline sem alterar o contrato.
+
+```java
+public record EventSummary(String id, Instant occurredAt, String environmentId,
+    String type, String origin, String actor, String description,
+    String revisionId, Long revisionNumber, String operationId) {}
+// GET /audit/resources/{resourceType}/{resourceId}/events
+// ?applicationId=&environmentId=&from=&to=&type=&origin=&cursor=&limit=
+```
 
 ```sql
 SELECT e.id, e.occurred_at, e.environment_id, e.event_type,
-       e.origin, e.actor_id, e.description, e.operation_id, e.revision_id
+       e.origin, e.actor_id, e.description, e.revision_id, e.operation_id
 FROM audit_event e
-WHERE e.workspace_id = :workspaceId
-  AND e.application_id = :applicationId
+WHERE e.workspace_id = :workspaceId AND e.application_id = :applicationId
   AND e.environment_id = :environmentId
   AND e.resource_type = :resourceType AND e.resource_id = :resourceId
   AND e.occurred_at >= :fromAt AND e.occurred_at < :toAt
-  AND (:eventType IS NULL OR e.event_type = :eventType)
+  AND (:type IS NULL OR e.event_type = :type)
   AND (:cursorAt IS NULL OR e.occurred_at < :cursorAt
        OR (e.occurred_at = :cursorAt AND e.id < :cursorId))
-ORDER BY e.occurred_at DESC, e.id DESC LIMIT :pageSizePlusOne;
+ORDER BY e.occurred_at DESC, e.id DESC
+LIMIT :pageSizePlusOne;
 ```
-**Índice:** `(workspace_id, application_id, environment_id, resource_type, resource_id, occurred_at, id)`. **Aceite:** nunca misturar ambientes, cursor sem duplicação, operação clicável quando presente, payload não carregado.
 
-## 5. Tela 3 — Detalhe do evento
+**Índice candidato:** `(workspace_id, application_id, environment_id, resource_type, resource_id, occurred_at, id)`. Filtro `origin` precisa ser incluído no SQL real se exposto na UI. **Aceite:** ambiente obrigatório; links só quando houver IDs; cursor sem repetição; nenhum snapshot carregado.
 
-**Protótipo:** cabeçalho (tipo, instante, ambiente, ator), metadados/contexto, alterações anterior/resultante quando permitidas, snapshot sob demanda, operação vinculada clicável. Eventos manuais sem operação exibem “Sem operação vinculada”.
+## 6. Tela 3 — Detalhe do evento
 
-**API:** `GET /audit/events/{eventId}` → `EventDetail(id, occurredAt, workspaceId, applicationId, environmentId, resourceType, resourceId, type, origin, actor, correlationId, revisionId, operationId, metadata, snapshotAvailable)`; `GET /audit/events/{eventId}/snapshot` (ou URL temporária mediada por autorização).
+**Contexto e justificativa:** explicar um fato específico, sua autoria, contexto e relações; é o nó central de navegação entre recurso, operação e revisão.
+
+**Objetivo:** responder "o que aconteceu, quando, por quem, em qual ambiente e com qual consequência?".
+
+**Filtros:** nenhum; `eventId` identifica o registro. **Cabeçalho:** tipo, data/hora, recurso, aplicação, ambiente, ator. **Seções:** descrição, origem, correlationId, metadata segura, valores anterior/resultante quando autorizados, snapshot sob demanda. **Vínculos:** **Ver recurso**, **Ver revisão** se `revisionId` existir, **Ver operação** se `operationId` existir. Para recursos sem versionamento, não mostrar revisão artificial; para eventos manuais sem operação, indicar "Sem operação vinculada".
+
+```java
+public record EventDetail(String id, Instant occurredAt, String applicationId,
+    String environmentId, String resourceType, String resourceId,
+    String type, String origin, String actor, String correlationId,
+    String revisionId, Long revisionNumber, String operationId,
+    Map<String,Object> metadata, boolean snapshotAvailable) {}
+// GET /audit/events/{eventId}
+// GET /audit/events/{eventId}/snapshot (autorizado, sob demanda)
+```
 
 ```sql
-SELECT e.id, e.occurred_at, e.workspace_id, e.application_id,
-       e.environment_id, e.resource_type, e.resource_id, e.event_type,
-       e.origin, e.actor_id, e.correlation_id, e.revision_id,
-       e.operation_id, e.metadata_json, e.snapshot_ref
+SELECT e.id, e.occurred_at, e.application_id, e.environment_id,
+       e.resource_type, e.resource_id, e.event_type, e.origin,
+       e.actor_id, e.correlation_id, e.revision_id, e.operation_id,
+       e.metadata_json, e.snapshot_ref
 FROM audit_event e
 WHERE e.id = :eventId AND e.workspace_id = :workspaceId;
 ```
-**Índice:** PK `id`, e autorização validada por contexto. Snapshot pode estar em S3/Blob; nunca fazer fetch automaticamente na listagem. **Aceite:** links corretos, mascaramento, sem snapshot e operação nula tratados, usuário sem acesso recebe 403/404 conforme política.
 
-## 6. Tela 4 — Listagem de operações
+**Justificativa:** PK de evento para acesso direto; autorização também por aplicação/ambiente/recurso. Snapshot armazenado em S3/Blob não é carregado automaticamente. `revisionNumber` pode exigir join autorizado com read model; evitar N+1. **Aceite:** navegação evento ↔ revisão/operação, ausência legítima de vínculos, mascaramento e acesso negado.
 
-**Protótipo:** filtros por workspace, aplicação, período, tipo de operação, status, identificador e ator; tabela com início, tipo, origem/destino (quando promoção), status, contagem de eventos (se disponível), ação “Detalhar”.
+## 7. Tela 4 — Operações
 
-**API:** `GET /audit/operations?workspaceId=&applicationId=&from=&to=&type=&status=&cursor=&limit=` → `OperationPage(items, nextCursor)`, `OperationSummary(id, type, status, startedAt, finishedAt, actor, sourceEnvironmentId, targetEnvironmentId, eventCount)`.
+**Contexto e justificativa:** ponto de entrada para investigar execuções do motor sem conhecer previamente um recurso; uma operação pode afetar muitos recursos e ambientes.
+
+**Objetivo:** encontrar operações autorizadas e abrir seus detalhes.
+
+**Filtros:** período, aplicação (se fizer parte do escopo da operação), tipo, status, identificador e ator; workspace herdado. **Não restringir a um recurso**. Exibir resultados paginados, não todas as linhas em uma resposta.
+
+**Resultado:** ID, tipo, status, início/fim, ator, origem/destino quando aplicável, contagem de eventos visíveis (se suportada), ação **Detalhar**.
+
+```java
+public record OperationSummary(String id, String type, String status,
+    Instant startedAt, Instant finishedAt, String actor,
+    String sourceEnvironmentId, String targetEnvironmentId, Long eventCount) {}
+// GET /audit/operations?applicationId=&from=&to=&type=&status=&operationId=&actor=&cursor=&limit=
+```
 
 ```sql
 SELECT o.id, o.operation_type, o.status, o.started_at, o.finished_at,
-       o.actor_id, o.source_environment_id, o.target_environment_id,
-       o.event_count
+       o.actor_id, o.source_environment_id, o.target_environment_id, o.event_count
 FROM audit_operation o
 WHERE o.workspace_id = :workspaceId
   AND (:applicationId IS NULL OR o.application_id = :applicationId)
@@ -107,53 +189,98 @@ WHERE o.workspace_id = :workspaceId
        OR (o.started_at = :cursorAt AND o.id < :cursorId))
 ORDER BY o.started_at DESC, o.id DESC LIMIT :pageSizePlusOne;
 ```
-**Índices:** `(workspace_id, started_at, id)`, avaliar `(workspace_id, application_id, started_at, id)` e índices seletivos por status/tipo com EXPLAIN ANALYZE. `event_count` pode ser contador mantido no write-side ou obtido sob demanda; evitar COUNT por linha. **Aceite:** paginação, filtros, status, operação sem eventos, ausência de N+1.
 
-## 7. Tela 5 — Detalhe da operação
+**Justificativa:** índices candidatos `(workspace_id, started_at, id)` e `(workspace_id, application_id, started_at, id)`; filtros por ID/ator precisam entrar na query final. Não executar `COUNT` por linha; contador materializado ou carregamento específico. **Aceite:** status, filtros, operações sem eventos, paginação, autorização.
 
-**Protótipo:** cabeçalho com identificador, tipo, status, início/fim, ator, pacote/origem/destino quando aplicáveis; timeline dos eventos do motor; tabela paginada dos eventos internos de features, com ambiente, recurso, ação, instante e link ao evento; ação “Exportar CSV”. Mostrar erros/resultado da execução se persistidos.
+## 8. Tela 5 — Detalhe da operação
 
-**API:** `GET /audit/operations/{operationId}` → `OperationDetail(id, type, status, startedAt, finishedAt, actor, sourceEnvironmentId, targetEnvironmentId, metadata, eventCount)`; `GET /audit/operations/{operationId}/events?cursor=&limit=` → `OperationEventPage(items, nextCursor)`; `GET /audit/operations/{operationId}/events/export?format=csv` (exportação assíncrona para grandes volumes).
+**Contexto e justificativa:** uma promoção pode modificar muitos recursos; esta tela explica a execução e reúne os efeitos, sem confundir eventos do motor com eventos das features.
+
+**Objetivo:** investigar uma operação inteira e navegar para cada evento afetado.
+
+**Filtros:** nenhum no cabeçalho; **lista de eventos internos paginada**, com filtros opcionais por ambiente, recurso e tipo quando volume justificar. **Cabeçalho:** ID, tipo, status, ator, início/fim, pacote, origem/destino, resultado/erro se persistidos. **Duas seções diferenciadas:** eventos do motor (marcos da execução) e eventos internos das features (recurso, aplicação, ambiente, tipo, instante, revisão quando existir, **Ver evento**). Um evento pode levar a seu detalhe e dali à revisão.
+
+```java
+public record OperationDetail(OperationSummary summary, Map<String,Object> metadata) {}
+public record OperationEventSummary(String id, Instant occurredAt,
+    String applicationId, String environmentId, String resourceType,
+    String resourceId, String type, String description,
+    String revisionId, Long revisionNumber, String category) {}
+// GET /audit/operations/{operationId}
+// GET /audit/operations/{operationId}/events?category=&environmentId=&cursor=&limit=
+```
 
 ```sql
 SELECT o.* FROM audit_operation o
 WHERE o.id = :operationId AND o.workspace_id = :workspaceId;
 
 SELECT e.id, e.occurred_at, e.application_id, e.environment_id,
-       e.resource_type, e.resource_id, e.event_type, e.description
+       e.resource_type, e.resource_id, e.event_type, e.description,
+       e.revision_id
 FROM audit_event e
-WHERE e.operation_id = :operationId AND e.workspace_id = :workspaceId
+WHERE e.workspace_id = :workspaceId AND e.operation_id = :operationId
   AND (:cursorAt IS NULL OR e.occurred_at > :cursorAt
        OR (e.occurred_at = :cursorAt AND e.id > :cursorId))
 ORDER BY e.occurred_at ASC, e.id ASC LIMIT :pageSizePlusOne;
 ```
-**Índice:** `(workspace_id, operation_id, occurred_at, id)`. A consulta por operação atravessa ambientes, mas a autorização deve filtrar eventos não visíveis; se filtrados, não expor contagem confidencial. CSV deve respeitar exatamente o mesmo escopo autorizado, usar streaming e não incluir snapshots/segredos. **Aceite:** múltiplos ambientes e recursos, operação sem eventos, navegação bidirecional, exportação consistente, sem N+1.
 
-## 8. Tela 6 — Listagem de revisões
+**Justificativa:** índice `(workspace_id, operation_id, occurred_at, id)`. Eventos do motor podem ter armazenamento/modelo diferente: **não presumir** que estão em `audit_event` com o mesmo `operation_id`; confirmar esquema. Filtrar eventos por autorização de aplicação/ambiente, inclusive contagens e exportação. Exportação CSV é **proposta opcional**, assíncrona para volumes grandes, sem segredos. **Aceite:** operação → eventos → revisão/recurso; múltiplos ambientes; operação vazia; sem N+1.
 
-**Protótipo:** recurso selecionado, filtro de período (10/30/60/90 dias), listagem das revisões mais recentes (padrão 10 por página), número exibido, identidade, primeiro/último evento, ambientes envolvidos, vínculo com promoção quando houver, ação “Detalhar revisão”. Identidades diferentes com mesmo número R1 não devem ser fundidas automaticamente.
+## 9. Tela 6 — Revisões
 
-**API:** `GET /audit/resources/{resourceType}/{resourceId}/revisions?workspaceId=&applicationId=&days=30&cursor=&limit=10` → `RevisionPage(items, nextCursor)`, `RevisionSummaryItem(revisionId, revisionNumber, firstEventAt, lastEventAt, environmentIds, hasPromotion)`.
+**Contexto e justificativa:** para recursos promovíveis/versionados, o usuário precisa descobrir quais estados/revisões existem e como evoluíram. Recursos não versionados não devem ganhar revisões fictícias.
+
+**Objetivo:** listar revisões reais de um recurso e abrir a timeline de uma revisão.
+
+**Contexto:** recurso, aplicação e workspace herdados. **Filtros:** período (atalhos 10/30/60/90 dias, padrão 30), eventualmente ambiente como refinamento de ocorrência; paginação (padrão sugerido 10). A UI deve explicar quando o recurso não suporta revisões, em vez de exibir uma lista vazia ambígua.
+
+**Resultado:** `revisionId`, rótulo Rn, primeiro/último evento, ambientes associados à mesma linhagem comprovada, origem da revisão e indicação de promoção quando houver.
+
+```java
+public record RevisionSummaryItem(String revisionId, long revisionNumber,
+    Instant firstEventAt, Instant lastEventAt,
+    List<String> environmentIds, boolean hasPromotion) {}
+// GET /audit/resources/{resourceType}/{resourceId}/revisions
+// ?applicationId=&days=&environmentId=&cursor=&limit=
+```
 
 ```sql
 SELECT r.id, r.revision_number, r.first_event_at, r.last_event_at,
        r.has_promotion
 FROM audit_revision_index r
-WHERE r.workspace_id = :workspaceId
-  AND r.application_id = :applicationId
+WHERE r.workspace_id = :workspaceId AND r.application_id = :applicationId
   AND r.resource_type = :resourceType AND r.resource_id = :resourceId
   AND r.last_event_at >= :fromAt
   AND (:cursorAt IS NULL OR r.last_event_at < :cursorAt
        OR (r.last_event_at = :cursorAt AND r.id < :cursorId))
 ORDER BY r.last_event_at DESC, r.id DESC LIMIT :pageSizePlusOne;
 ```
-`audit_revision_index` é **proposta de read model**, não tabela confirmada. Alternativa: agrupar audit_event por identidade/linhagem, com custo medido. **Índice:** `(workspace_id, application_id, resource_type, resource_id, last_event_at, id)`. **Aceite:** filtros e paginação, revisões independentes não misturadas, acesso ao detalhe, performance sem GROUP BY amplo por requisição.
 
-## 9. Tela 7 — Detalhe de revisão
+**Justificativa:** `audit_revision_index` é **read model proposto, não tabela confirmada**. Alternativa é agrupar eventos por identidade de revisão real, não por número R1. Índice candidato `(workspace_id, application_id, resource_type, resource_id, last_event_at, id)`. **Aceite:** não fundir revisões independentes; navegação por ID; período e cursor corretos.
 
-**Protótipo aprovado:** uma página sem abas: título/revisão e total de eventos; indicadores de início, último evento e duração total; timeline horizontal limpa com ambiente e data/hora; botão **Detalhar timeline** que expande tabela com evento, início, término e duração; histórico cronológico completo com detalhes expansíveis. HOM → DEV → HOM é válido, inclusive promoção que sobrescreve HOM mantendo R1. Último evento tem término/duração nulos; término de um evento é instante do próximo, **não duração de execução nem vigência do valor**.
+## 10. Tela 7 — Detalhe da revisão
 
-**API:** `GET /audit/features/{featureId}/revisions/{revisionId}/timeline`. DTO `RevisionTimelineResponse(featureId, revisionId, revisionNumber, summary, events)`; `RevisionSummary(firstEventAt, lastEventAt, durationSeconds, eventCount)`; `RevisionEvent(eventId, environmentId, environmentName, type, origin, occurredAt, nextEventAt, intervalSeconds, operationId, description)`. JSON completo, SQL com `LEAD()`, índices, critérios e ressalva sobre identidade de revisão constam em **[Revisão Timeline.md](./Revis%C3%A3o%20Timeline.md)**, documento canônico para esta tela.
+**Contexto e justificativa:** entender o percurso de uma revisão entre ambientes, seus eventos e a relação com operações de promoção. Uma revisão não é necessariamente uma operação; promoções transportam uma revisão já existente.
+
+**Objetivo:** apresentar numa única página a história da revisão, com rastreabilidade até eventos e operações.
+
+**Layout acordado:** sem abas. Cabeçalho com recurso, revisão e quantidade de eventos; indicadores de primeiro evento, último evento e intervalo total; timeline horizontal por ambiente e data/hora; botão **Detalhar timeline** que expande tabela de evento, início, próximo evento e intervalo; histórico cronológico completo com detalhes expansíveis e links **Ver evento** / **Ver operação** quando houver.
+
+**Semântica temporal:** `nextEventAt` é a ocorrência do evento seguinte na sequência selecionada; `intervalSeconds` é a diferença entre instantes, **não duração de execução nem vigência do valor**. Último evento tem próximo instante/intervalo nulos. Retorno a ambiente anterior (HOM → DEV → HOM) é permitido se os eventos pertencerem à mesma linhagem auditável. Revisões independentes com rótulo R1 não devem ser mescladas.
+
+```java
+public record RevisionTimelineResponse(String resourceId, String revisionId,
+    long revisionNumber, RevisionTimelineSummary summary,
+    List<RevisionTimelineEvent> events) {}
+public record RevisionTimelineSummary(Instant firstEventAt,
+    Instant lastEventAt, Long durationSeconds, long eventCount) {}
+public record RevisionTimelineEvent(String eventId, String environmentId,
+    String environmentName, String type, String origin, Instant occurredAt,
+    Instant nextEventAt, Long intervalSeconds, String operationId,
+    String description) {}
+// GET /audit/resources/{resourceType}/{resourceId}/revisions/{revisionId}/timeline
+// ?applicationId=
+```
 
 ```sql
 WITH scoped AS (
@@ -161,105 +288,74 @@ WITH scoped AS (
          e.occurred_at, e.operation_id, e.description
   FROM audit_event e
   WHERE e.workspace_id = :workspaceId
-    AND e.feature_id = :featureId
+    AND e.application_id = :applicationId
+    AND e.resource_type = :resourceType AND e.resource_id = :resourceId
     AND e.revision_lineage_id = :revisionLineageId
 ), sequenced AS (
   SELECT s.*, LEAD(s.occurred_at) OVER (
-    ORDER BY s.occurred_at, s.id
-  ) AS next_event_at FROM scoped s
+    ORDER BY s.occurred_at ASC, s.id ASC
+  ) AS next_event_at
+  FROM scoped s
 )
 SELECT *, TIMESTAMPDIFF(SECOND, occurred_at, next_event_at) AS interval_seconds
-FROM sequenced ORDER BY occurred_at, id;
-```
-**Índice:** `(workspace_id, feature_id, revision_lineage_id, occurred_at, id)`; Java pode calcular intervalos em uma passagem após consulta ordenada, evitando complexidade SQL, mantendo uma ida ao banco. **Aceite:** cronologia, intervalos atravessando dias, retornos a HOM, promoção R1, último evento aberto, segurança e desempenho.
-
-## 10. DTOs Java — contratos de referência
-
-Os tipos abaixo são **esboços tipados**; adotar enums e IDs do domínio real. Paginação por cursor em listas; `Instant` em datas; `Long` nullable para intervalo aberto.
-
-```java
-public record CursorPage<T>(List<T> items, String nextCursor) {}
-public record ResourceSummary(String resourceType, String resourceId,
-    String displayName, String applicationId, List<String> environmentIds,
-    Instant lastEventAt) {}
-public record EventSummary(String id, Instant occurredAt, String environmentId,
-    String type, String origin, String actor, String description,
-    String operationId, String revisionId) {}
-public record EventDetail(String id, Instant occurredAt, String workspaceId,
-    String applicationId, String environmentId, String resourceType,
-    String resourceId, String type, String origin, String actor,
-    String correlationId, String revisionId, String operationId,
-    Map<String, Object> metadata, boolean snapshotAvailable) {}
-public record OperationSummary(String id, String type, String status,
-    Instant startedAt, Instant finishedAt, String actor,
-    String sourceEnvironmentId, String targetEnvironmentId, Long eventCount) {}
-public record OperationDetail(OperationSummary summary,
-    Map<String, Object> metadata) {}
-public record OperationEventSummary(String id, Instant occurredAt,
-    String applicationId, String environmentId, String resourceType,
-    String resourceId, String type, String description) {}
-public record RevisionSummaryItem(String revisionId, long revisionNumber,
-    Instant firstEventAt, Instant lastEventAt,
-    List<String> environmentIds, boolean hasPromotion) {}
-public record RevisionTimelineResponse(String featureId, String revisionId,
-    long revisionNumber, RevisionSummary summary, List<RevisionEvent> events) {}
-public record RevisionSummary(Instant firstEventAt, Instant lastEventAt,
-    Long durationSeconds, long eventCount) {}
-public record RevisionEvent(String eventId, String environmentId,
-    String environmentName, String type, String origin, Instant occurredAt,
-    Instant nextEventAt, Long intervalSeconds, String operationId,
-    String description) {}
+FROM sequenced ORDER BY occurred_at ASC, id ASC;
 ```
 
-## 11. Estratégia de performance e implementação
+**Justificativa:** `revision_lineage_id` é campo **candidato**; mapear identidade real antes de implementar. Índice `(workspace_id, application_id, resource_type, resource_id, revision_lineage_id, occurred_at, id)`. Calcular intervalos em Java numa passagem após consulta ordenada é alternativa mais simples a `LEAD()`. Não retornar histórico ilimitado: para volumes grandes, paginar eventos e obter resumo separado. Ver também [Revisão Timeline.md](./Revis%C3%A3o%20Timeline.md), que contém cenário ilustrativo e regras temporais; alinhar o exemplo de identidade antes de implementá-lo.
 
-1. **Listas são leves e paginadas**; detalhes e snapshots sob demanda. `limit` validado e máximo configurável; `pageSize+1` para detectar próximo cursor.
-2. **Uma chamada HTTP por visão principal quando útil**, mas não forçar um SQL gigante; detalhe da operação pode consultar cabeçalho e página de eventos separadamente, evitando agregações e payloads caros.
-3. **Não fazer N+1** para ambientes, aplicações, atores ou operações; joins seletivos ou nomes já capturados em projeções. Avaliar read model para recursos e revisões.
-4. **Índices baseados em filtro + ordenação**; testar com `EXPLAIN ANALYZE`, volume realista, diferentes cardinalidades e datas. Índices listados são candidatos, não DDL aprovado.
-5. **Autorização antes de expor dados**, inclusive exportações, snapshots e eventos cross-environment. Não confiar no contexto enviado pelo frontend.
-6. **Estabilidade:** eventos simultâneos ordenados por id; timestamps UTC; paginação estável sob escrita concorrente (cursor e eventual limite de snapshot temporal).
-7. **Métricas:** latência p50/p95/p99, linhas examinadas, memória de resposta, quantidade de queries, tamanho do payload e cache hit se aplicável. Definir SLO antes de otimizar.
-8. **Integração:** testes com MySQL 8/Testcontainers, casos de autorização, paginação, cross-environment, N+1, valores mascarados, eventos sem operação, revisões independentes e intervalos entre dias.
+## 11. Matriz de navegação e vínculos
 
-## 12. Critérios gerais de aceite
+| Origem | Destino | Condição | Identificador usado |
+|---|---|---|---|
+| Busca de recursos | Eventos do recurso | Recurso selecionado + ambiente escolhido | aplicação + tipo + recurso + ambiente |
+| Eventos do recurso | Detalhe do evento | Sempre | eventId |
+| Detalhe do evento | Busca/histórico do recurso | Sempre | aplicação + tipo + recurso + ambiente |
+| Detalhe do evento | Detalhe da operação | Somente se operationId existir | operationId |
+| Detalhe do evento | Detalhe da revisão | Somente se revisionId existir | revisionId (não apenas Rn) |
+| Operações | Detalhe da operação | Sempre | operationId |
+| Detalhe da operação | Detalhe do evento | Evento autorizado | eventId |
+| Revisões | Detalhe da revisão | Recurso versionado + revisão existente | revisionId |
+| Detalhe da revisão | Detalhe do evento | Evento autorizado | eventId |
 
-- As sete telas estão acessíveis pela navegação proposta; cada uma possui loading, vazio, erro e acesso negado.
-- Timeline de feature respeita ambiente; Operation agrupa eventos de múltiplos ambientes autorizados.
-- Evento de feature tem link para operação somente quando há vínculo; operação lista todos os eventos internos visíveis.
-- Snapshot apenas no detalhe e exportação CSV no contexto de Operation, com proteção de dados.
-- Revisão apresenta resumo, timeline, detalhamento sob demanda e histórico na mesma página.
-- Filtros, cursores e ordenação são determinísticos; nenhuma listagem exige carga ilimitada ou consultas por item.
-- Testes de integração e análise de planos de execução validam segurança e desempenho.
+Preservar filtros, cursor e breadcrumb ao retornar. IDs não garantem acesso; cada destino revalida permissão.
 
-## 13. Decisões pendentes
+## 12. Estratégia de MySQL, segurança e desempenho
 
-1. Confirmar esquema físico real de `audit_event`, `audit_operation`, snapshots e relacionamentos com motor/feature; SQL é ilustrativo.
-2. Definir identidade/linhagem de revisão para criações independentes HOM R1 e DEV R1.
-3. Definir se a busca de recursos usa catálogo da feature, índice de auditoria ou busca federada.
-4. Confirmar eventos de motor que aparecem no detalhe de Operation e distinção dos eventos internos.
-5. Fechar autorização cross-application/cross-environment, política de segredos, limites de paginação e estratégia de CSV grande.
-6. Validar nomes de rotas e contratos antes da implementação; nenhuma rota deste documento é afirmada como existente.
+- **Verificar esquema real primeiro:** `audit_event`, `audit_operation`, referência a snapshots e modelo de revisão/linhagem; exemplos SQL são ilustrativos e podem precisar de joins ou outros nomes.
+- **Índices orientados a filtros e ordenação:** testar `EXPLAIN ANALYZE` com cardinalidades reais; não criar todos os índices propostos sem medir escrita e espaço.
+- **Cursor estável:** ordenação por instante e ID; `LIMIT pageSize+1`; proteger contra duplicação em eventos simultâneos e mudanças concorrentes. Para busca agregada, usar índice materializado ou paginação adequada.
+- **Projeções leves:** listas não carregam JSON pesado nem snapshots de S3/Blob; detalhe carrega metadados autorizados; snapshot separado e protegido.
+- **Sem N+1:** buscar nomes de ambiente, ator, revisão e contagens em joins/projeções em lote; não consultar uma vez por linha.
+- **Segurança:** escopo de workspace derivado da autenticação; autorização por aplicação/ambiente e recurso, inclusive na operação multiambiente, no snapshot e no CSV; mascarar segredos.
+- **Observabilidade:** medir latência p50/p95/p99, queries por requisição, linhas examinadas, bytes de resposta e taxa de erros. SLO e limites devem ser definidos antes da otimização.
+- **Testes:** MySQL 8 + Testcontainers, isolamento entre tenants, cursor, ordenação empatada, eventos manuais sem operação, contas sem revisão, recursos versionados com revisão, promoção que preserva revisão, ambientes cruzados autorizados, snapshots e valores sensíveis.
 
+## 13. Critérios de aceite por fluxo
 
-## Referências visuais verificadas no repositório (12/11/2026)
+1. Busca exige aplicação, permite tipo e texto, e nunca busca indiscriminadamente todas as aplicações.
+2. Recurso → eventos exige ambiente e não repete filtros de aplicação/recurso já escolhidos.
+3. Evento detalhado mostra revisão e operação apenas quando realmente vinculadas; recurso não versionado permanece auditável.
+4. Operações lista execuções autorizadas independentemente de recurso; detalhe distingue eventos do motor e efeitos nas features.
+5. Operação → evento → revisão funciona quando o evento tem revisão; links inversos e retorno preservam contexto.
+6. Revisão nasce na criação do recurso versionado, evolui em alterações relevantes e é transportada pela promoção sem incremento automático por transporte.
+7. Revisões independentes com mesmo número não se fundem; timeline tem intervalos corretos e último intervalo aberto.
+8. Todas as telas tratam carregamento, vazio, erro, 403/404, paginação e dados sensíveis.
 
-A branch `feat/workspace-mfe-prototype` contém um **protótipo HTML navegável**, não sete capturas de tela prontas: [protótipo de eventos de auditoria](https://github.com/BrunoBS/guideline-java/blob/feat/workspace-mfe-prototype/prototypes/audit-events/index.html). O protótipo cobre três experiências: **eventos do motor de promoção**, **histórico da feature** e **detalhe da operação**. Usa dados fictícios e não substitui os contratos finais. Também contém [Workspace MFE](https://github.com/BrunoBS/guideline-java/tree/feat/workspace-mfe-prototype/workspace-mfe), cuja [folha de estilos](https://github.com/BrunoBS/guideline-java/blob/feat/workspace-mfe-prototype/workspace-mfe/src/styles.css) é referência para a identidade visual integrada ao Portal: topbar branca, fundo claro, cartões brancos, bordas suaves, azul para ações secundárias e laranja para ação principal.
+## 14. Decisões ainda abertas para revisão do produto/domínio
 
-**Importante:** ainda não existem sete imagens verificadas para incorporar ao Markdown. Não usar links quebrados ou chamar mockup inexistente de captura real. Antes de inserir imagens, renderizar e capturar cada tela a partir do protótipo correspondente, salvar os arquivos em caminho versionado e só então referenciá-los com Markdown `![...](...)`.
+1. Quais tipos de recurso são promovíveis/versionados, e quais alterações exatamente incrementam revisão?
+2. Qual é a identidade física da revisão/linhagem e como o motor propaga esse ID entre ambientes?
+3. Qual a fonte da busca textual de recursos (catálogo da feature ou read model auditável)?
+4. Como eventos do motor são persistidos e correlacionados com eventos internos?
+5. Qual o conjunto exato de filtros por tela, limites de período/página e política de exportação?
+6. Qual a política de autorização cross-application/cross-environment e de mascaramento de valores?
+7. Quais nomes reais de rotas, tabelas e colunas serão adotados? Nenhuma API acima é afirmada como já existente.
 
-### Matriz de reaproveitamento visual por tela
+## 15. Protótipo e referências
 
-| Tela | Referência existente na branch | O que falta para imagem final |
-|---|---|---|
-| Busca de recursos | Padrão de filtros e tabelas do Workspace MFE | Compor busca específica de recursos e capturar |
-| Listagem de eventos | `prototypes/audit-events/index.html` → Histórico da feature | Incluir filtros obrigatórios de ambiente/período e capturar |
-| Detalhe do evento | Cards e links do protótipo de auditoria | Compor detalhe/snapshot e capturar |
-| Listagem de operações | Tabelas paginadas do Workspace MFE | Compor filtros, status e tabela e capturar |
-| Detalhe da operação | `prototypes/audit-events/index.html` → Detalhes da operação | Ajustar layout para padrão do Portal e capturar |
-| Listagem de revisões | Padrão de tabelas do Workspace MFE | Compor períodos 10/30/60/90 dias e capturar |
-| Detalhe da revisão | Documento `Revisão Timeline.md` | Compor página única, sem abas, e capturar |
+- [Protótipo conceitual navegável com sete telas](https://github.com/BrunoBS/guideline-java/blob/feat/workspace-mfe-prototype/prototypes/audit-mfe/index.html) — HTML estático com dados fictícios; não é implementação do Audit Service.
+- [Protótipo anterior de eventos](https://github.com/BrunoBS/guideline-java/blob/feat/workspace-mfe-prototype/prototypes/audit-events/index.html).
+- [Workspace MFE](https://github.com/BrunoBS/guideline-java/tree/feat/workspace-mfe-prototype/workspace-mfe) — referência visual.
+- [Revisão Timeline.md](./Revis%C3%A3o%20Timeline.md) — regras de intervalos e exemplo; a identidade de revisão multiambiente ainda precisa de decisão explícita.
 
-### Regra de consistência para as sete imagens
-
-Cada imagem deve mostrar breadcrumb, contexto de workspace/aplicação, título, filtros visíveis (quando aplicáveis), estado com dados ilustrativos e ação principal. As imagens devem representar as regras aprovadas neste documento; em particular, timeline de feature sempre filtrada por ambiente, operação com eventos entre ambientes e detalhe da revisão sem abas. Identificar visualmente como **protótipo / dados fictícios**. Não reutilizar imagens do protótipo de motor como se fossem imagens de busca de recursos ou de revisões.
+**As telas são protótipos, não capturas finais aprovadas.** Não incluir imagens inexistentes. Após validar cada tela, capturar e versionar imagens reais e atualizar os links do documento.
