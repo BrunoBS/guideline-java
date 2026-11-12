@@ -58,51 +58,57 @@ Os exemplos seguintes usam IDs como `String` por neutralidade; adaptar aos tipos
 
 ## 4. Tela 1 — Busca de recursos
 
-**Contexto e justificativa:** ponto de entrada para descobrir o identificador de um recurso a partir de um **nome histórico exato**, mesmo que o recurso tenha sido renomeado. A consulta é feita sobre os dados históricos de auditoria, não apenas sobre o nome atual no serviço de origem.
+**Contexto e justificativa:** localizar um recurso auditado pelo **nome histórico ou pelo identificador**, sem exigir que o usuário saiba o ID previamente. A busca por nome contempla renomeações e não depende do cadastro atual da feature.
 
-**Objetivo:** resolver **nome histórico → identificadores distintos**. Esta tela não lista eventos nem consulta revisões ou operações; a investigação do histórico acontece na tela 2.
+**Objetivo:** resolver **nome histórico OU identificador → identificadores distintos**; a tela 2 consulta os eventos do recurso escolhido.
 
-**Filtros e contexto:** workspace herdado da sessão; **aplicação obrigatória**, selecionada pelo usuário (sem opção "todas"); **tipo de recurso obrigatório** (por exemplo, chave de configuração) e **nome da chave obrigatório para a busca por nome**, com correspondência **exata por igualdade (`=`), nunca `LIKE`**; o tipo selecionado restringe a busca ao domínio correspondente e evita misturar recursos de tipos diferentes que compartilham o mesmo nome. **Ambiente não é filtro nem requisito nesta tela**: pesquisar todos os ambientes autorizados da aplicação. A pesquisa só é habilitada quando aplicação, tipo de recurso e nome estiverem informados.
+**Filtros e contexto:** workspace herdado da sessão; **aplicação obrigatória**; **tipo de recurso obrigatório** (configuração, regra, menu ou outro tipo suportado); **um único campo obrigatório “Nome ou identificador”**, sem seletor de modalidade. O termo é comparado com o nome histórico **OU** com o ID, sempre por igualdade (`=`), **nunca `LIKE`**. **Ambiente não participa da busca**; considerar os ambientes autorizados da aplicação. Habilitar a busca apenas com aplicação, tipo e termo preenchidos.
 
-**Semântica da identidade:** um mesmo `resource_id` pode ter vários nomes ao longo do tempo, mas renomear não cria outro identificador. Se **dois IDs distintos** já tiveram exatamente o nome pesquisado, ambos aparecem. Se um mesmo ID tiver o nome em múltiplos eventos, ambientes ou renomeações, aparece **uma única vez**. O nome exibido é o **nome histórico que correspondeu à pesquisa**, não uma afirmação sobre o nome atual. Uma pesquisa por `minha-chave` deve encontrar o ID `123` mesmo que hoje se chame `sua-chave`; se o ID `789` também já se chamou `minha-chave`, os IDs `123` e `789` aparecem separadamente.
+**Semântica da identidade:** nomes anteriores e posteriores à renomeação devem ser pesquisáveis. Renomear um recurso não muda seu `resource_id`. Se dois IDs distintos já tiveram exatamente o nome buscado, ambos aparecem. Eventos ou ambientes múltiplos para um mesmo ID produzem **uma linha por ID distinto**. A igualdade do MySQL deve ter semântica de case/acento explicitamente definida por collation ou normalização.
 
-**Resultado mínimo:** identificador do recurso, nome histórico encontrado e data da última ocorrência **desse nome**; ação **Ver eventos**. O workspace e a aplicação não precisam ser repetidos em cada linha. A tela 2 recebe o ID selecionado e solicita a escolha de ambiente antes de consultar eventos.
+**Resultado:** `resourceId`, `matchedName` (nome histórico correspondente, **quando a correspondência foi pelo nome**) ou `lastKnownName` (último nome conhecido na auditoria, **quando a correspondência foi pelo ID**, se disponível), `lastOccurrenceAt` (última ocorrência auditada do recurso correspondente); ação **Ver eventos**. Não afirmar que o último nome conhecido é o nome atual. A tela 2 solicita o ambiente antes de consultar os eventos.
 
 **DTOs e API candidatos:**
 
 ```java
 public record ResourceSearchItem(
     String resourceId,
-    String matchedName,
+    String displayName,
     Instant lastOccurrenceAt
 ) {}
 public record ResourceSearchResponse(
     List<ResourceSearchItem> items,
     String nextCursor
 ) {}
-// GET /audit/resources?applicationId=&resourceType=&name=&cursor=&limit=
+// GET /audit/resources?applicationId=&resourceType=&query=&cursor=&limit=
 ```
 
-**MySQL 8 — consulta conceitual sobre histórico de nomes (candidata):**
+`displayName` representa o nome histórico que coincidiu com o termo; se a coincidência foi apenas pelo ID, é o último nome conhecido na auditoria, quando disponível. Pode ser nulo. A data refere-se à última ocorrência do recurso no histórico consultado.
+
+**MySQL 8 — consulta conceitual com OR (candidata):**
 
 ```sql
 SELECT
     h.resource_id,
-    :searchedName AS matched_name,
     MAX(h.occurred_at) AS last_occurrence_at
 FROM audit_resource_name_history h
 WHERE h.workspace_id = :workspaceId
   AND h.application_id = :applicationId
   AND h.resource_type = :resourceType
-  AND h.resource_name = :searchedName
+  AND (
+      h.resource_name = :searchTerm
+      OR h.resource_id = :searchTerm
+  )
 GROUP BY h.resource_id
 ORDER BY last_occurrence_at DESC, h.resource_id DESC
 LIMIT :pageSizePlusOne;
 ```
 
-**Atenção ao esquema físico:** `audit_resource_name_history` é **read model/índice histórico proposto, não tabela existente confirmada**. A origem dos dados são os eventos de auditoria: criação e renomeação devem indexar tanto o **nome anterior** quanto o **novo nome**, associados ao mesmo `resource_id`. Se o nome estiver em colunas ou payloads do `audit_event`, adaptar a consulta para extrair ambos os lados da alteração (por exemplo, `UNION ALL` dos nomes anterior e posterior) e depois agrupar por ID. Não substituir essa regra por busca no cadastro atual da feature. Verificar se a collation do MySQL exige normalização para a igualdade desejada (sensibilidade a maiúsculas/minúsculas e acentos). Índice candidato: `(workspace_id, application_id, resource_type, resource_name, resource_id, occurred_at)`. A ordenação acima **não implementa cursor estável sozinha**; aplicar predicado de cursor na agregação/read model.
+A consulta demonstra **o OR funcional e a deduplicação por ID**; para montar `displayName` e `lastOccurrenceAt` conforme o contrato, o plano final deve buscar o último nome conhecido e a última ocorrência relevante por ID, sem confundir data da coincidência com data do recurso. Se o histórico de nomes não tiver uma linha para todo ID auditado, **o ramo por ID deve consultar também o índice de eventos/recursos**, para encontrar IDs mesmo sem nomes registrados. Pode-se implementar a mesma semântica com `UNION` de duas buscas indexadas caso seja mais eficiente.
 
-**Aceite:** aplicação e tipo de recurso obrigatórios; workspace contextual; nome exato via `=`, sem `LIKE`; sem exigência de ambiente; nomes antigos e novos pesquisáveis; dois IDs diferentes que tiveram o mesmo nome retornam duas linhas; múltiplos eventos/ambientes do mesmo ID retornam uma linha; resultado mostra ID, nome histórico e última ocorrência daquele nome; navegação para eventos solicita ambiente; respeitar autorização e paginação estável.
+**Atenção ao esquema físico:** `audit_resource_name_history` é **read model/índice proposto, não tabela existente confirmada**. Alimentá-lo com nomes anteriores e novos de eventos de criação/renomeação, sempre vinculados ao mesmo ID. Se os nomes estiverem no `audit_event` ou payload, extrair os dois lados da alteração e indexar/consultar de forma equivalente. Índices candidatos: `(workspace_id, application_id, resource_type, resource_name, resource_id, occurred_at)` e `(workspace_id, application_id, resource_type, resource_id, occurred_at)`. A ordenação acima não implementa cursor estável por si só; definir cursor sobre resultado agregado ou read model. Validar autorização em todos os ambientes abrangidos.
+
+**Aceite:** aplicação, tipo e termo obrigatórios; workspace contextual; nome **ou** ID por igualdade, sem `LIKE`; campo único sem seletor; nenhum filtro de ambiente; nomes antigos e novos encontráveis; dois IDs com mesmo nome histórico geram duas linhas; renomeações e eventos repetidos do mesmo ID geram uma linha; busca direta por ID funciona mesmo sem nome histórico; resultado e navegação coerentes; paginação estável e autorização.
 
 ## 5. Tela 2 — Eventos do recurso / feature
 
