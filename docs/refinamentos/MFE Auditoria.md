@@ -240,3 +240,26 @@ public record RevisionEvent(String eventId, String environmentId,
 4. Confirmar eventos de motor que aparecem no detalhe de Operation e distinção dos eventos internos.
 5. Fechar autorização cross-application/cross-environment, política de segredos, limites de paginação e estratégia de CSV grande.
 6. Validar nomes de rotas e contratos antes da implementação; nenhuma rota deste documento é afirmada como existente.
+
+
+## Referências visuais verificadas no repositório (12/11/2026)
+
+A branch `feat/workspace-mfe-prototype` contém um **protótipo HTML navegável**, não sete capturas de tela prontas: [protótipo de eventos de auditoria](https://github.com/BrunoBS/guideline-java/blob/feat/workspace-mfe-prototype/prototypes/audit-events/index.html). O protótipo cobre três experiências: **eventos do motor de promoção**, **histórico da feature** e **detalhe da operação**. Usa dados fictícios e não substitui os contratos finais. Também contém [Workspace MFE](https://github.com/BrunoBS/guideline-java/tree/feat/workspace-mfe-prototype/workspace-mfe), cuja [folha de estilos](https://github.com/BrunoBS/guideline-java/blob/feat/workspace-mfe-prototype/workspace-mfe/src/styles.css) é referência para a identidade visual integrada ao Portal: topbar branca, fundo claro, cartões brancos, bordas suaves, azul para ações secundárias e laranja para ação principal.
+
+**Importante:** ainda não existem sete imagens verificadas para incorporar ao Markdown. Não usar links quebrados ou chamar mockup inexistente de captura real. Antes de inserir imagens, renderizar e capturar cada tela a partir do protótipo correspondente, salvar os arquivos em caminho versionado e só então referenciá-los com Markdown `![...](...)`.
+
+### Matriz de reaproveitamento visual por tela
+
+| Tela | Referência existente na branch | O que falta para imagem final |
+|---|---|---|
+| Busca de recursos | Padrão de filtros e tabelas do Workspace MFE | Compor busca específica de recursos e capturar |
+| Listagem de eventos | `prototypes/audit-events/index.html` → Histórico da feature | Incluir filtros obrigatórios de ambiente/período e capturar |
+| Detalhe do evento | Cards e links do protótipo de auditoria | Compor detalhe/snapshot e capturar |
+| Listagem de operações | Tabelas paginadas do Workspace MFE | Compor filtros, status e tabela e capturar |
+| Detalhe da operação | `prototypes/audit-events/index.html` → Detalhes da operação | Ajustar layout para padrão do Portal e capturar |
+| Listagem de revisões | Padrão de tabelas do Workspace MFE | Compor períodos 10/30/60/90 dias e capturar |
+| Detalhe da revisão | Documento `Revisão Timeline.md` | Compor página única, sem abas, e capturar |
+
+### Regra de consistência para as sete imagens
+
+Cada imagem deve mostrar breadcrumb, contexto de workspace/aplicação, título, filtros visíveis (quando aplicáveis), estado com dados ilustrativos e ação principal. As imagens devem representar as regras aprovadas neste documento; em particular, timeline de feature sempre filtrada por ambiente, operação com eventos entre ambientes e detalhe da revisão sem abas. Identificar visualmente como **protótipo / dados fictícios**. Não reutilizar imagens do protótipo de motor como se fossem imagens de busca de recursos ou de revisões.
