@@ -62,7 +62,7 @@ Os exemplos seguintes usam IDs como `String` por neutralidade; adaptar aos tipos
 
 **Objetivo:** resolver **nome histórico → identificadores distintos**. Esta tela não lista eventos nem consulta revisões ou operações; a investigação do histórico acontece na tela 2.
 
-**Filtros e contexto:** workspace herdado da sessão; **aplicação obrigatória**, selecionada pelo usuário (sem opção "todas"); **nome da chave obrigatório para a busca por nome**, com correspondência **exata por igualdade (`=`), nunca `LIKE`**; tipo de recurso fixo como chave quando esse for o fluxo, ou explícito conforme a aplicação. **Ambiente não é filtro nem requisito nesta tela**: pesquisar todos os ambientes autorizados da aplicação. A pesquisa só é habilitada quando aplicação e nome estiverem informados.
+**Filtros e contexto:** workspace herdado da sessão; **aplicação obrigatória**, selecionada pelo usuário (sem opção "todas"); **tipo de recurso obrigatório** (por exemplo, chave de configuração) e **nome da chave obrigatório para a busca por nome**, com correspondência **exata por igualdade (`=`), nunca `LIKE`**; o tipo selecionado restringe a busca ao domínio correspondente e evita misturar recursos de tipos diferentes que compartilham o mesmo nome. **Ambiente não é filtro nem requisito nesta tela**: pesquisar todos os ambientes autorizados da aplicação. A pesquisa só é habilitada quando aplicação, tipo de recurso e nome estiverem informados.
 
 **Semântica da identidade:** um mesmo `resource_id` pode ter vários nomes ao longo do tempo, mas renomear não cria outro identificador. Se **dois IDs distintos** já tiveram exatamente o nome pesquisado, ambos aparecem. Se um mesmo ID tiver o nome em múltiplos eventos, ambientes ou renomeações, aparece **uma única vez**. O nome exibido é o **nome histórico que correspondeu à pesquisa**, não uma afirmação sobre o nome atual. Uma pesquisa por `minha-chave` deve encontrar o ID `123` mesmo que hoje se chame `sua-chave`; se o ID `789` também já se chamou `minha-chave`, os IDs `123` e `789` aparecem separadamente.
 
@@ -80,7 +80,7 @@ public record ResourceSearchResponse(
     List<ResourceSearchItem> items,
     String nextCursor
 ) {}
-// GET /audit/resources?applicationId=&resourceType=KEY&name=&cursor=&limit=
+// GET /audit/resources?applicationId=&resourceType=&name=&cursor=&limit=
 ```
 
 **MySQL 8 — consulta conceitual sobre histórico de nomes (candidata):**
@@ -93,7 +93,7 @@ SELECT
 FROM audit_resource_name_history h
 WHERE h.workspace_id = :workspaceId
   AND h.application_id = :applicationId
-  AND h.resource_type = 'KEY'
+  AND h.resource_type = :resourceType
   AND h.resource_name = :searchedName
 GROUP BY h.resource_id
 ORDER BY last_occurrence_at DESC, h.resource_id DESC
@@ -102,7 +102,7 @@ LIMIT :pageSizePlusOne;
 
 **Atenção ao esquema físico:** `audit_resource_name_history` é **read model/índice histórico proposto, não tabela existente confirmada**. A origem dos dados são os eventos de auditoria: criação e renomeação devem indexar tanto o **nome anterior** quanto o **novo nome**, associados ao mesmo `resource_id`. Se o nome estiver em colunas ou payloads do `audit_event`, adaptar a consulta para extrair ambos os lados da alteração (por exemplo, `UNION ALL` dos nomes anterior e posterior) e depois agrupar por ID. Não substituir essa regra por busca no cadastro atual da feature. Verificar se a collation do MySQL exige normalização para a igualdade desejada (sensibilidade a maiúsculas/minúsculas e acentos). Índice candidato: `(workspace_id, application_id, resource_type, resource_name, resource_id, occurred_at)`. A ordenação acima **não implementa cursor estável sozinha**; aplicar predicado de cursor na agregação/read model.
 
-**Aceite:** aplicação obrigatória; workspace contextual; nome exato via `=`, sem `LIKE`; sem exigência de ambiente; nomes antigos e novos pesquisáveis; dois IDs diferentes que tiveram o mesmo nome retornam duas linhas; múltiplos eventos/ambientes do mesmo ID retornam uma linha; resultado mostra ID, nome histórico e última ocorrência daquele nome; navegação para eventos solicita ambiente; respeitar autorização e paginação estável.
+**Aceite:** aplicação e tipo de recurso obrigatórios; workspace contextual; nome exato via `=`, sem `LIKE`; sem exigência de ambiente; nomes antigos e novos pesquisáveis; dois IDs diferentes que tiveram o mesmo nome retornam duas linhas; múltiplos eventos/ambientes do mesmo ID retornam uma linha; resultado mostra ID, nome histórico e última ocorrência daquele nome; navegação para eventos solicita ambiente; respeitar autorização e paginação estável.
 
 ## 5. Tela 2 — Eventos do recurso / feature
 
