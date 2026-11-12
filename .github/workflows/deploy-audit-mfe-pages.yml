@@ -1,10 +1,12 @@
 name: Deploy all prototypes to GitHub Pages
 on:
   push:
-    branches: [main, feature/poc-schema-renderer]
+    branches: [main]
     paths:
       - 'docs/prototypes/**'
       - 'docs/tse/**'
+      - 'workspace-mfe/**'
+      - 'poc/schema-renderer/**'
       - 'tse/**'
       - '.github/workflows/deploy-audit-mfe-pages.yml'
   workflow_dispatch:
@@ -32,6 +34,25 @@ jobs:
         with:
           ref: feature/poc-schema-renderer
           path: schema-source
+      - name: Checkout Workspace MFE
+        uses: actions/checkout@v4
+        with:
+          ref: feat/workspace-mfe-prototype
+          path: workspace-source
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build Schema Builder
+        working-directory: schema-source/poc/schema-renderer
+        run: |
+          npm ci
+          npm run build -- --base-href /guideline-java/schema-renderer/
+      - name: Build Workspace MFE
+        working-directory: workspace-source/workspace-mfe
+        run: |
+          npm install --no-audit --no-fund
+          npm run build -- --base-href /guideline-java/portal-manager/
       - name: Prepare all sites
         shell: bash
         run: |
@@ -50,17 +71,14 @@ jobs:
           elif [ -d source/tse ]; then
             cp -a source/tse _site/tse
           fi
-          # Keep the Schema Renderer independent from the MFE deployment.
-          # Discover its entrypoint on the dedicated POC branch.
-          mapfile -d '' candidates < <(find schema-source -type f -name index.html -not -path '*/.git/*' -print0)
-          if [ "${#candidates[@]}" -eq 1 ]; then
-            mkdir -p _site/schema-renderer
-            cp -a "$(dirname "${candidates[0]}")/." _site/schema-renderer/
-          elif [ "${#candidates[@]}" -gt 1 ]; then
-            echo "::warning::Multiple Schema Renderer entrypoints; choose the correct source before publishing it."
-            printf '%s\n' "${candidates[@]}"
-          else
-            echo "::warning::No index.html found on the Schema Renderer POC branch."
+          mkdir -p _site/schema-renderer _site/portal-manager
+          cp -a schema-source/poc/schema-renderer/dist/schema-renderer-poc/browser/. _site/schema-renderer/
+          cp -a workspace-source/workspace-mfe/dist/workspace-mfe/browser/. _site/portal-manager/
+          cp _site/schema-renderer/index.html _site/schema-renderer/404.html
+          cp _site/portal-manager/index.html _site/portal-manager/404.html
+          if [ -d workspace-source/prototypes ]; then
+            mkdir -p _site/prototypes
+            cp -a workspace-source/prototypes/. _site/prototypes/
           fi
           touch _site/.nojekyll
           python3 - <<'PY'
