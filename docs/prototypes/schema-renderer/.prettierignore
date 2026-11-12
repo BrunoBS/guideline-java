@@ -1,0 +1,10 @@
+node_modules/
+.angular/
+dist/
+out-tsc/
+coverage/
+package-lock.json
+
+tests/vendor/
+playwright-report/
+test-results/

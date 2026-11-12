@@ -1,0 +1,90 @@
+<div class="attribute-list">
+  <div
+    class="attribute-item inline-object-child"
+    *ngFor="let atributo of atributos; index as i; trackBy: identificarAtributo"
+    [class.attribute-object]="caminhoDoObjeto(atributo.schema, atributo.caminho) !== undefined"
+    [class.active]="selecionado === atributo.caminho"
+  >
+    <div class="attribute-row">
+      <button
+        type="button"
+        class="inline-object-child-main"
+        (click)="editar.emit(atributo.caminho)"
+        title="Configurar propriedade e validações"
+      >
+        <span class="inline-object-child-copy"
+          ><strong
+            >{{ atributo.schema.title || atributo.nome
+            }}<span *ngIf="objeto.required?.includes(atributo.nome)"> *</span></strong
+          ><small>{{ atributo.schema.description || atributo.nome }}</small></span
+        >
+        <span class="inline-object-child-type">{{ rotuloDoTipo(atributo.schema) }}</span>
+      </button>
+      <div class="field-card-tools">
+        <button
+          type="button"
+          aria-label="Subir atributo"
+          [disabled]="i === 0"
+          (click)="mover.emit({ caminho: atributo.caminho, direcao: -1 })"
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          aria-label="Descer atributo"
+          [disabled]="i === atributos.length - 1"
+          (click)="mover.emit({ caminho: atributo.caminho, direcao: 1 })"
+        >
+          ↓
+        </button>
+        <button
+          type="button"
+          aria-label="Excluir atributo"
+          (click)="excluir.emit(atributo.caminho)"
+        >
+          Excluir
+        </button>
+      </div>
+    </div>
+    <ng-container *ngIf="caminhoDoObjeto(atributo.schema, atributo.caminho) as caminhoInterno">
+      <app-atributos-objeto
+        *ngIf="profundidade < 20; else limite"
+        [schema]="schema"
+        [caminho]="caminhoInterno"
+        [titulo]="atributo.schema.title || atributo.nome"
+        [selecionado]="selecionado"
+        [profundidade]="profundidade + 1"
+        (editar)="editar.emit($event)"
+        (excluir)="excluir.emit($event)"
+        (adicionar)="adicionar.emit($event)"
+        (mover)="mover.emit($event)"
+      >
+      </app-atributos-objeto>
+      <ng-template #limite><p>Continue a edição desta estrutura no Para Dev.</p></ng-template>
+    </ng-container>
+  </div>
+</div>
+<details class="inline-object-actions inline-object-picker" #seletor>
+  <summary class="object-property-toggle">+ Atributos</summary>
+  <div class="object-property-form">
+    <label [attr.for]="'object-kind-' + caminho">Tipo da propriedade</label>
+    <div class="object-property-control">
+      <select
+        [id]="'object-kind-' + caminho"
+        #tipo
+        [attr.aria-label]="'Tipo da nova propriedade em ' + titulo"
+      >
+        <option *ngFor="let opcao of tipos" [value]="opcao.tipo">{{ opcao.rotulo }}</option>
+      </select>
+      <button
+        type="button"
+        class="object-property-add"
+        [attr.aria-label]="'Adicionar propriedade a ' + titulo"
+        title="Adicionar propriedade"
+        (click)="adicionar.emit({ caminho: caminho, tipo: tipo.value }); seletor.open = false"
+      >
+        +
+      </button>
+    </div>
+  </div>
+</details>

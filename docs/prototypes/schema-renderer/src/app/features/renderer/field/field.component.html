@@ -1,0 +1,230 @@
+<details class="alternative-diagnostics" *ngIf="diagnosticosDeAlternativas.length">
+  <summary>Por que as alternativas não são exclusivas?</summary>
+  <div *ngFor="let alternativa of diagnosticosDeAlternativas">
+    <strong>{{ alternativa.titulo }}</strong
+    ><span *ngIf="!alternativa.problemas.length">: atendida</span>
+    <ul>
+      <li *ngFor="let problema of alternativa.problemas">
+        {{ problema.path }}: {{ problema.message }}
+      </li>
+    </ul>
+  </div>
+</details>
+<ng-container *ngIf="schemaResolvido as s">
+  <div class="schema-impossible" *ngIf="ehSchemaProibido(s); else renderable">
+    Este valor não é permitido pelo schema.
+  </div>
+
+  <ng-template #renderable>
+    <div class="schema-meta-row" *ngIf="possuiOpcoesDeComposicao() || possuiUniaoDeTipos(s)">
+      <label *ngIf="possuiOpcoesDeComposicao()" class="type-selector">
+        <span>Alternativa</span>
+        <select
+          [ngModel]="obterIndiceDaAlternativaAtiva()"
+          (ngModelChange)="selecionarAlternativa($event)"
+        >
+          <option *ngFor="let option of listarOpcoesDeComposicao(); index as i" [ngValue]="i">
+            {{ obterRotuloDaAlternativa(option, i) }}
+          </option>
+        </select>
+      </label>
+      <label *ngIf="possuiUniaoDeTipos(s)" class="type-selector">
+        <span>Tipo</span>
+        <select [ngModel]="obterTipoAtivo(s)" (ngModelChange)="alterarTipo($event, s)">
+          <option *ngFor="let type of obterTiposNaoNulos(s)" [ngValue]="type">
+            {{ obterRotuloDoTipo(type) }}
+          </option>
+        </select>
+      </label>
+    </div>
+
+    <ng-container *ngIf="obterSchemaDeApresentacao(s) as v">
+      <div class="free-value" *ngIf="ehSchemaLivre(v); else typedRenderer">
+        <div class="field-heading">
+          <label *ngIf="!suppressHeading"
+            >{{ v.title || name || 'Valor livre' }} {{ required ? '*' : '' }}
+            <span
+              *ngIf="v.description"
+              class="field-info"
+              tabindex="0"
+              [attr.aria-label]="v.description"
+              [title]="v.description"
+              >ⓘ</span
+            ></label
+          >
+          <label *ngIf="exibirControleDeNulo(s)" class="value-state-selector">
+            <span>Preenchimento</span>
+            <select
+              [ngModel]="obterEstadoDoValor()"
+              [disabled]="v.readOnly"
+              (ngModelChange)="alterarEstadoDoValor($event, s)"
+            >
+              <option *ngIf="!required" value="ausente">Não informar</option>
+              <option *ngIf="permitePreenchimento(s)" value="preenchido">Preencher</option>
+              <option *ngIf="permiteValorNulo(s)" value="nulo">Nulo (null)</option>
+            </select>
+          </label>
+        </div>
+        <ng-container *ngIf="!valorSemPreenchimento() || v.__jsonFallback; else nullFreeState">
+          <div class="constraint-hint" role="status" *ngIf="v.__jsonFallback">
+            {{ v.__jsonFallback }}
+          </div>
+          <textarea
+            class="json-value-editor"
+            [value]="formatarValorJson(value)"
+            [disabled]="v.readOnly"
+            (change)="aoEditarValorLivre($any($event.target))"
+            [placeholder]="obterExemploDeValorLivre()"
+          ></textarea>
+          <div class="muted">Valor livre em JSON.</div>
+        </ng-container>
+        <ng-template #nullFreeState
+          ><div class="null-value-state">{{ obterRotuloDoValorNulo(s) }}</div></ng-template
+        >
+        <p class="error" *ngIf="obterPrimeiroErro(path)">{{ obterPrimeiroErro(path) }}</p>
+      </div>
+
+      <ng-template #typedRenderer>
+        <app-campo-objeto
+          *ngIf="obterTipoPrincipal(v) === 'object' || possuiPropriedades(v); else nonObject"
+          [schema]="schema"
+          [root]="root"
+          [value]="value"
+          [required]="required"
+          [issues]="issues"
+          [path]="path"
+          [name]="name"
+          [suppressHeading]="suppressHeading"
+          [apresentacao]="v"
+          [resolvido]="s"
+          [renderizarFilho]="campoFilho"
+          (valueChange)="emitirValor($event)"
+          [indiceAlternativa]="obterIndiceDaAlternativaAtiva()"
+        ></app-campo-objeto>
+
+        <ng-template #nonObject>
+          <app-campo-lista
+            *ngIf="obterTipoPrincipal(v) === 'array'; else scalar"
+            [schema]="schema"
+            [root]="root"
+            [value]="value"
+            [required]="required"
+            [issues]="issues"
+            [path]="path"
+            [name]="name"
+            [suppressHeading]="suppressHeading"
+            [apresentacao]="v"
+            [resolvido]="s"
+            [renderizarFilho]="campoFilho"
+            (valueChange)="emitirValor($event)"
+          ></app-campo-lista>
+
+          <ng-template #scalar>
+            <div class="control" [class.invalid-control]="campoEstaInvalido(path)">
+              <div class="field-heading">
+                <label *ngIf="!suppressHeading"
+                  >{{ v.title || name || 'Valor' }} {{ required ? '*' : '' }}
+                  <span
+                    *ngIf="v.description"
+                    class="field-info"
+                    tabindex="0"
+                    [attr.aria-label]="v.description"
+                    [title]="v.description"
+                    >ⓘ</span
+                  ></label
+                >
+                <label *ngIf="exibirControleDeNulo(s)" class="value-state-selector">
+                  <span>Preenchimento</span>
+                  <select
+                    [ngModel]="obterEstadoDoValor()"
+                    [disabled]="v.readOnly"
+                    (ngModelChange)="alterarEstadoDoValor($event, s)"
+                  >
+                    <option *ngIf="!required" value="ausente">Não informar</option>
+                    <option *ngIf="permitePreenchimento(s)" value="preenchido">Preencher</option>
+                    <option *ngIf="permiteValorNulo(s)" value="nulo">Nulo (null)</option>
+                  </select>
+                </label>
+              </div>
+
+              <select
+                *ngIf="(v.enum || v.const !== undefined) && !valorSemPreenchimento()"
+                [ngModel]="value"
+                [disabled]="v.readOnly"
+                (ngModelChange)="emitirValor($event)"
+              >
+                <option
+                  *ngFor="let option of v.enum || [v.const]; let i = index"
+                  [ngValue]="option"
+                  [disabled]="!opcaoAtendeSchema(v, option)"
+                >
+                  {{ obterRotuloDaOpcao(v, option, i) }}
+                </option>
+              </select>
+              <app-campo-booleano
+                *ngIf="
+                  !v.enum &&
+                  v.const === undefined &&
+                  obterTipoPrincipal(v) === 'boolean' &&
+                  !valorSemPreenchimento()
+                "
+                [schema]="v"
+                [value]="value"
+                (valueChange)="emitirValor($event)"
+              ></app-campo-booleano>
+              <app-campo-numero
+                *ngIf="
+                  !v.enum &&
+                  v.const === undefined &&
+                  (obterTipoPrincipal(v) === 'number' || obterTipoPrincipal(v) === 'integer') &&
+                  !valorSemPreenchimento()
+                "
+                [schema]="v"
+                [value]="value"
+                [required]="required"
+                (valueChange)="emitirValor($event)"
+              ></app-campo-numero>
+              <app-campo-texto
+                *ngIf="
+                  !v.enum &&
+                  v.const === undefined &&
+                  obterTipoPrincipal(v) === 'string' &&
+                  !valorSemPreenchimento()
+                "
+                [schema]="v"
+                [value]="value"
+                [required]="required"
+                (valueChange)="emitirValor($event)"
+              ></app-campo-texto>
+              <div
+                class="null-value-state"
+                *ngIf="valorSemPreenchimento() && exibirControleDeNulo(s)"
+              >
+                {{ obterRotuloDoValorNulo(s) }}
+              </div>
+              <div class="annotation-row" *ngIf="v.readOnly || v.writeOnly">
+                <span *ngIf="v.readOnly">Somente leitura</span
+                ><span *ngIf="v.writeOnly">Somente escrita</span>
+              </div>
+              <p class="error" *ngIf="obterPrimeiroErro(path)">{{ obterPrimeiroErro(path) }}</p>
+            </div>
+          </ng-template>
+        </ng-template>
+      </ng-template>
+    </ng-container>
+  </ng-template>
+</ng-container>
+
+<ng-template #campoFilho let-campo>
+  <app-field
+    [schema]="campo.schema"
+    [root]="root"
+    [name]="campo.name"
+    [value]="campo.value"
+    [required]="campo.required"
+    [path]="campo.path"
+    [suppressHeading]="campo.suppressHeading"
+    [issues]="issues"
+    (valueChange)="campo.aoAlterarValor($event)"
+  ></app-field>
+</ng-template>

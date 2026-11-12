@@ -1,0 +1,58 @@
+<div class="rule-grid" *ngIf="node.type === 'integer' || node.type === 'number'">
+  <label
+    >Mínimo<input
+      type="number"
+      [step]="node.type === 'integer' ? 1 : 'any'"
+      [ngModel]="node.minimum"
+      (ngModelChange)="
+        validacoes.definirLimiteNumerico('minimum', $event, undefined, node.type === 'integer')
+      "
+  /></label>
+  <label
+    >Máximo<input
+      type="number"
+      [step]="node.type === 'integer' ? 1 : 'any'"
+      [ngModel]="node.maximum"
+      (ngModelChange)="
+        validacoes.definirLimiteNumerico('maximum', $event, undefined, node.type === 'integer')
+      "
+  /></label>
+  <label
+    >Exclusivo mínimo<input
+      type="number"
+      [step]="node.type === 'integer' ? 1 : 'any'"
+      [ngModel]="node.exclusiveMinimum"
+      (ngModelChange)="
+        validacoes.definirLimiteNumerico(
+          'exclusiveMinimum',
+          $event,
+          undefined,
+          node.type === 'integer'
+        )
+      "
+  /></label>
+  <label
+    >Exclusivo máximo<input
+      type="number"
+      [step]="node.type === 'integer' ? 1 : 'any'"
+      [ngModel]="node.exclusiveMaximum"
+      (ngModelChange)="
+        validacoes.definirLimiteNumerico(
+          'exclusiveMaximum',
+          $event,
+          undefined,
+          node.type === 'integer'
+        )
+      "
+  /></label>
+  <label
+    >Múltiplo de<input
+      type="number"
+      min="0"
+      [step]="node.type === 'integer' ? 1 : 'any'"
+      [ngModel]="node.multipleOf"
+      (ngModelChange)="
+        validacoes.definirLimiteNumerico('multipleOf', $event, 0, node.type === 'integer', true)
+      "
+  /></label>
+</div>

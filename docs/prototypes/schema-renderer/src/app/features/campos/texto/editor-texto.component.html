@@ -1,0 +1,52 @@
+@if (secao === 'propriedade') {
+  <label class="required-switch-label" *ngIf="node.type === 'string'"
+    ><span>Permitir texto vazio</span
+    ><input
+      type="checkbox"
+      class="required-switch-input"
+      [ngModel]="validacoes.permiteTextoVazio(node)"
+      (ngModelChange)="validacoes.definirPermissaoDeTextoVazio($event)"
+      role="switch"
+      [attr.aria-checked]="validacoes.permiteTextoVazio(node)" /><span
+      class="required-switch-track"
+      aria-hidden="true"
+    ></span
+  ></label>
+} @else {
+  <ng-container *ngIf="node.type === 'string'">
+    <label
+      >Formato
+      <select
+        [ngModel]="node.format || ''"
+        (ngModelChange)="validacoes.definirAtributoOpcional('format', $event)"
+      >
+        <option value="">Sem formato</option>
+        <option *ngFor="let format of formats" [value]="format">{{ format }}</option>
+      </select>
+    </label>
+    <div class="rule-grid">
+      <label
+        >Tamanho mínimo<input
+          type="number"
+          min="0"
+          step="1"
+          [ngModel]="node.minLength"
+          (ngModelChange)="validacoes.definirLimiteNumerico('minLength', $event, 0, true)"
+      /></label>
+      <label
+        >Tamanho máximo<input
+          type="number"
+          min="0"
+          step="1"
+          [ngModel]="node.maxLength"
+          (ngModelChange)="validacoes.definirLimiteNumerico('maxLength', $event, 0, true)"
+      /></label>
+    </div>
+    <label
+      >Expressão regular (pattern)<input
+        [ngModel]="node.pattern || ''"
+        (ngModelChange)="validacoes.definirExpressaoRegular($event)"
+        placeholder="^[A-Za-z]+$"
+    /></label>
+  </ng-container>
+}

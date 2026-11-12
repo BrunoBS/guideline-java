@@ -1,0 +1,127 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.expression-editor {
+  min-width: 0;
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+input,
+select {
+  width: 100%;
+  box-sizing: border-box;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.expression-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  align-items: start;
+}
+.builder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.group-operator {
+  max-width: 340px;
+  margin: 12px 0;
+}
+.expression-child {
+  display: grid;
+  grid-template-columns: auto 32px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+  padding: 12px 0;
+}
+.expression-child + .expression-child {
+  border-top: 1px solid #e2e8f0;
+}
+.condition-connector {
+  font-weight: 700;
+  color: #2455b5;
+  margin-top: 36px;
+  text-align: center;
+}
+.expression-child > .remove-condition {
+  align-self: start;
+  margin: 28px 0 0;
+  color: #a52332;
+  background: #fff;
+  border: 1px solid #e4c6c6;
+  padding: 8px;
+}
+.expression-comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+  min-width: 0;
+}
+.apply-condition {
+  margin: 0 0 8px;
+  white-space: nowrap;
+}
+.condition-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0;
+}
+.condition-toolbar .group-operator {
+  flex: 1 1 240px;
+  max-width: 340px;
+  margin: 0;
+}
+.condition-toolbar > button {
+  margin: 0;
+}
+@media (max-width: 950px) {
+  .expression-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .expression-comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .apply-condition {
+    justify-self: end;
+  }
+}
+@media (max-width: 600px) {
+  .expression-child {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+  }
+  .expression-child > .remove-condition {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+  }
+  .condition-connector {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 4px 0;
+  }
+  .expression-child > app-editor-expressao {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .condition-toolbar > button {
+    margin: 0;
+  }
+}
+
+.match-help {
+  color: #475569;
+}

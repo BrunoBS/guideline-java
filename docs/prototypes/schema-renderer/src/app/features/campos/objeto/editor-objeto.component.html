@@ -1,0 +1,45 @@
+<div class="rule-grid" *ngIf="ehSchemaObjeto(node)">
+  <label
+    >Mínimo de propriedades<input
+      type="number"
+      [min]="validacoes.contarPropriedadesObrigatorias(node)"
+      step="1"
+      [ngModel]="node.minProperties ?? validacoes.contarPropriedadesObrigatorias(node)"
+      (ngModelChange)="
+        validacoes.definirLimiteNumerico(
+          'minProperties',
+          $event,
+          validacoes.contarPropriedadesObrigatorias(node),
+          true
+        )
+      "
+  /></label>
+  <label
+    >Máximo de propriedades<input
+      type="number"
+      [min]="node.minProperties ?? validacoes.contarPropriedadesObrigatorias(node)"
+      step="1"
+      [ngModel]="node.maxProperties"
+      (ngModelChange)="
+        validacoes.definirLimiteNumerico(
+          'maxProperties',
+          $event,
+          validacoes.contarPropriedadesObrigatorias(node),
+          true
+        )
+      "
+  /></label>
+</div>
+<label *ngIf="ehSchemaObjeto(node)" class="required-switch-label validation-switch"
+  ><span>Permitir propriedades adicionais</span
+  ><input
+    type="checkbox"
+    class="required-switch-input"
+    [ngModel]="node.additionalProperties !== false"
+    (ngModelChange)="validacoes.definirAtributoBooleano('additionalProperties', $event)"
+    role="switch"
+    [attr.aria-checked]="node.additionalProperties !== false" /><span
+    class="required-switch-track"
+    aria-hidden="true"
+  ></span
+></label>

@@ -1,0 +1,142 @@
+<fieldset [disabled]="v.readOnly" [class.invalid-fieldset]="campoEstaInvalido(path)">
+  <legend *ngIf="!suppressHeading">
+    {{ v.title || name || 'Lista' }}
+    <span
+      *ngIf="v.description"
+      class="field-info"
+      tabindex="0"
+      [attr.aria-label]="v.description"
+      [title]="v.description"
+      >ⓘ</span
+    >
+    ({{ valorLista.length
+    }}<ng-container *ngIf="v.maxItems !== undefined"> / {{ v.maxItems }}</ng-container
+    >)
+  </legend>
+  <div class="container-nullable-row" *ngIf="exibirControleDeNulo(s)">
+    <label *ngIf="exibirControleDeNulo(s)" class="value-state-selector">
+      <span>Preenchimento</span>
+      <select
+        [ngModel]="obterEstadoDoValor()"
+        [disabled]="v.readOnly"
+        (ngModelChange)="alterarEstadoDoValor($event, s)"
+      >
+        <option *ngIf="!required" value="ausente">Não informar</option>
+        <option *ngIf="permitePreenchimento(s)" value="preenchido">Preencher</option>
+        <option *ngIf="permiteValorNulo(s)" value="nulo">Nulo (null)</option>
+      </select>
+    </label>
+  </div>
+
+  <ng-container *ngIf="!valorSemPreenchimento(); else nullArrayState">
+    <ng-container *ngIf="ehSelecaoMultipla(v); else regularArray">
+      <div *ngIf="obterControleDaLista(v) === 'multiselect'" class="multi-select-chips">
+        <span *ngFor="let option of valorLista" class="multi-select-chip"
+          >{{ obterRotuloDaOpcaoMultipla(v, option) }}
+          <button
+            type="button"
+            [disabled]="v.readOnly"
+            (click)="alternarSelecaoMultipla(option, false)"
+          >
+            ×
+          </button></span
+        >
+      </div>
+      <input
+        *ngIf="obterControleDaLista(v) === 'multiselect'"
+        type="search"
+        placeholder="Pesquisar opções..."
+        [ngModel]="multiSearch"
+        (ngModelChange)="multiSearch = $event"
+      />
+      <div
+        class="multi-select"
+        role="group"
+        [attr.aria-label]="v.title || name || 'Seleção múltipla'"
+      >
+        <label class="multi-select-option" *ngFor="let option of filtrarOpcoesMultiplas(v)">
+          <input
+            type="checkbox"
+            [checked]="opcaoEstaSelecionada(option)"
+            [disabled]="v.readOnly || opcaoEstaDesabilitada(v, option)"
+            (change)="alternarSelecaoMultipla(option, $any($event.target).checked)"
+          />
+          <span>{{ obterRotuloDaOpcaoMultipla(v, option) }}</span>
+        </label>
+      </div>
+    </ng-container>
+
+    <ng-template #regularArray>
+      <div
+        *ngFor="let item of valorLista; index as i; trackBy: identificarIndice"
+        class="array-item"
+        [class.contains-match]="itemAtendeRegraContains(v, item)"
+      >
+        <div class="array-index-heading">
+          <strong>Item {{ i + 1 }} *</strong
+          ><span *ngIf="itemAtendeRegraContains(v, item)" class="match-badge"
+            >corresponde a contains</span
+          >
+        </div>
+        <ng-container
+          *ngTemplateOutlet="renderizarFilho; context: criarCampoDoItem(v, i, item)"
+        ></ng-container>
+        <div class="array-item-actions">
+          <button
+            *ngIf="!possuiTupla(v)"
+            type="button"
+            class="secondary"
+            [disabled]="i === 0 || v.readOnly"
+            (click)="moverItem(i, -1)"
+          >
+            ↑
+          </button>
+          <button
+            *ngIf="!possuiTupla(v)"
+            type="button"
+            class="secondary"
+            [disabled]="i === valorLista.length - 1 || v.readOnly"
+            (click)="moverItem(i, 1)"
+          >
+            ↓
+          </button>
+          <button
+            type="button"
+            class="secondary danger"
+            [disabled]="v.readOnly || valorLista.length <= (v.minItems || 0)"
+            (click)="removerItem(i)"
+          >
+            Remover
+          </button>
+        </div>
+      </div>
+      <div class="array-footer-actions">
+        <span></span
+        ><button
+          type="button"
+          [disabled]="v.readOnly || !podeAdicionarItem(v)"
+          (click)="adicionarItem(v)"
+        >
+          + Adicionar item
+        </button>
+      </div>
+    </ng-template>
+
+    <p class="muted" *ngIf="v.minItems !== undefined || v.maxItems !== undefined">
+      <ng-container *ngIf="v.minItems !== undefined">Mínimo: {{ v.minItems }}</ng-container
+      ><ng-container *ngIf="v.minItems !== undefined && v.maxItems !== undefined"> · </ng-container
+      ><ng-container *ngIf="v.maxItems !== undefined">Máximo: {{ v.maxItems }}</ng-container>
+    </p>
+    <div class="constraint-hint" *ngIf="v.contains">
+      Contains ativo<ng-container *ngIf="v.minContains !== undefined">
+        · mínimo {{ v.minContains }}</ng-container
+      ><ng-container *ngIf="v.maxContains !== undefined"> · máximo {{ v.maxContains }}</ng-container
+      >.
+    </div>
+    <p class="error" *ngIf="v.uniqueItems && possuiItensDuplicados()">Os itens devem ser únicos.</p>
+    <p class="error" *ngIf="obterPrimeiroErro(path)">{{ obterPrimeiroErro(path) }}</p>
+  </ng-container>
+  <ng-template #nullArrayState
+    ><div class="null-value-state">{{ obterRotuloDoValorNulo(s) }}</div></ng-template
+  >
+</fieldset>

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Golden Platform · Protótipo de Auditoria</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color:#18243a;background:#f5f7fb}*{box-sizing:border-box}body{margin:0}button{font:inherit;cursor:pointer}header{background:#12213a;color:white;padding:20px max(24px,calc((100vw - 1100px)/2));display:flex;align-items:center;justify-content:space-between;gap:12px}header strong{font-size:20px}header small{display:block;color:#c1cce0;margin-top:4px}.demo{border:1px solid #52637c;border-radius:100px;padding:5px 12px;font-size:12px}main{max-width:1100px;margin:28px auto;padding:0 20px}.tabs{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap}.tabs button,.ghost{background:white;border:1px solid #d7dfea;border-radius:9px;padding:11px 17px;color:#334155}.tabs button.active{background:#193a73;color:white;border-color:#193a73}.panel{background:white;border:1px solid #e0e7f0;border-radius:14px;padding:24px;box-shadow:0 4px 20px #1c32500b}h1{font-size:23px;margin:0 0 7px}h2{font-size:18px;margin:24px 0 14px}p{color:#64748b;margin:0 0 20px}.timeline{border-left:2px solid #e2e8f0;margin-left:14px;padding-left:24px}.event{position:relative;border:1px solid #e2e8f0;border-radius:11px;padding:17px;margin:0 0 16px;background:white}.event:before{content:"";position:absolute;left:-33px;top:22px;width:14px;height:14px;background:#dce8ff;border:3px solid white;border-radius:50%;box-shadow:0 0 0 1px #b4c7e9}.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.meta{color:#64748b;font-size:13px;margin-top:7px}.tag{display:inline-block;border-radius:99px;padding:5px 10px;background:#edf2fa;color:#37537d;font-size:12px;font-weight:700}.tag.green{background:#e6f7ee;color:#177245}.tag.blue{background:#e8f0ff;color:#1c4a96}.primary{border:0;background:#1d4c91;color:white;padding:10px 14px;border-radius:8px;font-weight:600}.secondary{background:white;border:1px solid #bfd0e7;color:#1d4c91;padding:9px 13px;border-radius:8px}.linked{border-top:1px solid #e2e8f0;margin-top:15px;padding-top:13px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.stat{background:#f4f7fc;border-radius:10px;padding:15px}.stat small{display:block;color:#64748b;margin-bottom:7px}.stat strong{font-size:17px}.resources{display:grid;gap:11px}.resource{border:1px solid #e2e8f0;border-radius:10px;padding:15px}.resource .top{margin-bottom:7px}select{padding:11px 13px;border:1px solid #cbd5e1;border-radius:8px;font:inherit;background:white;min-width:240px;max-width:100%}.selectrow{margin:20px 0}.selectrow label{display:block;margin-bottom:7px;font-size:13px;color:#64748b}.notice{font-size:13px;color:#64748b;margin-top:20px;padding:12px;background:#f4f7fc;border-radius:8px}.hidden{display:none}@media(max-width:650px){header{padding:18px}main{padding:0 12px;margin:15px auto}.panel{padding:16px}.summary{grid-template-columns:repeat(2,1fr)}h1{font-size:20px}.linked{align-items:flex-start}}
+</style>
+</head>
+<body>
+<header><div><strong>Golden Platform</strong><small>Auditoria · Protótipo navegável</small></div><span class="demo">DEMO · dados fictícios</span></header>
+<main>
+<nav class="tabs" aria-label="Visões de auditoria"><button id="tab-motor" class="active" onclick="show('motor')">Motor de promoção</button><button id="tab-feature" onclick="show('feature')">Histórico da feature</button></nav>
+<section class="panel" id="motor"><h1>Eventos do motor de promoção</h1><p>Pacote PKG-1042 · Histórico de atividades e publicações</p>
+<div class="timeline">
+<article class="event"><div class="top"><strong>Pacote criado</strong><span class="tag">EV-1001</span></div><div class="meta">10/11/2026 · 10:15 · Ana · PKG-1042</div><div class="meta">Criação do pacote de publicação.</div></article>
+<article class="event"><div class="top"><strong>Pacote atualizado</strong><span class="tag">EV-1002</span></div><div class="meta">10/11/2026 · 11:08 · Ana · PKG-1042</div><div class="meta">Três recursos adicionados ao pacote.</div></article>
+<article class="event"><div class="top"><strong>Publicação concluída</strong><span class="tag green">EV-1003 · SUCESSO</span></div><div class="meta">10/11/2026 · 14:32 · DEV → HML · PKG-1042</div><div class="linked"><div><strong>Operação OP-2026-00842</strong><div class="meta">3 eventos de features associados</div></div><button class="primary" onclick="show('operation','motor')">Ver detalhes da operação →</button></div></article>
+</div></section>
+<section class="panel hidden" id="feature"><h1>Histórico da feature</h1><p>Eventos do recurso por ambiente e revisão, incluindo publicações originadas no motor.</p>
+<div class="selectrow"><label for="resource">Selecione um recurso</label><select id="resource" onchange="renderFeature()"><option value="PARAM-001">api.timeout · PARAM-001</option><option value="PARAM-002">cache.enabled · PARAM-002</option><option value="PARAM-003">retry.limit · PARAM-003</option></select></div>
+<div id="feature-events" class="timeline"></div></section>
+<section class="panel hidden" id="operation"><button class="ghost" onclick="back()">← Voltar</button><h1 style="margin-top:20px">Detalhes da operação</h1><p>OP-2026-00842 · Publicação do pacote PKG-1042</p>
+<div class="summary"><div class="stat"><small>Status</small><strong>Concluída</strong></div><div class="stat"><small>Origem → Destino</small><strong>DEV → HML</strong></div><div class="stat"><small>Data</small><strong>10/11 · 14:32</strong></div><div class="stat"><small>Resultados</small><strong>3 sucessos</strong></div></div>
+<h2>Eventos das features associados</h2><div id="operation-resources" class="resources"></div><div class="notice">O evento do motor referencia esta operação. Os eventos das features também referenciam a mesma operação por operationId. O histórico não é duplicado.</div>
+</section>
+</main>
+<script>
+const operation={id:'OP-2026-00842',package:'PKG-1042',resources:[
+{id:'PARAM-001',name:'api.timeout',revision:3,event:'EV-3021'},
+{id:'PARAM-002',name:'cache.enabled',revision:2,event:'EV-3022'},
+{id:'PARAM-003',name:'retry.limit',revision:5,event:'EV-3023'}]};
+const history={
+'PARAM-001':[{id:'EV-2001',action:'CRIADA',date:'07/11 · 09:15',env:'DEV',revision:1,desc:'Valor inicial configurado'},{id:'EV-2002',action:'ATUALIZADA',date:'08/11 · 16:40',env:'DEV',revision:2,desc:'Timeout alterado para 20 segundos'},{id:'EV-2003',action:'ATUALIZADA',date:'09/11 · 11:05',env:'DEV',revision:3,desc:'Timeout alterado para 30 segundos'}],
+'PARAM-002':[{id:'EV-2011',action:'CRIADA',date:'07/11 · 10:00',env:'DEV',revision:1,desc:'Parâmetro criado'},{id:'EV-2012',action:'ATUALIZADA',date:'09/11 · 09:40',env:'DEV',revision:2,desc:'Cache habilitado'}],
+'PARAM-003':[{id:'EV-2021',action:'CRIADA',date:'06/11 · 15:20',env:'DEV',revision:1,desc:'Parâmetro criado'},{id:'EV-2022',action:'ATUALIZADA',date:'09/11 · 12:15',env:'DEV',revision:5,desc:'Limite de tentativas atualizado'}]};
+let returnView='motor';
+function show(id,origin){if(id==='operation')returnView=origin||returnView;for(const name of ['motor','feature','operation'])document.getElementById(name).classList.toggle('hidden',name!==id);for(const name of ['motor','feature'])document.getElementById('tab-'+name).classList.toggle('active',name===(id==='operation'?returnView:id));if(id==='feature')renderFeature();window.scrollTo({top:0,behavior:'smooth'});}
+function back(){show(returnView)}
+function openResource(id){document.getElementById('resource').value=id;show('feature')}
+function renderFeature(){const id=document.getElementById('resource').value;const r=operation.resources.find(x=>x.id===id);const entries=[...history[id],{id:r.event,action:'PUBLICADA',date:'10/11 · 14:32',env:'HML',revision:r.revision,desc:'Publicada pelo pacote PKG-1042',operation:operation.id}].reverse();document.getElementById('feature-events').innerHTML=entries.map(e=>'<article class="event"><div class="top"><strong>'+e.action+'</strong><span class="tag '+(e.operation?'green':'')+'">'+e.env+'</span></div><div class="meta">'+e.desc+'</div><div class="meta">Revisão '+e.revision+' · '+e.id+' · '+e.date+'</div>'+(e.operation?'<div class="linked"><div><strong>Originado pela operação '+e.operation+'</strong><div class="meta">Pacote PKG-1042</div></div><button class="primary" onclick="show(\'operation\',\'feature\')">Ver operação →</button></div>':'')+'</article>').join('')}
+document.getElementById('operation-resources').innerHTML=operation.resources.map(r=>'<article class="resource"><div class="top"><strong>'+r.name+'</strong><span class="tag green">PUBLICADA</span></div><div class="meta">'+r.id+' · Revisão '+r.revision+' · '+r.event+' · HML</div><div style="margin-top:12px"><button class="secondary" onclick="openResource(\''+r.id+'\')">Ver histórico da feature →</button></div></article>').join('');
+renderFeature();
+</script>
+</body></html>

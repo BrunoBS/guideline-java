@@ -1,0 +1,69 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.structure-section {
+  border-top: 1px solid #d8dee8;
+  padding: 12px 0;
+}
+summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  min-width: 0;
+}
+input,
+select,
+textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+}
+textarea {
+  min-height: 100px;
+  font-family: monospace;
+  resize: vertical;
+}
+.structure-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.structure-entry {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  min-width: 0;
+}
+.structure-entry > span {
+  margin-inline: 8px;
+  overflow-wrap: anywhere;
+}
+.structure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+button {
+  margin: 4px 6px 8px 0;
+}
+.advanced-section {
+  margin-top: 12px;
+}
+@media (max-width: 700px) {
+  .structure-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .structure-entry {
+    padding: 8px;
+  }
+}

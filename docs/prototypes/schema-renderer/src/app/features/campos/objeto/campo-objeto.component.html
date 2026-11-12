@@ -1,0 +1,235 @@
+<fieldset [disabled]="v.readOnly" [class.invalid-fieldset]="campoEstaInvalido(path)">
+  <legend *ngIf="!suppressHeading">
+    {{ v.title || name || 'Objeto' }}
+    <span
+      *ngIf="v.description"
+      class="field-info"
+      tabindex="0"
+      [attr.aria-label]="v.description"
+      [title]="v.description"
+      >ⓘ</span
+    >
+  </legend>
+  <div class="container-nullable-row" *ngIf="exibirControleDeNulo(s)">
+    <label *ngIf="exibirControleDeNulo(s)" class="value-state-selector">
+      <span>Preenchimento</span>
+      <select
+        [ngModel]="obterEstadoDoValor()"
+        [disabled]="v.readOnly"
+        (ngModelChange)="alterarEstadoDoValor($event, s)"
+      >
+        <option *ngIf="!required" value="ausente">Não informar</option>
+        <option *ngIf="permitePreenchimento(s)" value="preenchido">Preencher</option>
+        <option *ngIf="permiteValorNulo(s)" value="nulo">Nulo (null)</option>
+      </select>
+    </label>
+  </div>
+
+  <ng-container *ngIf="!valorSemPreenchimento(); else nullObjectState">
+    <div class="annotation-row" *ngIf="v.readOnly || v.writeOnly">
+      <span *ngIf="v.readOnly">Somente leitura</span
+      ><span *ngIf="v.writeOnly">Somente escrita</span>
+    </div>
+
+    <section *ngFor="let group of listarGruposVisuais(v)" class="visual-form-group">
+      <h3>{{ group.title || 'Grupo' }}</h3>
+      <p *ngIf="group.description">{{ group.description }}</p>
+      <div *ngFor="let key of group.fields" class="field">
+        <ng-container *ngIf="v.properties?.[key] && campoEstaVisivel(key)"
+          ><ng-container
+            *ngTemplateOutlet="renderizarFilho; context: criarCampoDaPropriedade(v, key)"
+          ></ng-container
+        ></ng-container>
+      </div>
+    </section>
+    <div
+      *ngFor="let item of listarCamposVisiveisSemGrupo(v); trackBy: identificarChave"
+      class="field"
+    >
+      <ng-container
+        *ngTemplateOutlet="renderizarFilho; context: criarCampoDaPropriedade(v, item[0])"
+      ></ng-container>
+    </div>
+
+    <section class="additional-properties-section" *ngIf="possuiPropriedadesDinamicas(v)">
+      <div class="additional-properties-heading">
+        <div>
+          <strong>Campos adicionais</strong>
+          <div class="muted">{{ descreverPropriedadesDinamicas(v) }}</div>
+        </div>
+        <span class="property-count"
+          >{{ quantidadeDePropriedades
+          }}<ng-container *ngIf="v.maxProperties !== undefined">
+            / {{ v.maxProperties }}</ng-container
+          ></span
+        >
+      </div>
+
+      <div
+        *ngFor="let item of listarPropriedadesDinamicas(v); trackBy: identificarChave"
+        class="array-item map-item"
+        [style.grid-template-columns]="
+          ehEstruturaJsonDinamica(v, item[0], item[1])
+            ? 'minmax(180px,1fr) minmax(140px,.45fr) auto'
+            : null
+        "
+      >
+        <div
+          *ngIf="propriedadeDinamicaPermiteNulo(v, item[0])"
+          style="
+            grid-column: 1/-1;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-bottom: -2px;
+          "
+        >
+          <label
+            class="nullable-toggle"
+            style="position: relative; right: auto; top: auto"
+            title="Definir como nulo"
+          >
+            <span>Definir como nulo</span>
+            <input
+              type="checkbox"
+              [checked]="item[1] === null"
+              [disabled]="v.readOnly"
+              (change)="definirPropriedadeDinamicaNula(v, item[0], $any($event.target).checked)"
+            />
+            <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+          </label>
+        </div>
+
+        <div class="map-key">
+          <label>Chave</label>
+          <input
+            type="text"
+            [value]="item[0]"
+            [disabled]="v.readOnly"
+            (change)="renomearChaveDinamica(v, item[0], $any($event.target).value)"
+          />
+          <p class="error" *ngIf="obterErroDaChave(v, item[0])">
+            {{ obterErroDaChave(v, item[0]) }}
+          </p>
+        </div>
+
+        <div class="map-type">
+          <label>Tipo</label>
+          <select
+            *ngIf="listarTiposDinamicos(v, item[0]).length > 1; else staticDynamicType"
+            [ngModel]="obterTipoDinamicoAtivo(v, item[0], item[1])"
+            [disabled]="v.readOnly || item[1] === null"
+            (ngModelChange)="alterarTipoDinamico(v, item[0], $event)"
+          >
+            <option *ngFor="let type of listarTiposDinamicos(v, item[0])" [ngValue]="type">
+              {{ obterRotuloDoTipo(type) }}
+            </option>
+          </select>
+          <ng-template #staticDynamicType>
+            <div class="map-type-static">
+              {{ obterRotuloDoTipo(obterTipoDinamicoAtivo(v, item[0], item[1])) }}
+            </div>
+          </ng-template>
+        </div>
+
+        <div class="map-value" *ngIf="!ehEstruturaJsonDinamica(v, item[0], item[1])">
+          <div class="null-value-state" *ngIf="item[1] === null; else dynamicTypedValue">
+            Valor definido como <code>null</code>.
+          </div>
+          <ng-template #dynamicTypedValue>
+            <ng-container
+              *ngTemplateOutlet="renderizarFilho; context: criarCampoDinamico(v, item[0], item[1])"
+            ></ng-container>
+          </ng-template>
+        </div>
+
+        <div class="map-action">
+          <button
+            type="button"
+            class="secondary danger"
+            [disabled]="v.readOnly || !podeRemoverPropriedade(v)"
+            (click)="removerChaveDinamica(v, item[0])"
+          >
+            Remover
+          </button>
+        </div>
+
+        <div
+          *ngIf="ehEstruturaJsonDinamica(v, item[0], item[1])"
+          style="grid-column: 1/-1; margin-top: 4px"
+        >
+          <ng-container *ngIf="item[1] !== null; else dynamicNullState">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                margin-bottom: 6px;
+              "
+            >
+              <label style="margin: 0">Valor (JSON)</label>
+              <span class="muted">{{
+                obterTipoDinamicoAtivo(v, item[0], item[1]) === 'array'
+                  ? 'Informe uma lista JSON.'
+                  : 'Informe um objeto JSON.'
+              }}</span>
+            </div>
+            <textarea
+              class="json-value-editor"
+              style="min-height: 150px"
+              [class.invalid-json-editor]="!!obterErroJsonDinamico(item[0])"
+              [value]="obterTextoJsonDinamico(v, item[0], item[1])"
+              [disabled]="v.readOnly"
+              (input)="aoEditarJsonDinamico(v, item[0], $any($event.target).value)"
+              [placeholder]="obterExemploJsonDinamico(v, item[0], item[1])"
+            ></textarea>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                margin-top: 8px;
+              "
+            >
+              <span class="success" *ngIf="!obterErroJsonDinamico(item[0])">✓ JSON válido</span>
+              <span class="error" *ngIf="obterErroJsonDinamico(item[0])">{{
+                obterErroJsonDinamico(item[0])
+              }}</span>
+              <button
+                type="button"
+                class="secondary"
+                style="margin: 0"
+                [disabled]="v.readOnly"
+                (click)="formatarJsonDinamico(v, item[0], item[1])"
+              >
+                Formatar JSON
+              </button>
+            </div>
+          </ng-container>
+          <ng-template #dynamicNullState
+            ><div class="null-value-state">Valor definido como <code>null</code>.</div></ng-template
+          >
+        </div>
+      </div>
+
+      <div class="array-footer-actions">
+        <span class="muted" *ngIf="v.minProperties !== undefined"
+          >Mínimo de {{ v.minProperties }} propriedades.</span
+        ><button
+          type="button"
+          [disabled]="v.readOnly || !podeAdicionarPropriedade(v)"
+          (click)="adicionarPropriedadeDinamica(v)"
+        >
+          + Adicionar campo
+        </button>
+      </div>
+    </section>
+
+    <p class="error" *ngIf="obterPrimeiroErro(path)">{{ obterPrimeiroErro(path) }}</p>
+  </ng-container>
+  <ng-template #nullObjectState
+    ><div class="null-value-state">{{ obterRotuloDoValorNulo(s) }}</div></ng-template
+  >
+</fieldset>

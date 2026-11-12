@@ -1,0 +1,42 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.when-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid #dce4ef;
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.when-actions .builder-help {
+  flex: 1 1 220px;
+  margin: 0;
+}
+.when-actions button {
+  margin: 0;
+}
+.when-actions .apply-when {
+  background: #2455b5;
+  color: #fff;
+  border: 1px solid #2455b5;
+}
+.when-actions .discard-when {
+  background: #fff;
+  color: #2455b5;
+  border: 1px solid #b8c9df;
+}
+@media (max-width: 600px) {
+  .when-actions button {
+    flex: 1 1 160px;
+  }
+}
+
+.when-actions button:focus-visible {
+  outline: 2px solid #2455b5;
+  outline-offset: 2px;
+  box-shadow: none;
+}

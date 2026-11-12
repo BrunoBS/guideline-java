@@ -1,0 +1,10 @@
+<input
+  type="number"
+  [step]="schema.multipleOf || (obterTipoPrincipal(schema) === 'integer' ? 1 : 'any')"
+  [attr.min]="schema.minimum ?? null"
+  [attr.max]="schema.maximum ?? null"
+  [disabled]="schema.readOnly"
+  [value]="value ?? ''"
+  [placeholder]="obterExemploDoCampo(schema)"
+  (change)="aoEditarNumero($any($event.target), schema)"
+/>
