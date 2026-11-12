@@ -1,9 +1,11 @@
-name: Deploy Audit MFE prototype to GitHub Pages
+name: Deploy all prototypes to GitHub Pages
 on:
   push:
-    branches: [main]
+    branches: [main, feature/poc-schema-renderer]
     paths:
-      - 'docs/prototypes/audit-mfe/**'
+      - 'docs/prototypes/**'
+      - 'docs/tse/**'
+      - 'tse/**'
       - '.github/workflows/deploy-audit-mfe-pages.yml'
   workflow_dispatch:
 permissions:
@@ -20,13 +22,56 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v4
-      - name: Prepare site
+        with:
+          ref: main
+          path: source
+      - name: Checkout Schema Renderer POC
+        uses: actions/checkout@v4
+        with:
+          ref: feature/poc-schema-renderer
+          path: schema-source
+      - name: Prepare all sites
+        shell: bash
         run: |
-          mkdir -p _site/audit-mfe
-          cp docs/prototypes/audit-mfe/index.html _site/audit-mfe/index.html
+          set -euo pipefail
+          mkdir -p _site
+          # Preserve each prototype directory and all its relative assets.
+          if [ -d source/docs/prototypes ]; then
+            for dir in source/docs/prototypes/*; do
+              [ -d "$dir" ] || continue
+              cp -a "$dir" "_site/$(basename "$dir")"
+            done
+          fi
+          # Publish the TSE dashboard under its own stable path.
+          if [ -d source/docs/tse ]; then
+            cp -a source/docs/tse _site/tse
+          elif [ -d source/tse ]; then
+            cp -a source/tse _site/tse
+          fi
+          # Keep the Schema Renderer independent from the MFE deployment.
+          # Discover its entrypoint on the dedicated POC branch.
+          mapfile -d '' candidates < <(find schema-source -type f -name index.html -not -path '*/.git/*' -print0)
+          if [ "${#candidates[@]}" -eq 1 ]; then
+            mkdir -p _site/schema-renderer
+            cp -a "$(dirname "${candidates[0]}")/." _site/schema-renderer/
+          elif [ "${#candidates[@]}" -gt 1 ]; then
+            echo "::warning::Multiple Schema Renderer entrypoints; choose the correct source before publishing it."
+            printf '%s\n' "${candidates[@]}"
+          else
+            echo "::warning::No index.html found on the Schema Renderer POC branch."
+          fi
           touch _site/.nojekyll
+          python3 - <<'PY'
+          from pathlib import Path
+          from html import escape
+          entries = sorted(p.name for p in Path('_site').iterdir() if p.is_dir() and (p/'index.html').exists())
+          links = ''.join(f'<li><a href="{escape(name)}/">{escape(name)}</a></li>' for name in entries)
+          Path('_site/index.html').write_text(
+              '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Protótipos Golden</title>'
+              '<h1>Protótipos Golden</h1><ul>'+links+'</ul></html>', encoding='utf-8')
+          PY
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
